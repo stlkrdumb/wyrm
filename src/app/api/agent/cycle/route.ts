@@ -75,6 +75,27 @@ export async function GET(request: NextRequest) {
 
   console.log(`[API] GET /api/agent/cycle — status=${currentState.status} equity=$${Math.round(currentState.portfolio.equity).toLocaleString()} symbols=${Object.keys(tickersMap).join(",")}`);
 
+  // Build positions with live unrealized PnL from current ticker prices
+  const livePositions = currentState.positions.map((p) => {
+    const symTicker = tickersMap[p.symbol];
+    let unrealizedPnL = p.unrealizedPnL; // fallback to stored value
+
+    if (symTicker && symTicker.lastPrice && p.entryPrice > 0) {
+      if (p.side === "long") {
+        unrealizedPnL = Math.round((symTicker.lastPrice - p.entryPrice) * p.size);
+      }
+      // For shorts: unrealizedPnL = (entryPrice - currentPrice) * size
+    }
+
+    return {
+      symbol: p.symbol,
+      side: p.side,
+      size: p.size,
+      entryPrice: p.entryPrice,
+      unrealizedPnL,
+    };
+  });
+
   return NextResponse.json({
     status: currentState.status,
     lastCycleAt: currentState.lastCycleAt?.toISOString() ?? null,
@@ -99,10 +120,7 @@ export async function GET(request: NextRequest) {
       winRate: currentState.portfolio.winRate,
       totalPnL: Math.round(currentState.portfolio.totalPnL),
     },
-    positions: currentState.positions.map((p) => ({
-      symbol: p.symbol, side: p.side, size: p.size,
-      entryPrice: p.entryPrice, unrealizedPnL: p.unrealizedPnL,
-    })),
+    positions: livePositions,
     trades: currentState.trades.map((t) => ({
       id: t.id, timestamp: t.timestamp.toISOString(), symbol: t.symbol, side: t.side,
       action: t.action, size: t.size, price: Math.round(t.price), pnl: t.pnl ?? null,

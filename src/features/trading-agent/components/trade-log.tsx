@@ -67,6 +67,9 @@ function TradeRow({ trade }: { trade: TradeData }) {
   const pnlDisplay = trade.pnl !== null;
   const pnlPositive = trade.pnl !== null && trade.pnl >= 0;
 
+  // Extract base currency from symbol (e.g. BTCUSDT → BTC, ETHBTC → ETH)
+  const quoteCurrency = trade.symbol.replace(/[A-Z]{4}$/, "") || "USD";
+
   return (
     <div className="group rounded-lg bg-zinc-800/40 hover:bg-zinc-800/70 border border-transparent hover:border-zinc-700/50 p-3 transition-all">
       {/* Top row: symbol + badge */}
@@ -81,7 +84,7 @@ function TradeRow({ trade }: { trade: TradeData }) {
       {/* Bottom row: price × size */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-xs tabular-nums text-zinc-400">
-          <span>Qty: {trade.size.toFixed(4)} BTC</span>
+          <span>Qty: {trade.size.toFixed(4)} {quoteCurrency}</span>
           <span className="text-zinc-600">@</span>
           <span>${trade.price.toLocaleString()}</span>
         </div>
