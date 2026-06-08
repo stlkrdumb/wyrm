@@ -17,14 +17,20 @@ function formatRelative(dateStr: string): string {
 }
 
 function ActionBadge({ action }: { action: string }) {
-  const style = {
-    entry: "bg-amber-500/20 text-amber-400",
-    exit: "bg-red-500/20 text-red-400",
+  const label: Record<string, string> = {
+    entry: "Buy",
+    exit: "Sell",
+    add: "Buy More",
+    reduce: "Partial Sell",
+  };
+  const style: Record<string, string> = {
+    entry: "bg-emerald-500/20 text-emerald-400",
     add: "bg-emerald-500/20 text-emerald-400",
+    exit: "bg-red-500/20 text-red-400",
     reduce: "bg-orange-500/20 text-orange-400",
-  }[action] || "bg-zinc-700 text-zinc-400";
+  };
 
-  return <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${style}`}>{action}</span>;
+  return <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${style[action] || "bg-zinc-700 text-zinc-400"}`}>{label[action] ?? action}</span>;
 }
 
 export function TradeLog({ trades, portfolio }: Props) {
@@ -67,9 +73,6 @@ function TradeRow({ trade }: { trade: TradeData }) {
       <div className="flex items-center justify-between mb-1.5">
         <div className="flex items-center gap-2">
           <span className="font-medium text-zinc-100 text-sm">{trade.symbol}</span>
-          <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${isBuy ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"}`}>
-            {trade.side.toUpperCase()}
-          </span>
           <ActionBadge action={trade.action} />
         </div>
         <span className="text-[10px] text-zinc-600">{formatRelative(trade.timestamp)}</span>
@@ -78,9 +81,9 @@ function TradeRow({ trade }: { trade: TradeData }) {
       {/* Bottom row: price × size */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-xs tabular-nums text-zinc-400">
+          <span>Qty: {trade.size.toFixed(4)} BTC</span>
+          <span className="text-zinc-600">@</span>
           <span>${trade.price.toLocaleString()}</span>
-          <span className="text-zinc-600">×</span>
-          <span>{trade.size.toFixed(4)}</span>
         </div>
 
         {pnlDisplay && (
