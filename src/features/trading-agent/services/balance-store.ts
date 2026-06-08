@@ -10,6 +10,7 @@ const STORE_PATH = path.join(
 
 export interface PortfolioState {
   initialCash: number;       // config value (never changes)
+  startCash: number;         // equity at last reset/start point (for correct PnL)
   cash: number;              // liquid balance
   accumulatedRealizedPnL: number; // all realized PnL from closed trades
   positions: Array<{        // open positions at last save
@@ -32,7 +33,11 @@ export function loadBalanceState(): PortfolioState | null {
     if (!fs.existsSync(STORE_PATH)) return null;
     const raw = fs.readFileSync(STORE_PATH, "utf-8");
     const state = JSON.parse(raw) as PortfolioState;
-    console.log(`[Balance] Loaded from disk — cash: $${state.cash.toLocaleString()}, realized PnL: ${state.accumulatedRealizedPnL >= 0 ? "+" : ""}$${state.accumulatedRealizedPnL}, positions: ${state.positions.length}`);
+    // Backward compat: if startCash missing, derive from cash
+    if (state.startCash === undefined) {
+      state.startCash = state.cash;
+    }
+    console.log(`[Balance] Loaded from disk — cash: $${state.cash.toLocaleString()}, startCash: $${state.startCash}, realized PnL: ${state.accumulatedRealizedPnL >= 0 ? "+" : ""}$${state.accumulatedRealizedPnL}, positions: ${state.positions.length}`);
     return state;
   } catch {
     return null;
@@ -51,6 +56,7 @@ export function saveBalanceState(state: PortfolioState): void {
 export function resetBalanceState(initialCash: number): PortfolioState {
   const state: PortfolioState = {
     initialCash,
+    startCash: initialCash,
     cash: initialCash,
     accumulatedRealizedPnL: 0,
     positions: [],

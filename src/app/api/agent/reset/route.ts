@@ -14,6 +14,7 @@ export async function POST(request: NextRequest) {
 
     const fresh: PortfolioState = {
       initialCash,
+      startCash: initialCash,
       cash: initialCash,
       accumulatedRealizedPnL: 0,
       positions: [],

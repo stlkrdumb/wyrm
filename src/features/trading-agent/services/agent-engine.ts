@@ -20,6 +20,7 @@ interface AgentState {
   portfolio: PortfolioSnapshot;
   positions: Position[];
   trades: Trade[];
+  startEquity: number; // equity baseline for correct PnL across restarts
 }
 
 export const config = {
@@ -64,6 +65,9 @@ function buildInitialState(): AgentState {
     cash = config.initialCash;
   }
 
+  // Track the equity baseline for correct PnL calculation across sessions
+  const startEquity = saved?.startCash ?? saved?.cash ?? config.initialCash;
+
   return {
     status: "stopped",
     lastCycleAt: null,
@@ -81,8 +85,9 @@ function buildInitialState(): AgentState {
       positions: [],
       totalTrades: saved?.totalTrades || 0,
       winRate: saved?.winRate || 0,
-      totalPnL: saved ? realizedPnL : 0,
+      totalPnL: Math.round(realizedPnL), // accurate from saved state
     },
+    startEquity: startEquity, // baseline for session PnL across restarts
   };
 }
 
@@ -161,11 +166,12 @@ export async function flattenPositions(): Promise<{ closed: number; totalPnlReal
   state.positions = [];
 
   const realEquity = state.portfolio.cash; // no open positions, equity = cash
-  state.portfolio = { ...state.portfolio, timestamp: new Date(), equity: realEquity, positions: [], totalPnL: realEquity - config.initialCash };
+  state.portfolio = { ...state.portfolio, timestamp: new Date(), equity: realEquity, positions: [], totalPnL: realEquity - state.startEquity };
 
   // Persist — flattened balance is now the new running balance
   saveBalanceState({
     initialCash: config.initialCash,
+    startCash: Math.round(realEquity), // update baseline after flatten
     cash: Math.round(state.portfolio.cash),
     accumulatedRealizedPnL: state.portfolio.totalPnL,
     positions: [],
@@ -340,13 +346,14 @@ export async function runAgentCycle(): Promise<{ decision: TradingDecision; sign
     cash: Math.round(liquidBalance),
     equity: Math.round(realEquity),
     positions: [...state.positions],
-    totalPnL: realEquity - config.initialCash,
+    totalPnL: Math.round(realEquity - state.startEquity), // correct PnL from session baseline
   };
 
   // Persist state to disk — so it survives server restart
   const savedPositions = state.positions.map(p => ({ symbol: p.symbol, side: p.side as "long" | "short", size: p.size, entryPrice: p.entryPrice }));
   saveBalanceState({
     initialCash: config.initialCash,
+    startCash: Math.round(state.startEquity), // persist baseline
     cash: Math.round(liquidBalance),
     accumulatedRealizedPnL: state.portfolio.totalPnL,
     positions: savedPositions,
