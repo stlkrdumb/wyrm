@@ -39,20 +39,22 @@ export function PositionsPanel({ positions, tickers }: Props) {
           </thead>
           <tbody>
             {positions.map((p) => {
-              // Look up per-symbol ticker instead of using a single global ticker
+              // Look up per-symbol ticker for current price and value
               const symTicker = tickers?.[p.symbol];
               const currentPrice = symTicker?.lastPrice ?? p.entryPrice; // fallback to entry if no live price
               const currentValue = p.size * currentPrice;
-              const costBasis = p.size * p.entryPrice;
-              const unrealizedPnl = currentValue - costBasis;
+
+              // Use backend-provided unrealizedPnL as primary, calculate as fallback
+              const displayedPnl = p.unrealizedPnL !== undefined ? p.unrealizedPnL : currentValue - (p.size * p.entryPrice);
+
               return (
                 <tr key={p.symbol} className="border-b border-zinc-800/50 last:border-0">
                   <td className="py-2 font-medium text-zinc-100">{p.symbol}</td>
                   <td className="py-2 text-right tabular-nums text-zinc-300">{p.size.toFixed(4)}</td>
                   <td className="py-2 text-right tabular-nums text-zinc-400">${p.entryPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
                   <td className="py-2 text-right tabular-nums text-zinc-200 font-medium">${currentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                  <td className={`py-2 text-right tabular-nums font-medium ${unrealizedPnl >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                    {unrealizedPnl >= 0 ? "+" : ""}${unrealizedPnl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  <td className={`py-2 text-right tabular-nums font-medium ${displayedPnl >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                    {displayedPnl >= 0 ? "+" : ""}${Math.abs(displayedPnl).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </td>
                 </tr>
               );

@@ -386,3 +386,8 @@ export async function setAgentStatus(s: "running" | "stopped" | "paused"): Promi
 
   return result as { closed?: number; realizedPnl?: number };
 }
+
+// ─── Initialize WebSocket subscriptions on module load ──────────────
+initWebSocketSubscriptions().catch((err) => {
+  console.warn(`[Agent] WS init failed (will fall back to REST):`, err instanceof Error ? err.message : String(err));
+});
