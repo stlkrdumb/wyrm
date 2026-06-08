@@ -44,7 +44,7 @@ const POLL_MS = 3000;
 export function useAgent() {
   const [state, setState] = useState<AgentState>(lastKnownState ?? {
     status: "stopped", lastCycleAt: null, ticker: null, decision: null, executionReason: "",
-    signals: [], portfolio: { cash: 100000, equity: 100000, initialCash: 100000, totalTrades: 0, winRate: 0, totalPnL: 0 }, positions: [], trades: [],
+    signals: [], portfolio: { cash: 1000, equity: 1000, initialCash: 1000, totalTrades: 0, winRate: 0, totalPnL: 0 }, positions: [], trades: [],
   });
 
   // Stable fetch function — only recreates if URL changes

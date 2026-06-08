@@ -5,19 +5,20 @@ import { Card, CardHeader, CardTitle } from "@/shared/ui";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import type { PortfolioData, TickerData } from "../hooks/use-agent";
 
+// Default initial cash — must match SIM_INITIAL_CASH in .env.local
+const DEFAULT_INITIAL_CASH = 1000;
+
 interface Props {
   portfolio: PortfolioData;
   ticker: TickerData | null;
 }
 
 export function EquityChart({ portfolio, ticker }: Props) {
-  const initialCash = useMemo(() => portfolio.initialCash || 100000, [portfolio.initialCash]);
-  const currentEquity = useMemo(() => portfolio.equity || portfolio.cash + (ticker ? 0 : 0), [portfolio, ticker]);
+  // Use initialCash from API data — fall back to default if not set yet
+  const initialCash = useMemo(() => portfolio.initialCash ?? DEFAULT_INITIAL_CASH, [portfolio.initialCash]);
+  const currentEquity = useMemo(() => portfolio.equity ?? portfolio.cash, [portfolio, ticker]);
   const change = currentEquity - initialCash;
-  const changePercent = ((change / initialCash) * 100).toFixed(2);
-
-  const btcPrice = ticker?.lastPrice ?? null;
-  const btcChange = ticker?.change24hPercent ?? 0;
+  const changePercent = change !== 0 ? ((change / Math.max(initialCash, 1)) * 100).toFixed(2) : "0.00";
 
   // Generate chart data from trade history or initial state
   const chartData = useMemo(() => {
@@ -25,7 +26,7 @@ export function EquityChart({ portfolio, ticker }: Props) {
       // No trades yet — show flat line at initial cash
       return Array.from({ length: 48 }, (_, i) => ({
         time: `${(i % 24).toString().padStart(2, "0")}:00`,
-        equity: portfolio.initialCash || initialCash,
+        equity: initialCash,
       }));
     }
 
@@ -34,12 +35,12 @@ export function EquityChart({ portfolio, ticker }: Props) {
       const progress = i / (portfolio.totalTrades || 1);
       return {
         time: `${(i % 24).toString().padStart(2, "0")}:00`,
-        equity: 100000 + change * progress + (Math.random() - 0.5) * Math.abs(change) * 0.3,
+        equity: initialCash + change * progress + (Math.random() - 0.5) * Math.abs(change) * 0.3,
       };
     });
-  }, [portfolio.totalTrades, portfolio.cash, change]);
+  }, [portfolio.totalTrades, portfolio.cash, change, initialCash]);
 
-  const displayEquity = ticker ? currentEquity : chartData[chartData.length - 1]?.equity || initialCash;
+  const displayEquity = ticker ? currentEquity : chartData[chartData.length - 1]?.equity ?? initialCash;
 
   return (
     <Card className="flex-1">
