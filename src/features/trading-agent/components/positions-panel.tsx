@@ -53,8 +53,11 @@ export function PositionsPanel({ positions, tickers }: Props) {
                   <td className="py-2 text-right tabular-nums text-zinc-300">{p.size.toFixed(4)}</td>
                   <td className="py-2 text-right tabular-nums text-zinc-400">${p.entryPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
                   <td className="py-2 text-right tabular-nums text-zinc-200 font-medium">${currentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                  <td className={`py-2 text-right tabular-nums font-medium ${displayedPnl >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                    {displayedPnl >= 0 ? "+" : ""}${displayedPnl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  <td className={`py-2 text-right tabular-nums font-medium ${
+                    displayedPnl === 0 ? "text-zinc-500" :
+                    displayedPnl > 0 ? "text-emerald-400" : "text-red-400"
+                  }`}>
+                    {displayedPnl === 0 ? "$0.00" : `${displayedPnl >= 0 ? "+" : ""}$${Math.abs(displayedPnl).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                   </td>
                 </tr>
               );

@@ -75,16 +75,21 @@ export async function GET(request: NextRequest) {
 
   console.log(`[API] GET /api/agent/cycle — status=${currentState.status} equity=$${Math.round(currentState.portfolio.equity).toLocaleString()} symbols=${Object.keys(tickersMap).join(",")}`);
 
-  // Build positions with live unrealized PnL from current ticker prices
+  // Build positions with live unrealized PnL from PriceStore (most current data)
   const livePositions = currentState.positions.map((p) => {
-    const symTicker = tickersMap[p.symbol];
-    let unrealizedPnL = p.unrealizedPnL; // fallback to stored value
+    const symSnapshot = allSnapshots.get(p.symbol);
+    const livePrice = symSnapshot?.lastPrice ?? tickersMap[p.symbol]?.lastPrice;
 
-    if (symTicker && symTicker.lastPrice && p.entryPrice > 0) {
+    let unrealizedPnL: number;
+    if (livePrice && p.entryPrice > 0) {
       if (p.side === "long") {
-        unrealizedPnL = Math.round((symTicker.lastPrice - p.entryPrice) * p.size);
+        unrealizedPnL = Math.round((livePrice - p.entryPrice) * p.size);
+      } else {
+        unrealizedPnL = Math.round((p.entryPrice - livePrice) * p.size);
       }
-      // For shorts: unrealizedPnL = (entryPrice - currentPrice) * size
+    } else {
+      // No live price — use stored value as fallback
+      unrealizedPnL = p.unrealizedPnL;
     }
 
     return {
