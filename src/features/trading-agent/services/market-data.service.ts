@@ -1,12 +1,47 @@
 import type { TickerData, OrderBook, Candlestick } from "../types";
+import { getProxyAgent } from "./proxy-agent";
 
 const BITGET_API = "https://api.bitget.com/api/v2/spot/market";
+const PROXY_TIMEOUT_MS = 12_000; // slightly less than non-proxy timeout for faster failover
 
-/** Generic fetch wrapper for Bitget public endpoints */
+/** Generic fetch wrapper for Bitget public endpoints (with optional proxy) */
 async function bitgetFetch<T>(path: string): Promise<T> {
-  const res = await fetch(`${BITGET_API}${path}`, {
-    signal: AbortSignal.timeout(10000),
-  });
+  const hasProxy = getProxyAgent() !== null;
+
+  // Try direct first (with proxy agent if configured)
+  try {
+    const init: RequestInit & { agent?: unknown } = {
+      signal: AbortSignal.timeout(10_000),
+      ...(hasProxy ? { agent: getProxyAgent() } : {}),
+    };
+    const res = await fetch(`${BITGET_API}${path}`, init);
+    if (!res.ok) throw new Error(`Bitget ${res.status} on ${path}`);
+    return res.json() as Promise<T>;
+  } catch {
+    // Direct failed — try proxy
+    const agent = getProxyAgent();
+    if (!hasProxy) throw new Error(`Bitget ${path} failed: no proxy available`);
+
+    const init: RequestInit & { agent?: unknown } = {
+      signal: AbortSignal.timeout(PROXY_TIMEOUT_MS),
+      agent,
+    };
+    const res = await fetch(`${BITGET_API}${path}`, init);
+    if (!res.ok) throw new Error(`Bitget ${res.status} on ${path}`);
+    return res.json() as Promise<T>;
+  }
+}
+
+/** Fetch with proxy guaranteed (for when direct is blocked) */
+async function bitgetFetchProxy<T>(path: string): Promise<T> {
+  const agent = getProxyAgent();
+  if (!agent) throw new Error("No proxy configured — check BITGET_PROXY env var");
+
+  const init: RequestInit & { agent?: unknown } = {
+    signal: AbortSignal.timeout(PROXY_TIMEOUT_MS),
+    agent,
+  };
+  const res = await fetch(`${BITGET_API}${path}`, init);
   if (!res.ok) throw new Error(`Bitget ${res.status} on ${path}`);
   return res.json() as Promise<T>;
 }
