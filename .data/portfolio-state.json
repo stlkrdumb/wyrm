@@ -1,15 +1,21 @@
 {
   "initialCash": 1000,
-  "cash": 600,
-  "accumulatedRealizedPnL": 0.08651537898117567,
+  "cash": 541,
+  "accumulatedRealizedPnL": -400.5378884716688,
   "positions": [
     {
       "symbol": "BTCUSDT",
       "side": "long",
-      "size": 0.00624653928412069,
-      "entryPrice": 64033
+      "size": 0.0004693985768148083,
+      "entryPrice": 63911.57
+    },
+    {
+      "symbol": "SOLUSDT",
+      "side": "long",
+      "size": 0.42343752430411935,
+      "entryPrice": 67.31
     }
   ],
-  "totalTrades": 174,
+  "totalTrades": 287,
   "winRate": 0
 }

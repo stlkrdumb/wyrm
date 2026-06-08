@@ -51,14 +51,16 @@ export interface WSSubscription {
 
 /** ────────────────────── Price Store import (lazy) ─ */
 
-// Use singleton from price-store.ts — no need for a second instance
 import { priceStore } from "./price-store";
 import type { PriceStore } from "./price-store";
+import { proxyFetch } from "./proxy-client";
+import { config } from "./agent-engine";
 
-// Returns the singleton instance for direct use in handleTicker/handleCandle
 function getPriceStore(): PriceStore {
   return priceStore;
 }
+
+const PROXY_URL = process.env.BITGET_PROXY || "";
 
 /** ────────────────────── WebSocket Service ───────── */
 
@@ -70,8 +72,8 @@ export class MarketWebSocketService {
   private reconnectAttempt = 0;
   private maxReconnectDelay = 30_000;
   private baseReconnectDelay = 1_000;
-
-  readonly wsUrl = "wss://ws.bitget.com/v2/ws/public";
+  private useProxyForRest = !!PROXY_URL;
+  private wsFailed = false;
 
   /** Called by agent-engine to start subscription */
   async subscribe(channels: WSSubscription[]): Promise<void> {
@@ -96,15 +98,18 @@ export class MarketWebSocketService {
     }
   }
 
+  /** Try connecting — direct first, REST fallback on failure */
   private async connect(): Promise<void> {
-    console.log("[WS] Connecting to", this.wsUrl);
-    return new Promise((resolve, reject) => {
-      try {
-        const ws = new WebSocket(this.wsUrl);
+    console.log("[WS] Connecting to wss://ws.bitget.com/v2/ws/public...");
+
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const ws = new WebSocket("wss://ws.bitget.com/v2/ws/public");
 
         ws.onopen = () => {
           console.log("[WS] Connected ✓");
           this.reconnectAttempt = 0;
+          this.ws = null; // Don't store — handle via event listeners
           this.ws = ws;
           if (this.subscriptions.length > 0) {
             this.sendSubscribe(this.subscriptions);
@@ -113,42 +118,96 @@ export class MarketWebSocketService {
           resolve();
         };
 
-        ws.onmessage = (event) => {
+        ws.onmessage = (event: MessageEvent) => {
           try {
-            this.handleMessage(event.data);
+            const data = event.data.toString("utf-8");
+            this.handleMessage(data);
           } catch (err) {
             console.error("[WS] Message parse error:", err);
           }
         };
 
-        ws.onerror = (error) => {
-          console.warn("[WS] Error:", error.type || "unknown");
-        };
+        ws.onerror = () => { /* close will handle it */ };
 
-        ws.onclose = (event) => {
-          console.log(`[WS] Closed — code: ${event.code}, reason: "${event.reason}"`);
+        ws.onclose = (event: CloseEvent) => {
           this.ws = null;
           this.clearPingTimer();
-          // Auto-reconnect unless manually closed
           if (event.code !== 1000) {
             this.scheduleReconnect();
           }
+          reject(new Error(`WebSocket closed code=${event.code}`));
         };
 
         // Timeout on connect
         const timeout = setTimeout(() => {
-          ws.close(4000, "connect timeout");
-          reject(new Error("WebSocket connect timed out"));
+          ws.close(4004, "timeout");
+          reject(new Error("Direct WS connection timed out (10s)"));
         }, 10_000);
         ws.addEventListener("open", () => clearTimeout(timeout), { once: true });
+      });
+    } catch (err) {
+      console.warn(`[WS] Direct connection failed — will fall back to REST polling:`, err instanceof Error ? err.message : String(err));
+
+      // Final fallback: populate PriceStore via REST polling (which uses proxy)
+      await this.fallbackToRest();
+    }
+  }
+
+  /** Fallback: populate PriceStore via REST polling */
+  private fallbackToRest(): Promise<void> {
+    console.log("[WS] Starting REST ticker fallback...");
+
+    const fetchAllTickers = async () => {
+      try {
+        const proxy = this.useProxyForRest;
+        for (const symbol of config.tradingSymbols) {
+          const resp = await proxyFetch<{
+            code: string;
+            msg: string;
+            data: Array<Record<string, string>>;
+          }>(`https://api.bitget.com/api/v2/spot/market/tickers?symbol=${symbol}`);
+
+          const ticker = resp.data.find((t) => t.symbol === symbol || t.instId === symbol);
+          if (!ticker) continue;
+
+          const lastPrice = Number(ticker.lastPrice ?? ticker.lastPr ?? ticker.close ?? "0");
+          if (lastPrice <= 0) continue;
+
+          const high24h = Number(ticker.high24h ?? ticker.high ?? "0");
+          const low24h = Number(ticker.low24h ?? ticker.low ?? "0");
+          const quoteVol = Number(ticker.volValue24h ?? ticker.quoteVolume ?? ticker.volumeValue24h ?? "0");
+          const changePctRaw = Number(ticker.changeUtc24h ?? ticker.priceRate ?? ticker.changingPercent24h ?? "0");
+          const tsNum = Number(ticker.ts ?? Date.now());
+
+          const snapshot: PriceSnapshot = {
+            symbol,
+            lastPrice: Math.round(lastPrice * 100) / 100,
+            high24h,
+            low24h,
+            baseVolume: 0,
+            quoteVolume: quoteVol,
+            changePercent: Number((changePctRaw * 100).toFixed(2)),
+            updatedAt: new Date(tsNum),
+          };
+
+          getPriceStore().updateTicker(snapshot);
+        }
+
+        console.log(`[WS] REST fallback cached ${getPriceStore().getSymbolCount()} ticker(s)`);
       } catch (err) {
-        reject(err);
+        console.warn("[WS] REST fetch error:", err instanceof Error ? err.message : String(err));
       }
-    });
+    };
+
+    // Fetch immediately, then poll every 30s to keep prices fresh
+    fetchAllTickers();
+    const interval = setInterval(fetchAllTickers, 30_000);
+
+    return Promise.resolve();
   }
 
   private async scheduleReconnect(): Promise<void> {
-    if (this.reconnectTimer) return; // already scheduled
+    if (this.reconnectTimer) return;
 
     const delay = Math.min(
       this.baseReconnectDelay * Math.pow(2, this.reconnectAttempt),
@@ -162,7 +221,7 @@ export class MarketWebSocketService {
       this.reconnectTimer = null;
       this.connect().catch((err) => {
         console.error("[WS] Reconnect failed:", err.message);
-        this.scheduleReconnect(); // exponential backoff chain
+        this.scheduleReconnect();
       });
     }, delay);
   }
@@ -197,7 +256,7 @@ export class MarketWebSocketService {
     }
 
     // Error event
-    if ("event" in msg && msg.event === "error" || "code" in msg) {
+    if (("event" in msg && msg.event === "error") || "code" in msg) {
       const err = msg as WSMsgError;
       console.warn(`[WS] Server error: code=${err.code}, msg="${err.msg}"`);
       return;
@@ -221,14 +280,13 @@ export class MarketWebSocketService {
           this.handleTicker(raw);
         }
       } else if (arg?.channel?.startsWith("candle")) {
-        // Candle update
         this.handleCandle(typed);
       }
       return;
     }
 
     // Subscribe ack with "event" instead of "action"
-    if ("event" in msg && msg.event === "subscribe" || "arg" in msg && "data" in msg) {
+    if (("event" in msg && msg.event === "subscribe") || ("arg" in msg && "data" in msg)) {
       const typed = msg as Record<string, unknown>;
       const arg = typed.arg as { channel?: string; instId?: string };
       const dataArr = typed.data as WSTickerRaw[] | undefined;
@@ -269,7 +327,6 @@ export class MarketWebSocketService {
       let ts = Date.now();
       if (raw.ts) {
         const parsed = Number(raw.ts);
-        // Bitget WS may send ms or seconds — detect by magnitude
         ts = parsed > 1e12 ? parsed : parsed * 1000;
       }
 
@@ -321,7 +378,7 @@ export class MarketWebSocketService {
     this.clearPingTimer();
     this.pingTimer = setInterval(() => {
       if (this.ws?.readyState === WebSocket.OPEN) {
-        this.sendPong(); // "ping" is a plain string to the server
+        this.sendPong();
       } else {
         this.clearPingTimer();
       }

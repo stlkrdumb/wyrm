@@ -22,7 +22,7 @@ interface AgentState {
   trades: Trade[];
 }
 
-const config = {
+export const config = {
   get initialCash(): number {
     return Number(process.env.SIM_INITIAL_CASH) || 1000;
   },
