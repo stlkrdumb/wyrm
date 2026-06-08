@@ -1,97 +1,12 @@
 import type { TickerData, OrderBook, Candlestick } from "../types";
-import { getProxyAgent } from "./proxy-agent";
-import https from "node:https";
+import { proxyFetch } from "./proxy-client";
 
-const BITGET_HOST = "api.bitget.com";
-const BITGET_BASE = "/api/v2/spot/market";
+const BITGET_API = "https://api.bitget.com/api/v2/spot/market";
 
-/** Wrap https.request in a promise that returns JSON */
-function httpsGet(path: string, timeoutMs: number): Promise<any> {
-  return new Promise((resolve, reject) => {
-    const opts = {
-      hostname: BITGET_HOST,
-      port: 443,
-      path,
-      method: "GET",
-      headers: { "User-Agent": "curl/7.81.0" },
-    };
-
-    const req = https.request(opts, (res) => {
-      let data = "";
-      res.on("data", (c) => (data += c));
-      res.on("end", () => {
-        try {
-          resolve(JSON.parse(data));
-        } catch {
-          reject(new Error(`Invalid JSON from ${path}`));
-        }
-      });
-    });
-
-    req.on("error", reject);
-    req.setTimeout(timeoutMs, () => {
-      req.destroy();
-      reject(new Error(`HTTPS timeout after ${timeoutMs}ms`));
-    });
-    req.end();
-  });
-}
-
-/** Fetch a JSON endpoint via Node.js https module + proxy agent */
-async function bitgetProxyFetch<T>(path: string, timeoutMs: number): Promise<T> {
-  const agent = getProxyAgent();
-  if (!agent) throw new Error("No proxy configured");
-
-  const opts = {
-    hostname: BITGET_HOST,
-    port: 443,
-    path,
-    method: "GET",
-    headers: { "User-Agent": "curl/7.81.0" },
-    agent,
-  };
-
-  return new Promise<T>((resolve, reject) => {
-    const req = https.request(opts, (res) => {
-      let data = "";
-      res.on("data", (c) => (data += c));
-      res.on("end", () => {
-        if (res.statusCode !== 200) {
-          return reject(new Error(`Bitget ${res.statusCode} on ${path}`));
-        }
-        try {
-          resolve(JSON.parse(data) as T);
-        } catch {
-          reject(new Error(`Invalid JSON from ${path}`));
-        }
-      });
-    });
-
-    req.on("error", reject);
-    req.setTimeout(timeoutMs, () => {
-      req.destroy();
-      reject(new Error(`Proxy timeout after ${timeoutMs}ms`));
-    });
-    req.end();
-  });
-}
-
-/** Generic fetch for Bitget endpoints — auto-selects proxy when available */
-async function bitgetFetch<T>(path: string): Promise<T> {
-  const hasProxy = getProxyAgent() !== null;
-
-  if (hasProxy) {
-    // Proxy configured → use https module (native fetch doesn't work with HttpsProxyAgent)
-    try {
-      return await bitgetProxyFetch<T>(path, 12_000);
-    } catch (err) {
-      throw new Error(`Bitget ${path} via proxy failed: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  }
-
-  // No proxy → use native fetch
+/** Fetch with Node.js native fetch (no proxy) */
+async function bitgetDirect<T>(path: string): Promise<T> {
   try {
-    const res = await fetch(`${BITGET_BASE}${path}`, { signal: AbortSignal.timeout(10_000) });
+    const res = await fetch(`${BITGET_API}${path}`, { signal: AbortSignal.timeout(10_000) });
     if (!res.ok) throw new Error(`Bitget ${res.status} on ${path}`);
     return (await res.json()) as T;
   } catch (err) {
@@ -99,9 +14,25 @@ async function bitgetFetch<T>(path: string): Promise<T> {
   }
 }
 
-/**
- * Fetch latest ticker price for a symbol.
- */
+/** Fetch via WebShare proxy using subprocess curl */
+async function bitgetProxy<T>(path: string): Promise<T> {
+  const proxyUrl = process.env.BITGET_PROXY;
+  if (!proxyUrl) throw new Error("No proxy configured");
+  try {
+    return await proxyFetch<T>(`${BITGET_API}${path}`, proxyUrl);
+  } catch (err) {
+    throw new Error(`Bitget ${path} via proxy failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
+/** Generic fetch — uses proxy if configured, otherwise direct */
+async function bitgetFetch<T>(path: string): Promise<T> {
+  const hasProxy = !!process.env.BITGET_PROXY;
+  if (hasProxy) return bitgetProxy<T>(path);
+  return bitgetDirect<T>(path);
+}
+
+/** Fetch latest ticker price for a symbol. */
 export async function getTickerPrice(symbol: string): Promise<TickerData> {
   const resp = await bitgetFetch<{
     code: string;
@@ -131,9 +62,7 @@ export async function getTickerPrice(symbol: string): Promise<TickerData> {
   };
 }
 
-/**
- * Fetch order book depth for a symbol.
- */
+/** Fetch order book depth for a symbol. */
 export async function getOrderBook(symbol: string, depth: number = 20): Promise<OrderBook> {
   const resp = await bitgetFetch<{
     code: string;
@@ -149,9 +78,7 @@ export async function getOrderBook(symbol: string, depth: number = 20): Promise<
   };
 }
 
-/**
- * Fetch candlestick (kline) data for backtesting or charting.
- */
+/** Fetch candlestick (kline) data for backtesting or charting. */
 export async function getCandlestickData(
   symbol: string,
   interval: string = "1h",
@@ -181,9 +108,7 @@ export async function getCandlestickData(
   }));
 }
 
-/**
- * Get current account assets (requires API key with Read permission).
- */
+/** Get current account assets (requires API key with Read permission). */
 export async function getAccountAssets(): Promise<Record<string, unknown>> {
   throw new Error("Private endpoints require HMAC-SHA256 signing — use Bitget CLI or implement auth headers");
 }

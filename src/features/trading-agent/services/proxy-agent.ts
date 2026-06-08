@@ -4,20 +4,27 @@ import { HttpsProxyAgent } from "https-proxy-agent";
 const PROXY_URL = process.env.BITGET_PROXY; // e.g. http://user:pass@host:port
 
 let _agent: HttpsProxyAgent<any> | null = null;
+console.log(`[Proxy] PROXY configured: ${PROXY_URL ? 'YES' : 'NO'} (${PROXY_URL || '(none)'})`);
 
 export function getProxyAgent(): HttpsProxyAgent<any> | null {
-  if (!PROXY_URL) return null;
-  if (!_agent) {
-    try {
-      // @ts-ignore — v6 types require generic param, but works fine at runtime
-      _agent = new HttpsProxyAgent(PROXY_URL);
-      console.log(`[Proxy] WebShare proxy configured: ${mask(PROXY_URL)}`);
-    } catch (err) {
-      console.error("[Proxy] Failed to create agent:", err instanceof Error ? err.message : String(err));
-      _agent = null;
-    }
+  if (!PROXY_URL) {
+    console.log("[Proxy] No proxy configured, returning null");
+    return null;
   }
-  return _agent;
+  if (_agent) {
+    console.log("[Proxy] Returning cached agent");
+    return _agent;
+  }
+  try {
+    // @ts-ignore — v6 types require generic param
+    _agent = new HttpsProxyAgent(PROXY_URL);
+    console.log(`[Proxy] Agent created: ${mask(PROXY_URL)}`);
+    return _agent;
+  } catch (err) {
+    console.error("[Proxy] Agent creation failed:", err instanceof Error ? err.message : String(err));
+    _agent = null;
+    return null;
+  }
 }
 
 function mask(url: string): string {
