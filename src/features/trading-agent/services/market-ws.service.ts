@@ -234,9 +234,14 @@ export class MarketWebSocketService {
   }
 
   private handleMessage(data: string): void {
-    // Handle plain "ping" — server may also send ping as a JSON message
+    // Handle plain strings (server ping/pong are sent as bare text)
     if (data === "ping") {
       this.sendPong();
+      return;
+    }
+    if (data === "pong") {
+      console.log("[WS] Server pong ✓");
+      this.reconnectAttempt = 0;
       return;
     }
 
