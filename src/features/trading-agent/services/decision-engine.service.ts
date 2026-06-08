@@ -21,12 +21,27 @@ async function getTechnicalAnalysis(ticker: TickerData): Promise<{
   macdHist: number;
 }> {
   try {
-    // Fetch real candles from Bitget API
-    const res = await fetch(
-      `https://api.bitget.com/api/v2/spot/market/candles?symbol=${ticker.symbol}&granularity=1h&limit=50`
-    );
-    const json = await res.json();
-    const ohlcvs = json.data;
+    const proxyUrl = process.env.BITGET_PROXY;
+    let ohlcvs: string[][];
+
+    if (proxyUrl) {
+      // Fetch via subprocess curl with proxy (reliable, works on all platforms)
+      const result = await exec("curl", [
+        "-sS", "--max-time", "10",
+        "-x", proxyUrl,
+        "--user-agent", "curl/7.81.0",
+        `https://api.bitget.com/api/v2/spot/market/candles?symbol=${ticker.symbol}&granularity=1h&limit=50`,
+      ]);
+      const json = JSON.parse(result.stdout);
+      ohlcvs = json.data ?? [];
+    } else {
+      // No proxy — direct fetch (fallback)
+      const res = await fetch(
+        `https://api.bitget.com/api/v2/spot/market/candles?symbol=${ticker.symbol}&granularity=1h&limit=50`
+      );
+      const json = await res.json();
+      ohlcvs = json.data ?? [];
+    }
 
     if (!ohlcvs || ohlcvs.length === 0) {
       throw new Error("No candle data returned from Bitget");
