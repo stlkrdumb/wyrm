@@ -16,10 +16,8 @@ async function bitgetDirect<T>(path: string): Promise<T> {
 
 /** Fetch via WebShare proxy using subprocess curl */
 async function bitgetProxy<T>(path: string): Promise<T> {
-  const proxyUrl = process.env.BITGET_PROXY;
-  if (!proxyUrl) throw new Error("No proxy configured");
   try {
-    return await proxyFetch<T>(`${BITGET_API}${path}`, proxyUrl);
+    return await proxyFetch<T>(`${BITGET_API}${path}`);
   } catch (err) {
     throw new Error(`Bitget ${path} via proxy failed: ${err instanceof Error ? err.message : String(err)}`);
   }
