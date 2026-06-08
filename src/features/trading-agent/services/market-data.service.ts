@@ -1,57 +1,107 @@
 import type { TickerData, OrderBook, Candlestick } from "../types";
 import { getProxyAgent } from "./proxy-agent";
 
-const BITGET_API = "https://api.bitget.com/api/v2/spot/market";
-const PROXY_TIMEOUT_MS = 12_000; // slightly less than non-proxy timeout for faster failover
+const BITGET_HOST = "api.bitget.com";
+const BITGET_BASE = "/api/v2/spot/market";
 
-/** Generic fetch wrapper for Bitget public endpoints (with optional proxy) */
+/** Wrap https.request in a promise that returns JSON */
+function httpsGet(path: string, timeoutMs: number): Promise<any> {
+  return new Promise((resolve, reject) => {
+    const opts = {
+      hostname: BITGET_HOST,
+      port: 443,
+      path,
+      method: "GET",
+      headers: { "User-Agent": "WYRM-Trader/1.0" },
+    };
+
+    const req = https.request(opts, (res) => {
+      let data = "";
+      res.on("data", (c) => (data += c));
+      res.on("end", () => {
+        try {
+          resolve(JSON.parse(data));
+        } catch {
+          reject(new Error(`Invalid JSON from ${path}`));
+        }
+      });
+    });
+
+    req.on("error", reject);
+    req.setTimeout(timeoutMs, () => {
+      req.destroy();
+      reject(new Error(`HTTPS timeout after ${timeoutMs}ms`));
+    });
+    req.end();
+  });
+}
+
+/** Fetch a JSON endpoint via Node.js https module + proxy agent */
+async function bitgetProxyFetch<T>(path: string, timeoutMs: number): Promise<T> {
+  const agent = getProxyAgent();
+  if (!agent) throw new Error("No proxy configured");
+
+  const opts = {
+    hostname: BITGET_HOST,
+    port: 443,
+    path,
+    method: "GET",
+    headers: { "User-Agent": "WYRM-Trader/1.0" },
+    agent,
+  };
+
+  return new Promise<T>((resolve, reject) => {
+    const req = https.request(opts, (res) => {
+      let data = "";
+      res.on("data", (c) => (data += c));
+      res.on("end", () => {
+        if (res.statusCode !== 200) {
+          return reject(new Error(`Bitget ${res.statusCode} on ${path}`));
+        }
+        try {
+          resolve(JSON.parse(data) as T);
+        } catch {
+          reject(new Error(`Invalid JSON from ${path}`));
+        }
+      });
+    });
+
+    req.on("error", reject);
+    req.setTimeout(timeoutMs, () => {
+      req.destroy();
+      reject(new Error(`Proxy timeout after ${timeoutMs}ms`));
+    });
+    req.end();
+  });
+}
+
+/** Generic fetch for Bitget endpoints — auto-selects proxy when available */
 async function bitgetFetch<T>(path: string): Promise<T> {
   const hasProxy = getProxyAgent() !== null;
 
-  // Try direct first (with proxy agent if configured)
-  try {
-    const init: RequestInit & { agent?: unknown } = {
-      signal: AbortSignal.timeout(10_000),
-      ...(hasProxy ? { agent: getProxyAgent() } : {}),
-    };
-    const res = await fetch(`${BITGET_API}${path}`, init);
-    if (!res.ok) throw new Error(`Bitget ${res.status} on ${path}`);
-    return res.json() as Promise<T>;
-  } catch {
-    // Direct failed — try proxy
-    const agent = getProxyAgent();
-    if (!hasProxy) throw new Error(`Bitget ${path} failed: no proxy available`);
-
-    const init: RequestInit & { agent?: unknown } = {
-      signal: AbortSignal.timeout(PROXY_TIMEOUT_MS),
-      agent,
-    };
-    const res = await fetch(`${BITGET_API}${path}`, init);
-    if (!res.ok) throw new Error(`Bitget ${res.status} on ${path}`);
-    return res.json() as Promise<T>;
+  if (hasProxy) {
+    // Proxy configured → use https module (native fetch doesn't work with HttpsProxyAgent)
+    try {
+      return await bitgetProxyFetch<T>(path, 12_000);
+    } catch (err) {
+      throw new Error(`Bitget ${path} via proxy failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
   }
-}
 
-/** Fetch with proxy guaranteed (for when direct is blocked) */
-async function bitgetFetchProxy<T>(path: string): Promise<T> {
-  const agent = getProxyAgent();
-  if (!agent) throw new Error("No proxy configured — check BITGET_PROXY env var");
-
-  const init: RequestInit & { agent?: unknown } = {
-    signal: AbortSignal.timeout(PROXY_TIMEOUT_MS),
-    agent,
-  };
-  const res = await fetch(`${BITGET_API}${path}`, init);
-  if (!res.ok) throw new Error(`Bitget ${res.status} on ${path}`);
-  return res.json() as Promise<T>;
+  // No proxy → use native fetch
+  try {
+    const res = await fetch(`${BITGET_BASE}${path}`, { signal: AbortSignal.timeout(10_000) });
+    if (!res.ok) throw new Error(`Bitget ${res.status} on ${path}`);
+    return (await res.json()) as T;
+  } catch (err) {
+    throw new Error(`Bitget ${path} failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
 }
 
 /**
  * Fetch latest ticker price for a symbol.
- * Uses Bitget REST API directly — real data, no CLI overhead.
  */
 export async function getTickerPrice(symbol: string): Promise<TickerData> {
-  // Bitget wraps response in { code, msg, requestTime, data: [...] }
   const resp = await bitgetFetch<{
     code: string;
     msg: string;
@@ -61,8 +111,8 @@ export async function getTickerPrice(symbol: string): Promise<TickerData> {
       high24h: string;
       low24h: string;
       quoteVolume: string;
-      changeUtc24h: string;   // e.g. "-0.00284"
-      ts: string;            // timestamp ms
+      changeUtc24h: string;
+      ts: string;
     }>;
   }>(`/tickers?symbol=${symbol}`);
 
@@ -75,7 +125,7 @@ export async function getTickerPrice(symbol: string): Promise<TickerData> {
     high24h: Number(ticker.high24h),
     low24h: Number(ticker.low24h),
     volume24h: Number(ticker.quoteVolume),
-    change24hPercent: Number((Number(ticker.changeUtc24h) * 100).toFixed(2)), // convert fraction to % (-0.00284 → -0.28)
+    change24hPercent: Number((Number(ticker.changeUtc24h) * 100).toFixed(2)),
     timestamp: new Date(Number(ticker.ts)),
   };
 }
@@ -120,7 +170,6 @@ export async function getCandlestickData(
   }>(`/candles?symbol=${symbol}&granularity=${gran}`);
 
   const rows = resp.data ?? [];
-  // [ts_ms, open, high, low, close, vol, quoteVol, baseVol] — oldest first
   return rows.slice(-limit).reverse().map(([ts, o, h, l, c]) => ({
     timestamp: Number(ts),
     open: Number(o),

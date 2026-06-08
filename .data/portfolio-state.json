@@ -1,0 +1,8 @@
+{
+  "initialCash": 1000,
+  "cash": 1000,
+  "accumulatedRealizedPnL": 0,
+  "positions": [],
+  "totalTrades": 0,
+  "winRate": 0
+}
