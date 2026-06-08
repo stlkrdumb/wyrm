@@ -10,6 +10,10 @@ export interface TickerData {
   volume24h: number;
   change24hPercent: number;
 }
+
+export interface MultiTickerState {
+  [symbol: string]: TickerData | null;
+}
 export interface SignalData { name: string; source: string; direction: "bullish" | "bearish" | "neutral"; strength: number; }
 export interface DecisionData { action: "buy" | "sell" | "hold"; strength: number; confidence: number; reason: string; }
 export interface PortfolioData { cash: number; equity: number; initialCash: number; totalTrades: number; winRate: number; totalPnL: number; }
@@ -26,10 +30,14 @@ export interface TradeData {
 
 export interface PositionData { symbol: string; side: "long" | "short"; size: number; entryPrice: number; unrealizedPnL: number; }
 
+export type WSConnectionStatus = "connecting" | "connected" | "reconnecting";
+
 interface AgentState {
   status: "running" | "stopped" | "paused";
   lastCycleAt: string | null;
-  ticker: TickerData | null;
+  ticker: TickerData | null;          // Primary display ticker (BTCUSDT)
+  tickers: MultiTickerState | null;   // All active symbols
+  wsStatus: WSConnectionStatus;
   decision: DecisionData | null;
   executionReason: string;
   signals: SignalData[];
@@ -43,7 +51,8 @@ const POLL_MS = 3000;
 
 export function useAgent() {
   const [state, setState] = useState<AgentState>(lastKnownState ?? {
-    status: "stopped", lastCycleAt: null, ticker: null, decision: null, executionReason: "",
+    status: "stopped", lastCycleAt: null, ticker: null, tickers: null, wsStatus: "connecting",
+    decision: null, executionReason: "",
     signals: [], portfolio: { cash: 1000, equity: 1000, initialCash: 1000, totalTrades: 0, winRate: 0, totalPnL: 0 }, positions: [], trades: [],
   });
 
@@ -54,9 +63,25 @@ export function useAgent() {
       const res = await fetch("/api/agent/cycle");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      console.log(`[Client] Got state — status=${data.status} ticker=${data.ticker ?? "null"} signals=${data.signals?.length ?? 0}`);
-      lastKnownState = data;
-      setState(data);
+      console.log(`[Client] Got state — status=${data.status} tickers=${Object.keys(data.tickers || {}).join(",") || "(none)"}`);
+
+      // Normalize multi-ticker response into state shape
+      const normalized: AgentState = {
+        status: data.status,
+        lastCycleAt: data.lastCycleAt || null,
+        ticker: data.tickers?.BTCUSDT || data.ticker || null,  // Primary display ticker
+        tickers: data.tickers || null,
+        wsStatus: data.wsStatus || "connecting",
+        decision: data.decision || null,
+        executionReason: data.executionReason || "",
+        signals: data.signals || [],
+        portfolio: data.portfolio || { cash: 1000, equity: 1000, initialCash: 1000, totalTrades: 0, winRate: 0, totalPnL: 0 },
+        positions: data.positions || [],
+        trades: data.trades || [],
+      };
+
+      lastKnownState = normalized;
+      setState(normalized);
     } catch (err) {
       console.error("[Client] Fetch error:", err);
     }

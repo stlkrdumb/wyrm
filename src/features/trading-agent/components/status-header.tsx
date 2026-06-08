@@ -31,9 +31,21 @@ export function StatusHeader({ agent }: Props) {
     <header className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-900/50 backdrop-blur-sm">
       {/* Left: Logo + price */}
       <div className="flex items-center gap-6">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <h1 className="text-lg font-bold tracking-tight text-zinc-50">WYRM Trader</h1>
           {renderBadge()}
+          {/* WS Connection Status */}
+          <span className={`inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded text-[10px] font-medium uppercase tracking-wide
+            ${state.wsStatus === "connected" ? "bg-emerald-500/20 text-emerald-400" :
+              state.wsStatus === "reconnecting" ? "bg-orange-500/20 text-orange-400 animate-pulse" :
+              "bg-zinc-700/50 text-zinc-500"}`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${
+              state.wsStatus === "connected" ? "bg-emerald-400" :
+              state.wsStatus === "reconnecting" ? "bg-orange-400 animate-ping" :
+              "bg-zinc-500"
+            }`} />
+            WS
+          </span>
         </div>
 
         {btcPrice ? (

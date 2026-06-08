@@ -4,6 +4,7 @@ dotenv.config({ path: path.join(process.cwd(), ".env.local"), override: true });
 
 import { NextRequest, NextResponse } from "next/server";
 import { runAgentCycle, getAgentState, setAgentStatus } from "@/features/trading-agent/services/agent-engine";
+import { priceStore } from "@/features/trading-agent/services/price-store";
 
 const INITIAL_CASH = Number(process.env.SIM_INITIAL_CASH) || 1000;
 
@@ -14,28 +15,72 @@ export async function POST() {
     console.log(`[API] API_KEY=${process.env.OPENAI_API_KEY ? '***' + process.env.OPENAI_API_KEY.slice(-4) : 'MISSING'}`);
     console.log("[API] POST /api/agent/cycle — running agent cycle");
     const result = await runAgentCycle();
-    return NextResponse.json({ status: "success", ticker: result.tickerPrice, decision: result.decision });
+
+    // Also return current tickers and WS status after the cycle completes
+    const allSnapshots = priceStore.getAll();
+    const tickersMap: Record<string, ReturnType<typeof buildTickerObj>> = {};
+    for (const [symbol, snapshot] of allSnapshots) {
+      const obj = buildTickerObj(snapshot);
+      if (obj) tickersMap[symbol] = obj;
+    }
+
+    let wsStatus: "connected" | "connecting" | "reconnecting" = "connected";
+    if (allSnapshots.size === 0) wsStatus = "reconnecting";
+
+    return NextResponse.json({
+      status: "success",
+      ticker: result.tickerPrice,
+      tickers: Object.keys(tickersMap).length > 0 ? tickersMap : null,
+      wsStatus,
+    });
   } catch (error) {
     console.error("[API] POST error:", error);
     return NextResponse.json({ status: "error", message: String(error) }, { status: 500 });
   }
 }
 
+function buildTickerObj(snapshot: { lastPrice?: number; high24h?: number; low24h?: number; quoteVolume?: number; changePercent?: number; symbol: string; updatedAt?: Date } | undefined) {
+  if (!snapshot || !snapshot.lastPrice) return null;
+  return {
+    symbol: snapshot.symbol,
+    lastPrice: Math.round(snapshot.lastPrice),
+    high24h: Math.round(snapshot.high24h ?? snapshot.lastPrice),
+    low24h: Math.round(snapshot.low24h ?? snapshot.lastPrice),
+    volume24h: snapshot.quoteVolume ?? 0,
+    change24hPercent: snapshot.changePercent ?? 0,
+  };
+}
+
 export async function GET(request: NextRequest) {
   const currentState = getAgentState();
-  console.log(`[API] GET /api/agent/cycle — status=${currentState.status} equity=$${Math.round(currentState.portfolio.equity).toLocaleString()}`);
+
+  // Build multi-pair ticker map from PriceStore (WS-backed)
+  const allSnapshots = priceStore.getAll();
+  const tickersMap: Record<string, ReturnType<typeof buildTickerObj>> = {};
+  for (const [symbol, snapshot] of allSnapshots) {
+    const obj = buildTickerObj(snapshot);
+    if (obj) tickersMap[symbol] = obj;
+  }
+
+  // Determine WS status from store freshness
+  let wsStatus: "connected" | "connecting" | "reconnecting" = "connected";
+  if (allSnapshots.size === 0) {
+    wsStatus = currentState.lastCycleAt ? "reconnecting" : "connecting";
+  } else {
+    const isAnyStale = [...allSnapshots.values()].some(s =>
+      Date.now() - s.updatedAt.getTime() > 65_000
+    );
+    if (isAnyStale) wsStatus = "reconnecting";
+  }
+
+  console.log(`[API] GET /api/agent/cycle — status=${currentState.status} equity=$${Math.round(currentState.portfolio.equity).toLocaleString()} symbols=${Object.keys(tickersMap).join(",")}`);
 
   return NextResponse.json({
     status: currentState.status,
     lastCycleAt: currentState.lastCycleAt?.toISOString() ?? null,
-    ticker: currentState.ticker ? {
-      symbol: currentState.ticker.symbol,
-      lastPrice: Math.round(currentState.ticker.lastPrice),
-      high24h: Math.round(currentState.ticker.high24h),
-      low24h: Math.round(currentState.ticker.low24h),
-      volume24h: currentState.ticker.volume24h,
-      change24hPercent: currentState.ticker.change24hPercent,
-    } : null,
+    ticker: buildTickerObj(currentState.ticker ?? undefined),
+    tickers: Object.keys(tickersMap).length > 0 ? tickersMap : null,
+    wsStatus,
     decision: currentState.decision ? {
       action: currentState.decision.action,
       strength: currentState.decision.strength,

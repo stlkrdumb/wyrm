@@ -6,6 +6,7 @@ import { SignalPanel } from "./signal-panel";
 import { EquityChart } from "./equity-chart";
 import { PositionsPanel } from "./positions-panel";
 import { TradeLog } from "./trade-log";
+import { MarketWatch } from "./market-watch";
 
 export function Dashboard() {
   const agent = useAgent();
@@ -16,6 +17,7 @@ export function Dashboard() {
 
       <main className="flex-1 p-4 grid gap-4" style={{ gridTemplateColumns: "minmax(0, 2fr) minmax(0, 1fr)" }}>
         <div className="flex flex-col gap-4">
+          <MarketWatch tickers={agent.state.tickers} />
           <EquityChart portfolio={agent.state.portfolio} ticker={agent.state.ticker} />
           <PositionsPanel positions={agent.state.positions} ticker={agent.state.ticker} />
         </div>
