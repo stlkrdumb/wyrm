@@ -47,7 +47,7 @@
 
 ### 🟡 In Progress / Known Issues
 - Agent LLM decisions are conservative (frequently returns "hold") — needs signal threshold tuning for demo visibility
-- Polling interval is 3s; some cycles take ~40s due to LLM inference latency
+- Auto model switching implemented: starts with `qwen3.6-plus`, switches to `qwen3.6-flash` if >15s latency
 - `llm.service.ts` has a hardcoded `.env.local` path that may fail on other machines
 
 ### ⬜ Remaining (Hackathon Deliverables)
