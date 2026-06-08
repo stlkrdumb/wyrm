@@ -38,6 +38,7 @@ interface AgentState {
   ticker: TickerData | null;          // Primary display ticker (BTCUSDT)
   tickers: MultiTickerState | null;   // All active symbols
   wsStatus: WSConnectionStatus;
+  wsConnection?: { type: "direct" | "fallback"; proxy: string | null } | null;
   decision: DecisionData | null;
   executionReason: string;
   signals: SignalData[];
@@ -52,7 +53,7 @@ const POLL_MS = 3000;
 export function useAgent() {
   const [state, setState] = useState<AgentState>(lastKnownState ?? {
     status: "stopped", lastCycleAt: null, ticker: null, tickers: null, wsStatus: "connecting",
-    decision: null, executionReason: "",
+    wsConnection: null, decision: null, executionReason: "",
     signals: [], portfolio: { cash: 1000, equity: 1000, initialCash: 1000, totalTrades: 0, winRate: 0, totalPnL: 0 }, positions: [], trades: [],
   });
 
@@ -72,6 +73,7 @@ export function useAgent() {
         ticker: data.tickers?.BTCUSDT || data.ticker || null,  // Primary display ticker
         tickers: data.tickers || null,
         wsStatus: data.wsStatus || "connecting",
+        wsConnection: data.wsConnection || null,
         decision: data.decision || null,
         executionReason: data.executionReason || "",
         signals: data.signals || [],

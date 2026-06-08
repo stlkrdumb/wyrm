@@ -5,6 +5,7 @@ dotenv.config({ path: path.join(process.cwd(), ".env.local"), override: true });
 import { NextRequest, NextResponse } from "next/server";
 import { runAgentCycle, getAgentState, setAgentStatus } from "@/features/trading-agent/services/agent-engine";
 import { priceStore } from "@/features/trading-agent/services/price-store";
+import { marketWS } from "@/features/trading-agent/services/market-ws.service";
 
 const INITIAL_CASH = Number(process.env.SIM_INITIAL_CASH) || 1000;
 
@@ -32,6 +33,7 @@ export async function POST() {
       ticker: result.tickerPrice,
       tickers: Object.keys(tickersMap).length > 0 ? tickersMap : null,
       wsStatus,
+      wsConnection: marketWS.getConnectionInfo(),
     });
   } catch (error) {
     console.error("[API] POST error:", error);
@@ -82,11 +84,7 @@ export async function GET(request: NextRequest) {
 
     let unrealizedPnL: number;
     if (livePrice && p.entryPrice > 0) {
-      if (p.side === "long") {
-        unrealizedPnL = Math.round((livePrice - p.entryPrice) * p.size);
-      } else {
-        unrealizedPnL = Math.round((p.entryPrice - livePrice) * p.size);
-      }
+      unrealizedPnL = (livePrice - p.entryPrice) * p.size;
     } else {
       // No live price — use stored value as fallback
       unrealizedPnL = p.unrealizedPnL;
@@ -107,6 +105,7 @@ export async function GET(request: NextRequest) {
     ticker: buildTickerObj(currentState.ticker ?? undefined),
     tickers: Object.keys(tickersMap).length > 0 ? tickersMap : null,
     wsStatus,
+    wsConnection: marketWS.getConnectionInfo(),
     decision: currentState.decision ? {
       action: currentState.decision.action,
       strength: currentState.decision.strength,
@@ -118,17 +117,17 @@ export async function GET(request: NextRequest) {
       name: s.name, source: s.source, direction: s.direction, strength: s.strength,
     })),
     portfolio: {
-      cash: Math.round(currentState.portfolio.cash),
-      equity: Math.round(currentState.portfolio.equity),
+      cash: currentState.portfolio.cash,
+      equity: currentState.portfolio.equity,
       initialCash: currentState.portfolio.initialCash,
       totalTrades: currentState.portfolio.totalTrades,
       winRate: currentState.portfolio.winRate,
-      totalPnL: Math.round(currentState.portfolio.totalPnL),
+      totalPnL: currentState.portfolio.totalPnL,
     },
     positions: livePositions,
     trades: currentState.trades.map((t) => ({
       id: t.id, timestamp: t.timestamp.toISOString(), symbol: t.symbol, side: t.side,
-      action: t.action, size: t.size, price: Math.round(t.price), pnl: t.pnl ?? null,
+      action: t.action, size: t.size, price: t.price, pnl: t.pnl ?? null,
     })),
   });
 }

@@ -53,7 +53,7 @@
 | Auto-load on server start | ✅ | `buildInitialState()` restores from disk, falls back to initialCash |
 | Persist after every cycle | ✅ | Trade execution + flatten both call `saveBalanceState()` |
 | Reset endpoint | ✅ | `POST /api/agent/reset` — wipes state and restarts fresh |
-| Proxy agent (`proxy-agent.ts`) | ✅ | WebShare proxy for Bitget API, direct→proxy fallback on failure |
+
 
 ### 🟡 In Progress / Known Issues
 - Agent LLM decisions are conservative (frequently returns "hold") — needs signal threshold tuning for demo visibility

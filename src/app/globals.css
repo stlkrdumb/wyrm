@@ -2,28 +2,83 @@
 
 @theme inline {
   --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-mono: "Fira Code", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
 
 body {
-  @apply bg-zinc-950 text-zinc-100 antialiased;
+  @apply bg-black text-zinc-300 antialiased;
   font-family: var(--font-sans);
 }
 
-/* Scrollbar styling for dark theme */
+/* Hacker terminal effects */
+
+/* Glowing text highlights */
+.glow-green {
+  text-shadow: 0 0 4px rgba(16, 185, 129, 0.4);
+}
+
+.glow-amber {
+  text-shadow: 0 0 4px rgba(245, 158, 11, 0.4);
+}
+
+.glow-rose {
+  text-shadow: 0 0 4px rgba(244, 63, 94, 0.4);
+}
+
+/* Custom terminal window styling */
+.terminal-window {
+  @apply bg-zinc-950 border border-emerald-950/60 rounded p-4 shadow-xl shadow-black;
+}
+
+/* Matrix style grid background */
+.matrix-grid {
+  background-image: linear-gradient(rgba(16, 185, 129, 0.015) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(16, 185, 129, 0.015) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Flashing animations */
+@keyframes flash-green {
+  0% { background-color: rgba(16, 185, 129, 0.15); }
+  100% { background-color: transparent; }
+}
+
+@keyframes flash-red {
+  0% { background-color: rgba(244, 63, 94, 0.15); }
+  100% { background-color: transparent; }
+}
+
+.flash-up {
+  animation: flash-green 1s ease-out;
+}
+
+.flash-down {
+  animation: flash-red 1s ease-out;
+}
+
+/* Cursor blink */
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
+.cursor-blink::after {
+  content: "_";
+  animation: blink 1s step-start infinite;
+}
+
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 4px;
+  height: 4px;
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: rgba(16, 185, 129, 0.01);
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-zinc-700 rounded-full;
+  @apply bg-emerald-950 rounded-full border border-emerald-900/10;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-zinc-600;
+  @apply bg-emerald-900/35;
 }

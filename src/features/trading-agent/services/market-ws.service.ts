@@ -1,32 +1,15 @@
 import type { PriceSnapshot } from "./price-store";
-import type { Candlestick } from "../types";
 import { updatePositionUnrealizedPnL } from "./agent-engine";
-
-/** ────────────────────── types ────────────────────── */
-
-/** Bitget WS ticker — may use either full or abbreviated names depending on API version */
-interface WSTickerRaw {
-  instId?: string;
-  instType?: string;
-  lastPrice?: string;
-  lastPr?: string;
-  high24h?: string;
-  low24h?: string;
-  baseVol?: string;
-  vol24h?: string;           // raw volume in base currency
-  quoteVol?: string;
-  volValue24h?: string;      // volume value in quote currency (USDT)
-  priceRate?: string;
-  changeUtc24h?: string;
-  cap24hSwing?: string;
-  ts?: string;
-}
+import { type WSTickerRaw, parseTicker, parseCandle } from "./ws-helpers";
+import { priceStore, type PriceStore } from "./price-store";
+import { config } from "./agent-engine";
+import { WebSocket as WSClient } from "ws";
 
 interface WSCandleRaw {
   instType: "SPOT";
-  channel: string; // e.g. "candle1h"
+  channel: string;
   instId: string;
-  data?: string[][]; // [[ts, o, h, l, c, vol], ...]
+  data?: string[][];
 }
 
 interface WSMsgSubscribeAck {
@@ -42,131 +25,125 @@ interface WSMsgError {
 
 type WSMessage = WSMsgSubscribeAck | WSMsgError | Record<string, unknown>;
 
-/** ────────────────────── channel config ──────────── */
-
 export interface WSSubscription {
   instType: "SPOT";
-  channel: "ticker" | `candle${string}`; // e.g. "candle1h", "candle5m"
+  channel: "ticker" | `candle${string}`;
   instId: string;
 }
 
-/** ────────────────────── Price Store import (lazy) ─ */
 
-import { priceStore } from "./price-store";
-import type { PriceStore } from "./price-store";
-import { proxyFetch } from "./proxy-client";
-import { config } from "./agent-engine";
-
-function getPriceStore(): PriceStore {
-  return priceStore;
-}
-
-const PROXY_URL = process.env.BITGET_PROXY || "";
-
-/** ────────────────────── WebSocket Service ───────── */
 
 export class MarketWebSocketService {
-  private ws: WebSocket | null = null;
+  private ws: WSClient | null = null;
   private subscriptions: WSSubscription[] = [];
   private pingTimer: ReturnType<typeof setInterval> | null = null;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private reconnectAttempt = 0;
   private maxReconnectDelay = 30_000;
   private baseReconnectDelay = 1_000;
-  private useProxyForRest = !!PROXY_URL;
-  private wsFailed = false;
 
-  /** Called by agent-engine to start subscription */
+
+  getConnectionInfo(): { type: "direct" | "fallback"; proxy: string | null } {
+    if (this.ws && this.ws.readyState === WSClient.OPEN) {
+      return {
+        type: "direct",
+        proxy: null,
+      };
+    }
+    return {
+      type: "fallback",
+      proxy: null,
+    };
+  }
+
   async subscribe(channels: WSSubscription[]): Promise<void> {
     this.subscriptions = channels;
     console.log(`[WS] Subscribing to ${channels.length} channel(s):`, channels.map(c => `${c.instType}/${c.channel}/${c.instId}`).join(", "));
 
-    if (!this.ws || this.ws.readyState === WebSocket.CLOSED) {
+    if (!this.ws || this.ws.readyState === WSClient.CLOSED) {
       await this.connect();
     } else {
       this.sendSubscribe(channels);
     }
   }
 
-  /** Called by agent-engine to stop / on shutdown */
   disconnect(): void {
     this.clearPingTimer();
-    if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null; }
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
     if (this.ws) {
-      this.ws.onclose = null; // prevent auto-reconnect
+      this.ws.onclose = null;
       this.ws.close(1000, "manual shutdown");
       this.ws = null;
     }
   }
 
-  /** Try connecting — direct first, REST fallback on failure */
   private async connect(): Promise<void> {
     console.log("[WS] Connecting to wss://ws.bitget.com/v2/ws/public...");
 
     try {
       await new Promise<void>((resolve, reject) => {
-        const ws = new WebSocket("wss://ws.bitget.com/v2/ws/public");
+        const ws = new WSClient("wss://ws.bitget.com/v2/ws/public");
 
-        ws.onopen = () => {
-          console.log("[WS] Connected ✓");
+        ws.on("open", () => {
+          console.log("[WS] Connected ✓ (direct)");
           this.reconnectAttempt = 0;
-          this.ws = null; // Don't store — handle via event listeners
           this.ws = ws;
           if (this.subscriptions.length > 0) {
             this.sendSubscribe(this.subscriptions);
           }
           this.startPingTimer();
           resolve();
-        };
+        });
 
-        ws.onmessage = (event: MessageEvent) => {
+        ws.on("message", (data) => {
           try {
-            const data = event.data.toString("utf-8");
-            this.handleMessage(data);
+            this.handleMessage(data.toString("utf-8"));
           } catch (err) {
             console.error("[WS] Message parse error:", err);
           }
-        };
+        });
 
-        ws.onerror = () => { /* close will handle it */ };
+        ws.on("error", (err) => {
+          console.warn("[WS] Socket error:", err.message);
+        });
 
-        ws.onclose = (event: CloseEvent) => {
+        ws.on("close", (code, reason) => {
           this.ws = null;
           this.clearPingTimer();
-          if (event.code !== 1000) {
+          if (code !== 1000) {
             this.scheduleReconnect();
           }
-          reject(new Error(`WebSocket closed code=${event.code}`));
-        };
+          reject(new Error(`WebSocket closed code=${code} reason=${reason.toString()}`));
+        });
 
-        // Timeout on connect
         const timeout = setTimeout(() => {
-          ws.close(4004, "timeout");
-          reject(new Error("Direct WS connection timed out (10s)"));
+          ws.terminate();
+          reject(new Error("WS connection timed out (10s)"));
         }, 10_000);
-        ws.addEventListener("open", () => clearTimeout(timeout), { once: true });
+        ws.once("open", () => clearTimeout(timeout));
       });
     } catch (err) {
-      console.warn(`[WS] Direct connection failed — will fall back to REST polling:`, err instanceof Error ? err.message : String(err));
-
-      // Final fallback: populate PriceStore via REST polling (which uses proxy)
+      console.warn(`[WS] Connection failed — trying REST fallback:`, err instanceof Error ? err.message : String(err));
       await this.fallbackToRest();
     }
   }
 
-  /** Fallback: populate PriceStore via REST polling */
   private fallbackToRest(): Promise<void> {
     console.log("[WS] Starting REST ticker fallback...");
 
     const fetchAllTickers = async () => {
       try {
-        const proxy = this.useProxyForRest;
         for (const symbol of config.tradingSymbols) {
-          const resp = await proxyFetch<{
+          const res = await fetch(`https://api.bitget.com/api/v2/spot/market/tickers?symbol=${symbol}`, { signal: AbortSignal.timeout(10_000) });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const resp = await res.json() as {
             code: string;
             msg: string;
             data: Array<Record<string, string>>;
-          }>(`https://api.bitget.com/api/v2/spot/market/tickers?symbol=${symbol}`);
+          };
 
           const ticker = resp.data.find((t) => t.symbol === symbol || t.instId === symbol);
           if (!ticker) continue;
@@ -191,18 +168,17 @@ export class MarketWebSocketService {
             updatedAt: new Date(tsNum),
           };
 
-          getPriceStore().updateTicker(snapshot);
+          priceStore.updateTicker(snapshot);
         }
 
-        console.log(`[WS] REST fallback cached ${getPriceStore().getSymbolCount()} ticker(s)`);
+        console.log(`[WS] REST fallback cached ${priceStore.getSymbolCount()} ticker(s)`);
       } catch (err) {
         console.warn("[WS] REST fetch error:", err instanceof Error ? err.message : String(err));
       }
     };
 
-    // Fetch immediately, then poll every 30s to keep prices fresh
     fetchAllTickers();
-    const interval = setInterval(fetchAllTickers, 30_000);
+    setInterval(fetchAllTickers, 30_000);
 
     return Promise.resolve();
   }
@@ -228,14 +204,13 @@ export class MarketWebSocketService {
   }
 
   private sendSubscribe(channels: WSSubscription[]): void {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+    if (!this.ws || this.ws.readyState !== WSClient.OPEN) return;
     const msg = JSON.stringify({ op: "subscribe", args: channels });
     this.ws.send(msg);
     console.log("[WS] Subscribe:", channels.map(c => `${c.channel}/${c.instId}`).join(", "));
   }
 
   private handleMessage(data: string): void {
-    // Handle plain strings (server ping/pong are sent as bare text)
     if (data === "ping") {
       this.sendPong();
       return;
@@ -254,28 +229,24 @@ export class MarketWebSocketService {
       return;
     }
 
-    // Check for pong (response to our ping)
     if ("pong" in msg) {
       console.log("[WS] Pong received ✓");
       this.reconnectAttempt = 0;
       return;
     }
 
-    // Error event
     if (("event" in msg && msg.event === "error") || "code" in msg) {
       const err = msg as WSMsgError;
       console.warn(`[WS] Server error: code=${err.code}, msg="${err.msg}"`);
       return;
     }
 
-    // Subscribe acknowledgment
     if ("event" in msg && msg.event === "subscribe") {
       const ack = msg as WSMsgSubscribeAck;
       console.log("[WS] Subscribed:", `${ack.arg.channel}/${ack.arg.instId ?? "*"}`);
       return;
     }
 
-    // Ticker data — action: "snapshot" or "incremental"
     if ("action" in msg && "data" in msg && "arg" in msg) {
       const typed = msg as Record<string, unknown>;
       const arg = typed.arg as { channel?: string; instId?: string };
@@ -291,7 +262,6 @@ export class MarketWebSocketService {
       return;
     }
 
-    // Subscribe ack with "event" instead of "action"
     if (("event" in msg && msg.event === "subscribe") || ("arg" in msg && "data" in msg)) {
       const typed = msg as Record<string, unknown>;
       const arg = typed.arg as { channel?: string; instId?: string };
@@ -309,49 +279,10 @@ export class MarketWebSocketService {
 
   private handleTicker(raw: WSTickerRaw): void {
     try {
-      const store = getPriceStore();
-
-      // Flexible field resolution — Bitget WS may use different naming conventions
-      const instId = raw.instId ?? "";
-      const lastPrice = Number(raw.lastPrice ?? raw.lastPr ?? "0");
-      const high24h = Number(raw.high24h ?? "0");
-      const low24h = Number(raw.low24h ?? "0");
-      const baseVol = Number(raw.baseVol ?? raw.vol24h ?? "0");
-      const quoteVol = Number(raw.volValue24h ?? raw.quoteVol ?? "0");
-
-      // Change percentage: try multiple field names
-      let changePct = 0;
-      if (raw.priceRate) {
-        changePct = Number(raw.priceRate) * 100;
-      } else if (raw.changeUtc24h) {
-        changePct = Number(raw.changeUtc24h) * 100;
-      } else if (raw.cap24hSwing) {
-        changePct = Number(raw.cap24hSwing) * 100;
-      }
-
-      // Timestamp: try multiple formats
-      let ts = Date.now();
-      if (raw.ts) {
-        const parsed = Number(raw.ts);
-        ts = parsed > 1e12 ? parsed : parsed * 1000;
-      }
-
-      // Only update store if price is valid (> 0)
-      if (lastPrice > 0) {
-        const snapshot: PriceSnapshot = {
-          symbol: instId,
-          lastPrice,
-          high24h,
-          low24h,
-          baseVolume: baseVol,
-          quoteVolume: quoteVol,
-          changePercent: changePct,
-          updatedAt: new Date(ts),
-        };
-        store.updateTicker(snapshot);
-
-        // If this symbol has an open position, update unrealized PnL immediately
-        updatePositionUnrealizedPnL(instId, lastPrice);
+      const parsed = parseTicker(raw);
+      if (parsed) {
+        priceStore.updateTicker(parsed);
+        updatePositionUnrealizedPnL(parsed.symbol, parsed.lastPrice);
       }
     } catch (err) {
       const instId = raw.instId ?? "unknown";
@@ -366,27 +297,20 @@ export class MarketWebSocketService {
     if (!arg?.channel || !dataArr || dataArr.length === 0) return;
 
     const symbol = arg.instId ?? "UNKNOWN";
-    const interval = arg.channel.replace(/^candle/, ""); // "1h", "5m" → "1h", "5m"
-    const store = getPriceStore();
+    const interval = arg.channel.replace(/^candle/, "");
 
     for (const row of dataArr) {
-      if (row.length < 6) continue;
-      const candle: Candlestick = {
-        timestamp: Number(row[0]),
-        open: Number(row[1]),
-        high: Number(row[2]),
-        low: Number(row[3]),
-        close: Number(row[4]),
-        volume: Number(row[5]),
-      };
-      store.updateCandle(symbol, interval, candle);
+      const candle = parseCandle(row);
+      if (candle) {
+        priceStore.updateCandle(symbol, interval, candle);
+      }
     }
   }
 
   private startPingTimer(): void {
     this.clearPingTimer();
     this.pingTimer = setInterval(() => {
-      if (this.ws?.readyState === WebSocket.OPEN) {
+      if (this.ws?.readyState === WSClient.OPEN) {
         this.sendPong();
       } else {
         this.clearPingTimer();
@@ -395,21 +319,21 @@ export class MarketWebSocketService {
   }
 
   private sendPong(): void {
-    if (this.ws?.readyState === WebSocket.OPEN) {
+    if (this.ws?.readyState === WSClient.OPEN) {
       this.ws.send("ping");
     }
   }
 
   private clearPingTimer(): void {
-    if (this.pingTimer) { clearInterval(this.pingTimer); this.pingTimer = null; }
+    if (this.pingTimer) {
+      clearInterval(this.pingTimer);
+      this.pingTimer = null;
+    }
   }
 
-  /** Exposed for external consumers who need the store instance */
   getPriceStore(): PriceStore {
     return priceStore;
   }
 }
-
-// ─────────────── singleton export ───────────────────
 
 export const marketWS = new MarketWebSocketService();

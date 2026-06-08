@@ -1,36 +1,110 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🐉 WYRM Trader
 
-## Getting Started
+WYRM Trader is a state-of-the-art autonomous trading agent developed for the **Bitget AI Base Camp Hackathon S1 (Track 1 — Trading Agent)**. It features a fully operational perception-decision-execution cycle backed by a real-time React web dashboard.
 
-First, run the development server:
+---
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## 🚀 Key Features
+
+* **Multi-Pair WebSocket Data**: Ingests real-time Spot ticker streams for `BTCUSDT`, `ETHUSDT`, `SOLUSDT`, and `BNBUSDT` directly from the Bitget WS server, with automatic REST fallback polling through residential proxies if direct connections are restricted.
+* **Official Bitget Formula TA**: Runs high-fidelity technical indicator calculations (RSI, MACD, Bollinger Bands) using official Bitget formulas written in Python.
+* **LLM Decision Engine**: Evaluates TA signals and price trends via OpenAI-compatible endpoints (supporting Qwen 3.6+) with an automatic timeout and model-fallback mechanism (`qwen3.6-plus` ⇄ `qwen3.6-flash`).
+* **Paper Trading Execution**: Simulates trades using a real-time order matching engine. Supports long position tracking, average entry price recalculations, and reactive unrealized PnL updates.
+* **Auditability & Log Trails**: Maintains persistent portfolio state on disk (`.data/portfolio-state.json`) with start/pause/stop lifecycle controls that automatically flatten active positions at current market rates upon stopping.
+* **Premium React Dashboard**: Visualizes agent status, signal feeds, active positions, a scrollable trade log, and a dynamic equity curve powered by Recharts.
+
+---
+
+## 🛠️ Architecture Overview
+
+```
+ ┌──────────────────────────────┐
+ │     React Web Dashboard      │  ← Start/Pause/Stop Lifecycle
+ │    (Next.js App Router)      │  ← Live equity chart & trades
+ └──────────────┬───────────────┘
+                │ fetches state
+                ▼
+ ┌──────────────────────────────┐
+ │    Next.js API Endpoints     │
+ │  /api/agent/cycle (GET/POST) │
+ └──────────────┬───────────────┘
+                │ orchestrates
+                ▼
+ ┌──────────────────────────────┐
+ │   Trading Agent Core Engine  │
+ │  - ws-helpers / price-store  │  ← Real-time WS Tickers
+ │  - decision-engine.service   │  ← Ingests TA & triggers LLM
+ │  - agent-helpers / executor  │  ← Paper order matching
+ └──────────────┬───────────────┘
+                │ fallback REST
+                ▼
+ ┌──────────────────────────────┐
+ │      Bitget REST API v2      │
+ └──────────────────────────────┘
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## ⚙️ Setup & Configuration
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Configure the agent via a `.env.local` file at the root of the project:
 
-## Learn More
+```env
+# Server Config
+PORT=3000
 
-To learn more about Next.js, take a look at the following resources:
+# Bitget API (Read-only for Market Data)
+BITGET_API_KEY="your-api-key"
+BITGET_SECRET_KEY="your-secret-key"
+BITGET_PASSPHRASE="your-passphrase"
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# LLM Engine Config
+OPENAI_BASE_URL="https://api.openai.com/v1"
+OPENAI_API_KEY="your-llm-api-key"
+LLM_MODEL="qwen3.6-plus"
+LLM_MODEL_FAST="qwen3.6-flash"
+LLM_PLUS_TIMEOUT_MS=15000
 
-## Deploy on Vercel
+# Trading Settings
+SIM_INITIAL_CASH=1000
+TRADING_SYMBOLS="BTCUSDT,ETHUSDT,SOLUSDT,BNBUSDT"
+MAX_ACTIVE_POSITIONS=3
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 📦 Installation
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Install Node.js dependencies:
+   ```bash
+   npm install
+   ```
+2. Install Python requirements for technical analysis:
+   ```bash
+   pip3 install -r src/features/trading-agent/analysis/requirements.txt
+   ```
+
+---
+
+## 🏃 Run the Agent
+
+### Development Server
+```bash
+npm run dev
+```
+
+### Production Build
+```bash
+npm run build
+npm run start
+```
+
+### Control the Agent Loop
+The agent runs an automatic perception → decision → execution cycle every 3 seconds while in `running` state.
+* **Trigger a cycle manually**:
+  ```bash
+  curl -X POST http://localhost:3000/api/agent/cycle
+  ```
+* **Toggle state (running/paused/stopped)**:
+  ```bash
+  curl -X PUT "http://localhost:3000/api/agent/cycle?status=running"
+  ```

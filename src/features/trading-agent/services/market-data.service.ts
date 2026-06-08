@@ -1,5 +1,4 @@
 import type { TickerData, OrderBook, Candlestick } from "../types";
-import { proxyFetch } from "./proxy-client";
 
 const BITGET_API = "https://api.bitget.com/api/v2/spot/market";
 
@@ -14,19 +13,8 @@ async function bitgetDirect<T>(path: string): Promise<T> {
   }
 }
 
-/** Fetch via WebShare proxy using subprocess curl */
-async function bitgetProxy<T>(path: string): Promise<T> {
-  try {
-    return await proxyFetch<T>(`${BITGET_API}${path}`);
-  } catch (err) {
-    throw new Error(`Bitget ${path} via proxy failed: ${err instanceof Error ? err.message : String(err)}`);
-  }
-}
-
-/** Generic fetch — uses proxy if configured, otherwise direct */
+/** Generic fetch — direct only */
 async function bitgetFetch<T>(path: string): Promise<T> {
-  const hasProxy = !!process.env.BITGET_PROXY;
-  if (hasProxy) return bitgetProxy<T>(path);
   return bitgetDirect<T>(path);
 }
 

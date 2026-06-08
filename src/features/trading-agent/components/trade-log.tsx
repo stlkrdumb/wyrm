@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { Card, CardHeader, CardTitle } from "@/shared/ui";
 import type { TradeData, PortfolioData } from "../hooks/use-agent";
 
@@ -24,46 +25,62 @@ function ActionBadge({ action }: { action: string }) {
     reduce: "Partial Sell",
   };
   const style: Record<string, string> = {
-    entry: "bg-emerald-500/20 text-emerald-400",
-    add: "bg-emerald-500/20 text-emerald-400",
-    exit: "bg-red-500/20 text-red-400",
-    reduce: "bg-orange-500/20 text-orange-400",
+    entry: "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30",
+    add: "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30",
+    exit: "bg-rose-500/10 text-rose-400 border border-rose-500/30",
+    reduce: "bg-amber-500/10 text-amber-400 border border-amber-500/30",
   };
 
-  return <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${style[action] || "bg-zinc-700 text-zinc-400"}`}>{label[action] ?? action}</span>;
+  return (
+    <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-widest ${style[action] || "bg-zinc-800 text-zinc-500 border border-zinc-700"}`}>
+      {label[action] ?? action}
+    </span>
+  );
 }
 
-export function TradeLog({ trades, portfolio }: Props) {
+export const TradeLog = memo(function TradeLog({ trades, portfolio }: Props) {
   const hasTrades = trades.length > 0;
 
   return (
-    <Card>
+    <Card className="flex flex-col h-full">
       <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-          <CardTitle>Trade Log</CardTitle>
-          <span className="text-xs text-zinc-500">{portfolio.totalTrades} trades</span>
+        <div className="flex items-center justify-between w-full">
+          <CardTitle className="glow-green">System Logs</CardTitle>
+          <span className="text-[10px] text-emerald-700 font-mono">
+            COUNT: {portfolio.totalTrades}
+          </span>
         </div>
       </CardHeader>
 
-      {hasTrades ? (
-        <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1 -mr-1">
-          {[...trades].reverse().map((t) => (
-            <TradeRow key={t.id} trade={t} />
-          ))}
-        </div>
-      ) : (
-        <div className="text-sm text-zinc-500 py-8 text-center">No trades yet — start the agent to begin</div>
-      )}
+      <div className="flex-1 min-h-0">
+        {hasTrades ? (
+          <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1 -mr-1 font-mono text-xs">
+            {[...trades].reverse().map((t) => (
+              <TradeRow key={t.id} trade={t} />
+            ))}
+          </div>
+        ) : (
+          <div className="text-xs text-emerald-800 py-8 text-center cursor-blink">
+            SYSTEM IDLE: Awaiting trades...
+          </div>
+        )}
+      </div>
 
       {portfolio.totalTrades > 0 && (
         <Summary portfolio={portfolio} />
       )}
     </Card>
   );
-}
+}, (prev, next) => {
+  return (
+    prev.trades.length === next.trades.length &&
+    prev.portfolio.totalTrades === next.portfolio.totalTrades &&
+    prev.portfolio.totalPnL === next.portfolio.totalPnL &&
+    prev.portfolio.winRate === next.portfolio.winRate
+  );
+});
 
 function TradeRow({ trade }: { trade: TradeData }) {
-  const isBuy = trade.side === "buy";
   const pnlDisplay = trade.pnl !== null;
   const pnlPositive = trade.pnl !== null && trade.pnl >= 0;
 
@@ -71,26 +88,26 @@ function TradeRow({ trade }: { trade: TradeData }) {
   const quoteCurrency = trade.symbol.replace(/[A-Z]{4}$/, "") || "USD";
 
   return (
-    <div className="group rounded-lg bg-zinc-800/40 hover:bg-zinc-800/70 border border-transparent hover:border-zinc-700/50 p-3 transition-all">
+    <div className="group rounded border border-emerald-950/40 bg-zinc-950 p-2.5 hover:border-emerald-500/30 transition-all duration-150">
       {/* Top row: symbol + badge */}
-      <div className="flex items-center justify-between mb-1.5">
+      <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-2">
-          <span className="font-medium text-zinc-100 text-sm">{trade.symbol}</span>
+          <span className="font-semibold text-emerald-300 text-xs">{trade.symbol}</span>
           <ActionBadge action={trade.action} />
         </div>
-        <span className="text-[10px] text-zinc-600">{formatRelative(trade.timestamp)}</span>
+        <span className="text-[9px] text-emerald-800">{formatRelative(trade.timestamp)}</span>
       </div>
 
       {/* Bottom row: price × size */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-xs tabular-nums text-zinc-400">
+      <div className="flex items-center justify-between text-[11px]">
+        <div className="flex items-center gap-1.5 tabular-nums text-zinc-400">
           <span>Qty: {trade.size.toFixed(4)} {quoteCurrency}</span>
-          <span className="text-zinc-600">@</span>
-          <span>${trade.price.toLocaleString()}</span>
+          <span className="text-emerald-900">@</span>
+          <span className="text-zinc-300">${trade.price.toLocaleString()}</span>
         </div>
 
         {pnlDisplay && (
-          <span className={`text-xs font-semibold tabular-nums ${pnlPositive ? "text-emerald-400" : "text-red-400"}`}>
+          <span className={`font-bold tabular-nums ${pnlPositive ? "text-emerald-400 glow-green" : "text-rose-400 glow-rose"}`}>
             {pnlPositive ? "+" : ""}${trade.pnl!.toLocaleString()}
           </span>
         )}
@@ -104,20 +121,20 @@ function Summary({ portfolio }: { portfolio: PortfolioData }) {
   const pnlPositive = pnl >= 0;
 
   return (
-    <div className="mt-3 pt-2 border-t border-zinc-800 grid grid-cols-3 gap-2 text-xs">
-      <div>
-        <span className="text-zinc-500 block">Total Trades</span>
-        <span className="font-semibold text-zinc-100 tabular-nums">{portfolio.totalTrades}</span>
+    <div className="mt-3 pt-2.5 border-t border-emerald-950/60 grid grid-cols-3 gap-2 text-xs font-mono text-center">
+      <div className="bg-zinc-950/40 py-1.5 rounded border border-emerald-950/40">
+        <span className="text-emerald-800 text-[9px] uppercase tracking-wider block">Trades</span>
+        <span className="font-bold text-zinc-100 tabular-nums">{portfolio.totalTrades}</span>
       </div>
-      <div>
-        <span className="text-zinc-500 block">Win Rate</span>
-        <span className={`font-semibold tabular-nums ${portfolio.winRate >= 50 ? "text-emerald-400" : "text-red-400"}`}>
+      <div className="bg-zinc-950/40 py-1.5 rounded border border-emerald-950/40">
+        <span className="text-emerald-800 text-[9px] uppercase tracking-wider block">Win Rate</span>
+        <span className={`font-bold tabular-nums ${portfolio.winRate >= 50 ? "text-emerald-400 glow-green" : "text-rose-400 glow-rose"}`}>
           {portfolio.winRate.toFixed(0)}%
         </span>
       </div>
-      <div>
-        <span className="text-zinc-500 block">Total PnL</span>
-        <span className={`font-semibold tabular-nums ${pnlPositive ? "text-emerald-400" : "text-red-400"}`}>
+      <div className="bg-zinc-950/40 py-1.5 rounded border border-emerald-950/40">
+        <span className="text-emerald-800 text-[9px] uppercase tracking-wider block">PnL</span>
+        <span className={`font-bold tabular-nums ${pnlPositive ? "text-emerald-400 glow-green" : "text-rose-400 glow-rose"}`}>
           {pnlPositive ? "+" : ""}${Math.abs(pnl).toLocaleString()}
         </span>
       </div>
