@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { Card, CardHeader, CardTitle } from "@/shared/ui";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
-import type { PortfolioData, TickerData } from "../hooks/use-agent";
+import type { PortfolioData, MultiTickerState, TickerData } from "../hooks/use-agent";
 
 // Default initial cash — must match SIM_INITIAL_CASH in .env.local
 const DEFAULT_INITIAL_CASH = 1000;
@@ -11,6 +11,7 @@ const DEFAULT_INITIAL_CASH = 1000;
 interface Props {
   portfolio: PortfolioData;
   ticker: TickerData | null;
+  tickers?: MultiTickerState | null;
 }
 
 export function EquityChart({ portfolio, ticker }: Props) {

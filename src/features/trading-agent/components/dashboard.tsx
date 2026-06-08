@@ -18,8 +18,8 @@ export function Dashboard() {
       <main className="flex-1 p-4 grid gap-4" style={{ gridTemplateColumns: "minmax(0, 2fr) minmax(0, 1fr)" }}>
         <div className="flex flex-col gap-4">
           <MarketWatch tickers={agent.state.tickers} />
-          <EquityChart portfolio={agent.state.portfolio} ticker={agent.state.ticker} />
-          <PositionsPanel positions={agent.state.positions} ticker={agent.state.ticker} />
+          <EquityChart portfolio={agent.state.portfolio} ticker={agent.state.ticker} tickers={agent.state.tickers} />
+          <PositionsPanel positions={agent.state.positions} tickers={agent.state.tickers} />
         </div>
 
         <div className="flex flex-col gap-4">

@@ -61,6 +61,11 @@ export async function GET(request: NextRequest) {
     const obj = buildTickerObj(snapshot);
     if (obj) tickersMap[symbol] = obj;
   }
+  // Debug: log raw PriceStore values
+  console.log(`[API] Raw PriceStore snapshots:`);
+  for (const [sym, snap] of allSnapshots) {
+    console.log(`  ${sym}: lastPrice=${snap.lastPrice} (type=${typeof snap.lastPrice}) high=${snap.high24h} low=${snap.low24h} ts=${snap.updatedAt.toISOString()} ago=${Date.now() - snap.updatedAt.getTime()}ms`);
+  }
 
   // Determine WS status from store freshness
   let wsStatus: "connected" | "connecting" | "reconnecting" = "connected";

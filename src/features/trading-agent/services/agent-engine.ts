@@ -325,8 +325,13 @@ export async function runAgentCycle(): Promise<{ decision: TradingDecision; sign
     state.portfolio.totalTrades++;
   }
 
-  const displayTickerLastPrice = displayTicker?.lastPrice ?? 0;
-  const totalPosVal = state.positions.reduce((s, p) => s + p.size * displayTickerLastPrice, 0);
+  // Calculate position value per-symbol (not using a single global ticker)
+  let totalPosVal = 0;
+  for (const p of state.positions) {
+    const symTicker = priceMap.get(p.symbol);
+    const price = symTicker?.lastPrice ?? displayTicker?.lastPrice ?? p.entryPrice;
+    totalPosVal += p.size * price;
+  }
   const realEquity = liquidBalance + totalPosVal;
   state.portfolio = {
     ...state.portfolio,

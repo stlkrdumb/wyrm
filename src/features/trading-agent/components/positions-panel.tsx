@@ -1,14 +1,14 @@
 "use client";
 
 import { Card, CardHeader, CardTitle } from "@/shared/ui";
-import type { PositionData, TickerData } from "../hooks/use-agent";
+import type { PositionData, MultiTickerState } from "../hooks/use-agent";
 
 interface Props {
   positions: PositionData[];
-  ticker: TickerData | null;
+  tickers: MultiTickerState | null;
 }
 
-export function PositionsPanel({ positions, ticker }: Props) {
+export function PositionsPanel({ positions, tickers }: Props) {
   if (positions.length === 0) {
     return (
       <Card>
@@ -39,16 +39,20 @@ export function PositionsPanel({ positions, ticker }: Props) {
           </thead>
           <tbody>
             {positions.map((p) => {
-              const currentValue = p.size * (ticker?.lastPrice ?? 0);
+              // Look up per-symbol ticker instead of using a single global ticker
+              const symTicker = tickers?.[p.symbol];
+              const currentPrice = symTicker?.lastPrice ?? p.entryPrice; // fallback to entry if no live price
+              const currentValue = p.size * currentPrice;
               const costBasis = p.size * p.entryPrice;
+              const unrealizedPnl = currentValue - costBasis;
               return (
                 <tr key={p.symbol} className="border-b border-zinc-800/50 last:border-0">
                   <td className="py-2 font-medium text-zinc-100">{p.symbol}</td>
                   <td className="py-2 text-right tabular-nums text-zinc-300">{p.size.toFixed(4)}</td>
-                  <td className="py-2 text-right tabular-nums text-zinc-400">${p.entryPrice.toLocaleString()}</td>
+                  <td className="py-2 text-right tabular-nums text-zinc-400">${p.entryPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
                   <td className="py-2 text-right tabular-nums text-zinc-200 font-medium">${currentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                  <td className={`py-2 text-right tabular-nums font-medium ${(p.size * (ticker?.lastPrice ?? p.entryPrice)) - costBasis >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                    {((p.size * (ticker?.lastPrice ?? p.entryPrice)) - costBasis) >= 0 ? "+" : ""}${(((p.size * (ticker?.lastPrice ?? p.entryPrice)) - costBasis)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  <td className={`py-2 text-right tabular-nums font-medium ${unrealizedPnl >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                    {unrealizedPnl >= 0 ? "+" : ""}${unrealizedPnl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </td>
                 </tr>
               );
