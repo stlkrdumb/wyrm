@@ -23,8 +23,8 @@ async function getTechnicalAnalysis(ticker: TickerData): Promise<{
 }> {
   try {
     // Fetch candles via proxy (same rotating proxy as ticker price)
-    const json = await proxyFetch(`https://api.bitget.com/api/v2/spot/market/candles?symbol=${ticker.symbol}&granularity=1h&limit=50`);
-    const ohlcvs = json.data ?? [];
+    const resp = await proxyFetch<{ code: string; data: string[][] }>(`https://api.bitget.com/api/v2/spot/market/candles?symbol=${ticker.symbol}&granularity=1h&limit=50`);
+    const ohlcvs = resp.data ?? [];
 
     if (!ohlcvs || ohlcvs.length === 0) {
       throw new Error("No candle data returned from Bitget");
