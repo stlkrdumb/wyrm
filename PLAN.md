@@ -38,12 +38,21 @@
 | `GET /api/agent/cycle` | ✅ | Returns full agent state (portfolio, ticker, signals, trades, positions) |
 | `PUT /api/agent/cycle?status=` | ✅ | Start/Pause/Stop with auto-flatten on stop |
 | `GET /api/agent/config` | ✅ | Returns `initialCash` from `.env.local` for client initialization |
+| `POST /api/agent/reset` | ✅ | Reset portfolio to initial cash, stop agent, clear state |
 
 #### Client State Management
 | Feature | Status | Details |
 |---------|--------|--------|
 | use-agent hook | ✅ | Polling every 3s, status-aware fetch, lastKnownState persistence |
 | Config loading | ✅ | Fetches `initialCash` from server on mount, updates portfolio defaults |
+
+#### Portfolio Persistence
+| Feature | Status | Details |
+|---------|--------|--------|
+| Balance store (`balance-store.ts`) | ✅ | JSON file persist: cash, positions, realized PnL to `.data/portfolio-state.json` |
+| Auto-load on server start | ✅ | `buildInitialState()` restores from disk, falls back to initialCash |
+| Persist after every cycle | ✅ | Trade execution + flatten both call `saveBalanceState()` |
+| Reset endpoint | ✅ | `POST /api/agent/reset` — wipes state and restarts fresh |
 
 ### 🟡 In Progress / Known Issues
 - Agent LLM decisions are conservative (frequently returns "hold") — needs signal threshold tuning for demo visibility

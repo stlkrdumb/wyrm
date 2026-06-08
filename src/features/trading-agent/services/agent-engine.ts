@@ -2,6 +2,12 @@ import type { Signal, TickerData, PortfolioSnapshot, Position, Trade } from "../
 import { TradingDecision } from "../types";
 import { getTickerPrice } from "./market-data.service";
 import { evaluateSignals } from "./decision-engine.service";
+import {
+  loadBalanceState,
+  saveBalanceState,
+  resetBalanceState,
+  type PortfolioState as SavedPortfolioState,
+} from "./balance-store";
 
 interface AgentState {
   status: "running" | "stopped" | "paused";
@@ -16,17 +22,58 @@ interface AgentState {
 }
 
 const config = {
-  initialCash: Number(process.env.SIM_INITIAL_CASH) || 100000,
+  get initialCash(): number {
+    return Number(process.env.SIM_INITIAL_CASH) || 1000;
+  },
 };
 
 let tradeCounter = 0;
 
-let state: AgentState = {
-  status: "stopped", lastCycleAt: null, ticker: null, decision: null,
-  executionReason: "", signals: [],
-  portfolio: { timestamp: new Date(), initialCash: config.initialCash, cash: config.initialCash, equity: config.initialCash, positions: [], totalTrades: 0, winRate: 0, totalPnL: 0 },
-  positions: [], trades: [],
-};
+/** Build initial state — prefer saved balance over fresh default */
+function buildInitialState(): AgentState {
+  const saved = loadBalanceState();
+
+  let cash: number;
+  let realizedPnL = 0;
+  let positions: Position[] = [];
+
+  if (saved) {
+    cash = saved.cash;
+    realizedPnL = saved.accumulatedRealizedPnL;
+    positions = saved.positions.map(p => ({
+      symbol: p.symbol,
+      side: p.side,
+      size: p.size,
+      entryPrice: p.entryPrice,
+      unrealizedPnL: 0, // will be marked-to-market next cycle
+    }));
+  } else {
+    cash = config.initialCash;
+  }
+
+  return {
+    status: "stopped",
+    lastCycleAt: null,
+    ticker: null,
+    decision: null,
+    executionReason: "",
+    signals: [],
+    positions,
+    trades: [],
+    portfolio: {
+      timestamp: new Date(),
+      initialCash: config.initialCash,
+      cash,
+      equity: cash,
+      positions: [],
+      totalTrades: saved?.totalTrades || 0,
+      winRate: saved?.winRate || 0,
+      totalPnL: saved ? realizedPnL : 0,
+    },
+  };
+}
+
+let state: AgentState = buildInitialState();
 
 let intervalId: ReturnType<typeof setInterval> | null = null;
 
@@ -69,6 +116,7 @@ export async function flattenPositions(): Promise<{ closed: number; totalPnlReal
     return { closed: 0, totalPnlRealized: 0 };
   }
 
+  // Add position sale proceeds to liquid balance
   for (const pos of state.positions) {
     if (pos.size <= 0) continue;
     const pnl = Math.round((ticker.lastPrice - pos.entryPrice) * pos.size);
@@ -84,6 +132,7 @@ export async function flattenPositions(): Promise<{ closed: number; totalPnlReal
       pnl,
     });
     totalPnlRealized += pnl;
+    state.portfolio.cash += ticker.lastPrice * pos.size; // return capital from sale
     closedPositions.push(pos);
   }
 
@@ -96,8 +145,18 @@ export async function flattenPositions(): Promise<{ closed: number; totalPnlReal
   state.positions = [];
   state.ticker = ticker;
 
-  const posValue = state.positions.reduce((s, p) => s + p.size * ticker.lastPrice, 0);
-  state.portfolio = { ...state.portfolio, timestamp: new Date(), equity: posValue, positions: [], totalPnL: state.portfolio.totalPnL };
+  const realEquity = state.portfolio.cash; // no open positions, equity = cash
+  state.portfolio = { ...state.portfolio, timestamp: new Date(), equity: realEquity, positions: [], totalPnL: realEquity - config.initialCash };
+
+  // Persist — flattened balance is now the new running balance
+  saveBalanceState({
+    initialCash: config.initialCash,
+    cash: Math.round(state.portfolio.cash),
+    accumulatedRealizedPnL: state.portfolio.totalPnL,
+    positions: [],
+    totalTrades: state.portfolio.totalTrades,
+    winRate: state.portfolio.winRate,
+  });
 
   console.log(`[Agent] Flattened ${closedCount} position(s) at $${ticker.lastPrice.toLocaleString()} — realized PnL: ${totalPnlRealized >= 0 ? "+" : ""}$${totalPnlRealized.toLocaleString()}`);
 
@@ -132,8 +191,11 @@ export async function runAgentCycle(): Promise<{ decision: TradingDecision; sign
   state.signals = signals;
   state.lastCycleAt = new Date();
 
+  // Track liquid balance (decreases on buy, increases on sell)
+  let liquidBalance = state.portfolio.cash;
+
   if (decision.action !== "hold") {
-    const totalEquity = state.portfolio.cash + state.positions.reduce((s, p) => s + p.size * ticker.lastPrice, 0);
+    const totalEquity = liquidBalance + state.positions.reduce((s, p) => s + p.size * ticker.lastPrice, 0);
     const tradeSize = Math.min(1, (totalEquity * 0.05) / ticker.lastPrice);
 
     if (decision.action === "buy") {
@@ -141,17 +203,19 @@ export async function runAgentCycle(): Promise<{ decision: TradingDecision; sign
       const now = new Date();
       tradeCounter++;
 
-      if (idx >= 0) {
-        const p = state.positions[idx];
-        state.positions[idx] = { ...p, size: p.size + tradeSize, entryPrice: Math.round((p.entryPrice * p.size + ticker.lastPrice * tradeSize) / (p.size + tradeSize)) };
-        // Log add/reduce
-        if (tradeSize > 0) {
+      // Deduct from liquid balance (cost basis)
+      const cost = ticker.lastPrice * tradeSize;
+      if (cost <= liquidBalance) {
+        if (idx >= 0) {
+          const p = state.positions[idx];
+          state.positions[idx] = { ...p, size: p.size + tradeSize, entryPrice: Math.round((p.entryPrice * p.size + ticker.lastPrice * tradeSize) / (p.size + tradeSize)) };
           state.trades.push({ id: `T${tradeCounter}`, timestamp: now, symbol, side: "buy", action: "add", size: tradeSize, price: ticker.lastPrice });
+        } else {
+          // New position — entry
+          state.positions.push({ symbol, side: "long", size: tradeSize, entryPrice: ticker.lastPrice, unrealizedPnL: 0 });
+          state.trades.push({ id: `T${tradeCounter}`, timestamp: now, symbol, side: "buy", action: "entry", size: tradeSize, price: ticker.lastPrice });
         }
-      } else {
-        // New position — entry
-        state.positions.push({ symbol, side: "long", size: tradeSize, entryPrice: ticker.lastPrice, unrealizedPnL: 0 });
-        state.trades.push({ id: `T${tradeCounter}`, timestamp: now, symbol, side: "buy", action: "entry", size: tradeSize, price: ticker.lastPrice });
+        liquidBalance -= cost;
       }
     } else {
       // Sell
@@ -165,22 +229,44 @@ export async function runAgentCycle(): Promise<{ decision: TradingDecision; sign
         const pnl = Math.round((ticker.lastPrice - p.entryPrice) * p.size);
         state.trades.push({ id: `T${tradeCounter}`, timestamp: now, symbol, side: "sell", action: "exit", size: p.size, price: ticker.lastPrice, pnl });
         state.portfolio.totalPnL += pnl;
+        liquidBalance += ticker.lastPrice * p.size; // return capital
         state.positions.splice(idx, 1);
       } else if (idx >= 0) {
         // Partial reduce
-        const prevSize = state.positions[idx].size;
+        const tradeCost = ticker.lastPrice * tradeSize;
         const avgEntry = Math.round(state.positions[idx].entryPrice);
-        state.positions[idx] = { ...state.positions[idx], size: state.positions[idx].size - tradeSize };
         const pnl = Math.round((ticker.lastPrice - avgEntry) * tradeSize);
         state.trades.push({ id: `T${tradeCounter}`, timestamp: now, symbol, side: "sell", action: "reduce", size: tradeSize, price: ticker.lastPrice, pnl });
         state.portfolio.totalPnL += pnl;
+        liquidBalance += tradeCost; // return partial capital
+        state.positions[idx] = { ...state.positions[idx], size: state.positions[idx].size - tradeSize };
       }
     }
     state.portfolio.totalTrades++;
   }
 
   const totalPosVal = state.positions.reduce((s, p) => s + p.size * ticker.lastPrice, 0);
-  state.portfolio = { ...state.portfolio, timestamp: new Date(), equity: totalPosVal, positions: [...state.positions], totalPnL: totalPosVal - config.initialCash };
+  const realEquity = liquidBalance + totalPosVal;
+  state.portfolio = {
+    ...state.portfolio,
+    timestamp: new Date(),
+    initialCash: config.initialCash,
+    cash: Math.round(liquidBalance),
+    equity: Math.round(realEquity),
+    positions: [...state.positions],
+    totalPnL: realEquity - config.initialCash,
+  };
+
+  // Persist state to disk — so it survives server restart
+  const savedPositions = state.positions.map(p => ({ symbol: p.symbol, side: p.side as "long" | "short", size: p.size, entryPrice: p.entryPrice }));
+  saveBalanceState({
+    initialCash: config.initialCash,
+    cash: Math.round(liquidBalance),
+    accumulatedRealizedPnL: state.portfolio.totalPnL,
+    positions: savedPositions,
+    totalTrades: state.portfolio.totalTrades,
+    winRate: state.portfolio.winRate,
+  });
 
   return { decision, signals, tickerPrice: ticker.lastPrice };
 }
