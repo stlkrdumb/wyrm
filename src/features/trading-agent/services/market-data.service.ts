@@ -1,5 +1,6 @@
 import type { TickerData, OrderBook, Candlestick } from "../types";
 import { getProxyAgent } from "./proxy-agent";
+import https from "node:https";
 
 const BITGET_HOST = "api.bitget.com";
 const BITGET_BASE = "/api/v2/spot/market";
