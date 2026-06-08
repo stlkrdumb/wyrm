@@ -5,7 +5,7 @@ dotenv.config({ path: path.join(process.cwd(), ".env.local"), override: true });
 import { NextRequest, NextResponse } from "next/server";
 import { runAgentCycle, getAgentState, setAgentStatus } from "@/features/trading-agent/services/agent-engine";
 
-const INITIAL_CASH = Number(process.env.SIM_INITIAL_CASH) || 100000;
+const INITIAL_CASH = Number(process.env.SIM_INITIAL_CASH) || 1000;
 
 export async function POST() {
   try {
