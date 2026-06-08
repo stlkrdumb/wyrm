@@ -3,15 +3,22 @@ import type { Candlestick } from "../types";
 
 /** ────────────────────── types ────────────────────── */
 
+/** Bitget WS ticker — may use either full or abbreviated names depending on API version */
 interface WSTickerRaw {
-  instId: string;
-  lastPr: string;
-  high24h: string;
-  low24h: string;
-  baseVol: string;
-  quoteVol: string;
-  priceRate: string;
-  ts: string;
+  instId?: string;
+  instType?: string;
+  lastPrice?: string;
+  lastPr?: string;
+  high24h?: string;
+  low24h?: string;
+  baseVol?: string;
+  vol24h?: string;           // raw volume in base currency
+  quoteVol?: string;
+  volValue24h?: string;      // volume value in quote currency (USDT)
+  priceRate?: string;
+  changeUtc24h?: string;
+  cap24hSwing?: string;
+  ts?: string;
 }
 
 interface WSCandleRaw {
@@ -239,19 +246,50 @@ export class MarketWebSocketService {
   private handleTicker(raw: WSTickerRaw): void {
     try {
       const store = getPriceStore();
-      const snapshot: PriceSnapshot = {
-        symbol: raw.instId,
-        lastPrice: Number(raw.lastPr) || 0,
-        high24h: Number(raw.high24h) || 0,
-        low24h: Number(raw.low24h) || 0,
-        baseVolume: Number(raw.baseVol) || 0,
-        quoteVolume: Number(raw.quoteVol) || 0,
-        changePercent: (Number(raw.priceRate) * 100) || 0,
-        updatedAt: new Date(Number(raw.ts)),
-      };
-      store.updateTicker(snapshot);
+
+      // Flexible field resolution — Bitget WS may use different naming conventions
+      const instId = raw.instId ?? "";
+      const lastPrice = Number(raw.lastPrice ?? raw.lastPr ?? "0");
+      const high24h = Number(raw.high24h ?? "0");
+      const low24h = Number(raw.low24h ?? "0");
+      const baseVol = Number(raw.baseVol ?? raw.vol24h ?? "0");
+      const quoteVol = Number(raw.volValue24h ?? raw.quoteVol ?? "0");
+
+      // Change percentage: try multiple field names
+      let changePct = 0;
+      if (raw.priceRate) {
+        changePct = Number(raw.priceRate) * 100;
+      } else if (raw.changeUtc24h) {
+        changePct = Number(raw.changeUtc24h) * 100;
+      } else if (raw.cap24hSwing) {
+        changePct = Number(raw.cap24hSwing) * 100;
+      }
+
+      // Timestamp: try multiple formats
+      let ts = Date.now();
+      if (raw.ts) {
+        const parsed = Number(raw.ts);
+        // Bitget WS may send ms or seconds — detect by magnitude
+        ts = parsed > 1e12 ? parsed : parsed * 1000;
+      }
+
+      // Only update store if price is valid (> 0)
+      if (lastPrice > 0) {
+        const snapshot: PriceSnapshot = {
+          symbol: instId,
+          lastPrice,
+          high24h,
+          low24h,
+          baseVolume: baseVol,
+          quoteVolume: quoteVol,
+          changePercent: changePct,
+          updatedAt: new Date(ts),
+        };
+        store.updateTicker(snapshot);
+      }
     } catch (err) {
-      console.error(`[WS] Ticker parse error for ${raw.instId}:`, err);
+      const instId = raw.instId ?? "unknown";
+      console.error(`[WS] Ticker parse error for ${instId}:`, err);
     }
   }
 

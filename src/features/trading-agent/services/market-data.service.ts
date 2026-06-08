@@ -31,33 +31,46 @@ async function bitgetFetch<T>(path: string): Promise<T> {
 }
 
 /** Fetch latest ticker price for a symbol. */
+/** Bitget v2 spot tickers response — supports both field naming conventions */
+function parseTicker(resp: Record<string, unknown>, symbol: string): TickerData | null {
+  const raw = resp.data as Array<Record<string, string>> | undefined;
+  if (!Array.isArray(raw)) return null;
+
+  const ticker = raw.find((t) => t.symbol === symbol);
+  if (!ticker) return null;
+
+  // Bitget v2 REST may use either full names (lastPrice) or abbreviated (lastPr)
+  const lastPrice = Number(ticker.lastPrice ?? ticker.lastPr ?? ticker.close ?? ticker.last ?? "0");
+  const high24h = Number(ticker.high24h ?? ticker.high ?? "0");
+  const low24h = Number(ticker.low24h ?? ticker.low ?? "0");
+  const quoteVolume = Number(ticker.volValue24h ?? ticker.quoteVolume ?? ticker.volumeValue24h ?? "0");
+  const changePctRaw = Number(ticker.changeUtc24h ?? ticker.priceRate ?? ticker.changingPercent24h ?? "0");
+  const ts = Number(ticker.ts ?? ticker.time ?? Date.now());
+
+  if (lastPrice <= 0) return null;
+
+  return {
+    symbol,
+    lastPrice: Math.round(lastPrice * 100) / 100, // keep cents precision
+    high24h,
+    low24h,
+    volume24h: quoteVolume,
+    change24hPercent: Number((changePctRaw * 100).toFixed(2)),
+    timestamp: new Date(ts),
+  };
+}
+
 export async function getTickerPrice(symbol: string): Promise<TickerData> {
   const resp = await bitgetFetch<{
     code: string;
     msg: string;
-    data: Array<{
-      symbol: string;
-      lastPr: string;
-      high24h: string;
-      low24h: string;
-      quoteVolume: string;
-      changeUtc24h: string;
-      ts: string;
-    }>;
+    data: unknown;
   }>(`/tickers?symbol=${symbol}`);
 
-  const ticker = resp.data.find((t) => t.symbol === symbol);
+  const ticker = parseTicker(resp, symbol);
   if (!ticker) throw new Error(`Ticker not found for ${symbol}`);
 
-  return {
-    symbol,
-    lastPrice: Math.round(Number(ticker.lastPr)),
-    high24h: Number(ticker.high24h),
-    low24h: Number(ticker.low24h),
-    volume24h: Number(ticker.quoteVolume),
-    change24hPercent: Number((Number(ticker.changeUtc24h) * 100).toFixed(2)),
-    timestamp: new Date(Number(ticker.ts)),
-  };
+  return ticker;
 }
 
 /** Fetch order book depth for a symbol. */
