@@ -13,7 +13,7 @@ function httpsGet(path: string, timeoutMs: number): Promise<any> {
       port: 443,
       path,
       method: "GET",
-      headers: { "User-Agent": "WYRM-Trader/1.0" },
+      headers: { "User-Agent": "curl/7.81.0" },
     };
 
     const req = https.request(opts, (res) => {
@@ -47,7 +47,7 @@ async function bitgetProxyFetch<T>(path: string, timeoutMs: number): Promise<T> 
     port: 443,
     path,
     method: "GET",
-    headers: { "User-Agent": "WYRM-Trader/1.0" },
+    headers: { "User-Agent": "curl/7.81.0" },
     agent,
   };
 
