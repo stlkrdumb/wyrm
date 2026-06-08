@@ -1,0 +1,125 @@
+"use client";
+
+import { useState, useEffect, useCallback, useRef } from "react";
+
+export interface TickerData {
+  symbol: string;
+  lastPrice: number;
+  high24h: number;
+  low24h: number;
+  volume24h: number;
+  change24hPercent: number;
+}
+export interface SignalData { name: string; source: string; direction: "bullish" | "bearish" | "neutral"; strength: number; }
+export interface DecisionData { action: "buy" | "sell" | "hold"; strength: number; confidence: number; reason: string; }
+export interface PortfolioData { cash: number; equity: number; initialCash: number; totalTrades: number; winRate: number; totalPnL: number; }
+export interface TradeData {
+  id: string;
+  timestamp: string;
+  symbol: string;
+  side: "buy" | "sell";
+  action: "entry" | "exit" | "add" | "reduce";
+  size: number;
+  price: number;
+  pnl: number | null;
+}
+
+export interface PositionData { symbol: string; side: "long" | "short"; size: number; entryPrice: number; unrealizedPnL: number; }
+
+interface AgentState {
+  status: "running" | "stopped" | "paused";
+  lastCycleAt: string | null;
+  ticker: TickerData | null;
+  decision: DecisionData | null;
+  executionReason: string;
+  signals: SignalData[];
+  portfolio: PortfolioData;
+  positions: PositionData[];
+  trades: TradeData[];
+}
+
+let lastKnownState: AgentState | null = null;
+const POLL_MS = 3000;
+
+export function useAgent() {
+  const [state, setState] = useState<AgentState>(lastKnownState ?? {
+    status: "stopped", lastCycleAt: null, ticker: null, decision: null, executionReason: "",
+    signals: [], portfolio: { cash: 100000, equity: 100000, initialCash: 100000, totalTrades: 0, winRate: 0, totalPnL: 0 }, positions: [], trades: [],
+  });
+
+  // Stable fetch function — only recreates if URL changes
+  const fetchState = useCallback(async () => {
+    try {
+      console.log(`[Client] Fetching state... (current local status: ${state.status})`);
+      const res = await fetch("/api/agent/cycle");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      console.log(`[Client] Got state — status=${data.status} ticker=${data.ticker ?? "null"} signals=${data.signals?.length ?? 0}`);
+      lastKnownState = data;
+      setState(data);
+    } catch (err) {
+      console.error("[Client] Fetch error:", err);
+    }
+  }, [state.status]); // re-create when status changes so it picks up new value
+
+  const runCycle = useCallback(async () => {
+    try {
+      console.log(`[Client] Running agent cycle...`);
+      await fetch("/api/agent/cycle", { method: "POST" });
+      await fetchState(); // immediately get updated state
+    } catch (err) { console.error("[Client] Run cycle error:", err); }
+  }, [fetchState]);
+
+  const setAgentStatus = useCallback(async (status: "running" | "stopped" | "paused") => {
+    console.log(`[Client] Setting agent status to: ${status}`);
+    // Persist to server first
+    try {
+      const res = await fetch(`/api/agent/cycle?status=${status}`, { method: "PUT" });
+      if (res.ok && status === "stopped") {
+        const data = await res.json();
+        console.log(`[Client] Agent stopped — positions closed: ${data.closed}, realized PnL: ${data.realizedPnl}`);
+      }
+    } catch {}
+
+    setState((prev) => {
+      const next = { ...prev, status };
+      console.log(`[Client] Local state updated: ${prev.status} → ${status}`);
+      return next;
+    });
+
+    // After stopping, refresh state to show flattened positions and realized PnL
+    if (status === "stopped") {
+      await fetchState();
+    }
+  }, [fetchState]);
+
+  // Load initialCash from server config on mount (fixes hardcoded default)
+  useEffect(() => {
+    if (lastKnownState?.portfolio?.initialCash) return; // already have it
+    fetch("/api/agent/config")
+      .then((r) => r.json())
+      .then((cfg) => {
+        if (cfg.initialCash) {
+          setState((prev) => ({
+            ...prev,
+            portfolio: { ...prev.portfolio, initialCash: cfg.initialCash, cash: cfg.initialCash, equity: cfg.initialCash },
+          }));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Polling effect — starts when running, stops otherwise
+  useEffect(() => {
+    if (state.status !== "running") {
+      console.log("[Client] Status is not running, no polling");
+      return;
+    }
+    console.log("[Client] Starting polling every", POLL_MS, "ms");
+    const id = setInterval(fetchState, POLL_MS);
+    fetchState(); // immediate poll
+    return () => { clearInterval(id); console.log("[Client] Stopping polling"); };
+  }, [state.status, fetchState]);
+
+  return { state, runCycle, setAgentStatus, refresh: fetchState };
+}
