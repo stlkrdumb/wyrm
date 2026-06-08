@@ -35,18 +35,12 @@ function buildInitialState(): AgentState {
 
   let cash: number;
   let realizedPnL = 0;
+  // Always start with no open positions — stale positions from crash should not persist
   let positions: Position[] = [];
 
   if (saved) {
     cash = saved.cash;
     realizedPnL = saved.accumulatedRealizedPnL;
-    positions = saved.positions.map(p => ({
-      symbol: p.symbol,
-      side: p.side,
-      size: p.size,
-      entryPrice: p.entryPrice,
-      unrealizedPnL: 0, // will be marked-to-market next cycle
-    }));
   } else {
     cash = config.initialCash;
   }
