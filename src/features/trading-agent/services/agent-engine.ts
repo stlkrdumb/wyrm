@@ -49,6 +49,34 @@ async function initWebSocketSubscriptions(): Promise<void> {
   }
 }
 
+// Called by WS service when a ticker updates for a symbol with an open position
+export function updatePositionUnrealizedPnL(symbol: string, currentPrice: number): void {
+  const idx = state.positions.findIndex((p) => p.symbol === symbol);
+  if (idx >= 0 && state.positions[idx].entryPrice > 0) {
+    const pos = state.positions[idx];
+    const unrealizedPnL = Math.round((currentPrice - pos.entryPrice) * pos.size);
+    state.positions[idx] = { ...pos, unrealizedPnL };
+
+    // Recalculate total equity to reflect new unrealized PnL
+    let totalPosVal = 0;
+    for (const p of state.positions) {
+      const symTicker = priceStore.getCached(p.symbol);
+      const price = symTicker?.lastPrice ?? p.entryPrice;
+      totalPosVal += p.size * price;
+    }
+    const liquidBalance = state.portfolio.cash;
+    const realEquity = liquidBalance + totalPosVal;
+    state.portfolio = {
+      ...state.portfolio,
+      timestamp: new Date(),
+      cash: Math.round(liquidBalance),
+      equity: Math.round(realEquity),
+      positions: [...state.positions],
+      totalPnL: Math.round(realEquity - state.startEquity),
+    };
+  }
+}
+
 /** Build initial state — prefer saved balance over fresh default */
 function buildInitialState(): AgentState {
   const saved = loadBalanceState();

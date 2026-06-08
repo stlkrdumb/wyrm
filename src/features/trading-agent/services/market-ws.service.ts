@@ -1,5 +1,6 @@
 import type { PriceSnapshot } from "./price-store";
 import type { Candlestick } from "../types";
+import { updatePositionUnrealizedPnL } from "./agent-engine";
 
 /** ────────────────────── types ────────────────────── */
 
@@ -348,6 +349,9 @@ export class MarketWebSocketService {
           updatedAt: new Date(ts),
         };
         store.updateTicker(snapshot);
+
+        // If this symbol has an open position, update unrealized PnL immediately
+        updatePositionUnrealizedPnL(instId, lastPrice);
       }
     } catch (err) {
       const instId = raw.instId ?? "unknown";
