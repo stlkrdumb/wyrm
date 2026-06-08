@@ -44,10 +44,13 @@ export interface WSSubscription {
 
 /** ────────────────────── Price Store import (lazy) ─ */
 
-let _priceStore: typeof import("./price-store").PriceStore | null = null;
-function getPriceStore(): typeof import("./price-store").PriceStore {
-  if (!_priceStore) _priceStore = new import("./price-store").PriceStore();
-  return _priceStore;
+// Use singleton from price-store.ts — no need for a second instance
+import { priceStore } from "./price-store";
+import type { PriceStore } from "./price-store";
+
+// Returns the singleton instance for direct use in handleTicker/handleCandle
+function getPriceStore(): PriceStore {
+  return priceStore;
 }
 
 /** ────────────────────── WebSocket Service ───────── */
@@ -298,8 +301,8 @@ export class MarketWebSocketService {
   }
 
   /** Exposed for external consumers who need the store instance */
-  getPriceStore(): typeof import("./price-store").PriceStore {
-    return getPriceStore();
+  getPriceStore(): PriceStore {
+    return priceStore;
   }
 }
 

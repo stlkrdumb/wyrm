@@ -3,78 +3,113 @@ import { promisify } from "node:util";
 import path from "node:path";
 import { chatCompletion } from "./llm.service";
 import { proxyFetch } from "./proxy-client";
+import { priceStore } from "./price-store";
 import type { TickerData, TradingDecision, Signal } from "../types";
 
 const exec = promisify(execFile);
-// In Next.js dev mode, __dirname can resolve weirdly. Use CWD instead.
 const ANALYSIS_SCRIPT = path.join(
   process.cwd(),
   "src/features/trading-agent/analysis/cli.py"
 );
 
-/**
- * Fetch real OHLCV data from Bitget and run technical analysis via Python.
- */
-async function getTechnicalAnalysis(ticker: TickerData): Promise<{
-  indicators: Record<string, any>;
+/** Per-symbol technical analysis result */
+interface TASingle {
   rsi: number;
   macdDif: number;
   macdHist: number;
-}> {
+}
+
+/** Multi-pair result: per-symbol decisions + all signals combined */
+export interface MultiPairResult {
+  decisions: Record<string, TradingDecision>; // { BTCUSDT: {...}, ETHUSDT: {...} }
+  allSignals: Signal[];
+}
+
+// ─── Technical Analysis ──────────────────────────────
+
+/** Run Python TA on a candles array */
+async function runPythonTAOnCandles(symbol: string, candles: import("../types").Candlestick[]): Promise<TASingle> {
   try {
-    // Fetch candles via proxy (same rotating proxy as ticker price)
-    const resp = await proxyFetch<{ code: string; data: string[][] }>(`https://api.bitget.com/api/v2/spot/market/candles?symbol=${ticker.symbol}&granularity=1h&limit=50`);
-    const ohlcvs = resp.data ?? [];
-
-    if (!ohlcvs || ohlcvs.length === 0) {
-      throw new Error("No candle data returned from Bitget");
-    }
-
-    // Run Python CLI with real OHLCV data
     const result = await exec("python3", [
       ANALYSIS_SCRIPT,
       JSON.stringify({
-        symbol: ticker.symbol,
-        ohlcvs: ohlcvs.map((c: string[]) => [
-          Number(c[0]), c[1], c[2], c[3], c[4], c[5]
-        ]),
-        indicators: {
-          MACD: { fast: 12, slow: 26, signal: 9 },
-          RSI: { period: 14 },
-          BOLL: { period: 20, std_dev: 2 },
-        },
+        symbol,
+        ohlcvs: candles.map((c) => [c.timestamp, c.open, c.high, c.low, c.close, c.volume]),
+        indicators: { MACD: { fast: 12, slow: 26, signal: 9 }, RSI: { period: 14 }, BOLL: { period: 20, std_dev: 2 } },
+      }),
+    ], { timeout: 30_000 });
+
+    const output = JSON.parse(result.stdout);
+    const rsi = output.indicators?.RSI?.series?.RSI_14;
+    const macd = output.indicators?.MACD;
+
+    return {
+      rsi: rsi ? Number(rsi[rsi.length - 1]) : 50,
+      macdDif: macd?.series?.DIF ? Number(macd.series.DIF[macd.series.DIF.length - 1]) : 0,
+      macdHist: macd?.series?.HIST ? Number(macd.series.HIST[macd.series.HIST.length - 1]) : 0,
+    };
+  } catch {
+    return { rsi: 50, macdDif: 0, macdHist: 0 };
+  }
+}
+
+/** Get TA for a single symbol (WS-cached candles → Python, or REST fallback) */
+async function getTechnicalAnalysisForSymbol(symbol: string): Promise<TASingle> {
+  const interval = "1h";
+  const store = priceStore;
+
+  // Check cached candle data from WS
+  if (!store.isCandleStale(symbol, interval, 5 * 60_000)) {
+    const candles = store.getCandles(symbol, interval);
+    if (candles && candles.length >= 20) {
+      return runPythonTAOnCandles(symbol, candles);
+    }
+  }
+
+  // REST fallback: fetch candles + Python TA
+  try {
+    const resp = await proxyFetch<{ code: string; data: string[][] }>(
+      `https://api.bitget.com/api/v2/spot/market/candles?symbol=${symbol}&granularity=1h&limit=50`
+    );
+    const ohlcvs = resp.data ?? [];
+
+    if (!ohlcvs || ohlcvs.length === 0) {
+      throw new Error("No candle data");
+    }
+
+    // Run Python TA once and parse results
+    const result = await exec("python3", [
+      ANALYSIS_SCRIPT,
+      JSON.stringify({
+        symbol,
+        ohlcvs: ohlcvs.map((c: string[]) => [Number(c[0]), c[1], c[2], c[3], c[4], c[5]]),
+        indicators: { MACD: { fast: 12, slow: 26, signal: 9 }, RSI: { period: 14 }, BOLL: { period: 20, std_dev: 2 } },
       }),
     ], { timeout: 30_000 });
 
     const output = JSON.parse(result.stdout);
 
-    // Extract latest indicator values
     const rsi = output.indicators?.RSI?.series?.RSI_14;
     const macd = output.indicators?.MACD;
 
     return {
-      indicators: output,
-      rsi: rsi ? Number(rsi[rsi.length - 1]) : 0,
+      rsi: rsi ? Number(rsi[rsi.length - 1]) : 50,
       macdDif: macd?.series?.DIF ? Number(macd.series.DIF[macd.series.DIF.length - 1]) : 0,
       macdHist: macd?.series?.HIST ? Number(macd.series.HIST[macd.series.HIST.length - 1]) : 0,
     };
-  } catch (error) {
-    console.error(`[DecisionEngine] Technical analysis failed:`, error);
-    throw new Error("Technical analysis unavailable");
+  } catch {
+    console.warn(`[TA] Analysis unavailable for ${symbol}, using neutral defaults`);
+    return { rsi: 50, macdDif: 0, macdHist: 0 };
   }
 }
 
-/**
- * Build LLM prompt with both market data AND real technical indicators.
- */
-function buildAnalysisPrompt(
-  ticker: TickerData,
-  ta: { rsi: number; macdDif: number; macdHist: number }
-): string {
+// ─── Prompt Builders ──────────────────────────────────
+
+function buildSinglePrompt(ticker: TickerData, ta: TASingle): string {
   const changeLabel = ticker.change24hPercent >= 0 ? "positive" : "negative";
   const volatility = ((ticker.high24h - ticker.low24h) / ticker.lastPrice * 100).toFixed(2);
 
-  return `You are a quantitative trading analyst. Analyze BTC/USDT and provide a structured decision.
+  return `You are a quantitative trading analyst. Analyze ${ticker.symbol} and provide a structured decision.
 
 Market Data:
 - Current Price: $${ticker.lastPrice.toLocaleString()} USDT
@@ -84,44 +119,55 @@ Market Data:
 - 24h Volume: ${Math.round(ticker.volume24h).toLocaleString()} USDT
 - 24h Volatility: ${volatility}%
 
-Technical Indicators (from Bitget official analysis):
+Technical Indicators:
 - RSI(14): ${ta.rsi.toFixed(2)} (0-100, >70 overbought, <30 oversold)
-- MACD DIF: ${ta.macdDif.toFixed(2)}, DEA: ${ta.macdHist > 0 ? "positive momentum" : "negative momentum"}
+- MACD HIST: ${ta.macdHist > 0 ? "+" : ""}${ta.macdHist.toFixed(1)}
 
-Key questions to consider:
-1. Price position relative to 24h range (near high = overbought, near low = oversold?)
-2. RSI signal — is it overbought, oversold, or neutral?
-3. MACD direction — is momentum building or fading?
-4. Volume strength (high volume confirms the move)
-5. Risk assessment for current levels
-
-Respond with ONLY valid JSON in this exact format:
+Respond with ONLY valid JSON:
 {
   "action": "buy" | "sell" | "hold",
   "strength": number between -1 and 1,
   "confidence": number between 0 and 1,
-  "reason": "brief explanation of the decision citing specific indicator values",
-  "signals": [
-    {"name": "RSI(14)", "direction": "bullish" | "bearish" | "neutral", "strength": number 0-1},
-    {"name": "MACD Momentum", "direction": "bullish" | "bearish" | "neutral", "strength": number 0-1},
-    {"name": "24h Trend", "direction": "bullish" | "bearish" | "neutral", "strength": number 0-1}
-  ]
+  "reason": "brief explanation citing specific indicator values"
 }`;
 }
 
-/**
- * Parse LLM response into structured TradingDecision + Signals.
- */
-function parseDecisionResponse(response: string): { decision: TradingDecision; signals: Signal[] } {
-  // Extract JSON from markdown code blocks if present
+function buildMultiPrompt(symbolData: Map<string, { ticker: TickerData; ta: TASingle }>): string {
+  const entries = Array.from(symbolData.entries());
+  const lines = entries.map(([symbol, data]) => {
+    const changeLabel = data.ticker.change24hPercent >= 0 ? "positive" : "negative";
+    const volatility = ((data.ticker.high24h - data.ticker.low24h) / data.ticker.lastPrice * 100).toFixed(1);
+    return `- ${symbol}: $${data.ticker.lastPrice.toLocaleString()} | 24h ${data.ticker.change24hPercent > 0 ? "+" : ""}${data.ticker.change24hPercent}% (${changeLabel}) | RSI(14): ${data.ta.rsi.toFixed(1)} | MACD HIST: ${data.ta.macdHist > 0 ? "+" : ""}${data.ta.macdHist.toFixed(1)} | Volatility: ${volatility}%`;
+  }).join("\n");
+
+  const exampleFormat = entries.map(([symbol]) => `  "${symbol}": {"action":"buy|sell|hold","strength":-1..1,"confidence":0..1,"reason":"..."},`).join("\n");
+
+  return `You are a professional quantitative trader. Analyze the following cryptocurrencies and provide a decision for EACH one.
+
+Analyze ONLY these symbols and return a JSON object with keys matching each symbol:
+${lines}
+
+Rules:
+- For EACH symbol, decide: buy, sell, or hold
+- Strength: -1 (strong sell) to +1 (strong buy)
+- Confidence: 0-1
+- Keep reason under 40 words with specific indicator values
+- Only trade if conviction is meaningful — "hold" is the default
+
+Respond with ONLY valid JSON in this exact format:
+{
+${exampleFormat}
+}`;
+}
+
+// ─── Parsers ──────────────────────────────────────────
+
+function parseSingleResponse(response: string): { decision: TradingDecision; signals: Signal[] } {
   const jsonMatch = response.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
-    throw new Error("Failed to extract JSON from LLM response");
-  }
+  if (!jsonMatch) throw new Error("Failed to extract JSON from LLM response");
 
   const parsed = JSON.parse(jsonMatch[0]);
 
-  // Validate and sanitize action
   let action: "buy" | "sell" | "hold";
   if (["buy", "sell", "hold"].includes(parsed.action)) {
     action = parsed.action;
@@ -132,29 +178,49 @@ function parseDecisionResponse(response: string): { decision: TradingDecision; s
   const strength = Math.max(-1, Math.min(1, parseFloat(parsed.strength) || 0));
   const confidence = Math.max(0, Math.min(1, parseFloat(parsed.confidence) || 0.5));
 
-  const decision: TradingDecision = {
-    action,
-    strength,
-    confidence,
-    reason: parsed.reason || "No reasoning provided",
+  return {
+    decision: { action, strength, confidence, reason: parsed.reason || "No reasoning provided" },
+    signals: [
+      { id: crypto.randomUUID(), name: "LLM Analysis", source: "llm" as const,
+        direction: strength >= 0.1 ? "bullish" : strength <= -0.1 ? "bearish" : "neutral",
+        strength: Math.abs(strength), timestamp: new Date() },
+    ],
   };
+}
 
-  // Parse signals
-  const rawSignals = parsed.signals || [];
-  const signals: Signal[] = rawSignals.map((s: any) => ({
-    id: crypto.randomUUID(),
-    name: s.name || "Unknown Signal",
-    source: "llm" as const,
-    direction: ["bullish", "bearish", "neutral"].includes(s.direction) ? s.direction : "neutral",
-    strength: Math.max(0, Math.min(1, parseFloat(s.strength) || 0)),
-    timestamp: new Date(),
-  }));
+function parseMultiResponse(
+  response: string,
+  symbols: string[]
+): { decisions: Record<string, TradingDecision>; allSignals: Signal[] } {
+  const jsonMatch = response.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error("Failed to extract JSON from LLM multi-pair response");
 
-  // Ensure we have at least one signal
-  if (signals.length === 0) {
-    signals.push({
+  const parsed = JSON.parse(jsonMatch[0]);
+  const decisions: Record<string, TradingDecision> = {};
+  const allSignals: Signal[] = [];
+
+  for (const symbol of symbols) {
+    const raw = parsed[symbol];
+    if (!raw || !raw.action) {
+      decisions[symbol] = { action: "hold", strength: 0, confidence: 0, reason: "No decision from LLM" };
+      continue;
+    }
+
+    let action: "buy" | "sell" | "hold";
+    if (["buy", "sell", "hold"].includes(raw.action)) {
+      action = raw.action;
+    } else {
+      action = "hold";
+    }
+
+    const strength = Math.max(-1, Math.min(1, parseFloat(raw.strength) || 0));
+    const confidence = Math.max(0, Math.min(1, parseFloat(raw.confidence) || 0.5));
+
+    decisions[symbol] = { action, strength, confidence, reason: raw.reason || "No reasoning" };
+
+    allSignals.push({
       id: crypto.randomUUID(),
-      name: "LLM Analysis",
+      name: `LLM ${symbol}`,
       source: "llm" as const,
       direction: strength >= 0.1 ? "bullish" : strength <= -0.1 ? "bearish" : "neutral",
       strength: Math.abs(strength),
@@ -162,90 +228,111 @@ function parseDecisionResponse(response: string): { decision: TradingDecision; s
     });
   }
 
-  return { decision, signals };
+  return { decisions, allSignals };
+}
+
+// ─── Core Analysis Functions ──────────────────────────
+
+/**
+ * Evaluate signals for a SINGLE symbol. Backward-compatible entry point.
+ */
+export async function evaluateSignals(ticker: TickerData): Promise<{ decision: TradingDecision; signals: Signal[] }> {
+  // Run parallel TA + LLM pipeline (even for single symbol)
+  const priceMap = new Map<string, TickerData>();
+  priceMap.set(ticker.symbol, ticker);
+  const result = await evaluateMultiPair(priceMap);
+
+  // Return first (and only) decision
+  const firstSymbol = Object.keys(result.decisions)[0];
+  return {
+    decision: result.decisions[firstSymbol],
+    signals: result.allSignals,
+  };
 }
 
 /**
- * Core analysis function — real Bitget candles + Python technical indicators → LLM reasoning → Trading Decision.
+ * Evaluate signals for MULTIPLE symbols simultaneously.
+ * One LLM call for all pairs → per-symbol decisions.
  */
-export async function evaluateSignals(ticker: TickerData): Promise<{ decision: TradingDecision; signals: Signal[] }> {
-  // Step 1: Get technical analysis from Python
-  let ta: { rsi: number; macdDif: number; macdHist: number } = {
-    rsi: 50,
-    macdDif: 0,
-    macdHist: 0,
-  };
-
-  try {
-    ta = await getTechnicalAnalysis(ticker);
-    console.log(`[DecisionEngine] Technical analysis — RSI: ${ta.rsi.toFixed(1)}, MACD HIST: ${ta.macdHist > 0 ? "+" : ""}${ta.macdHist.toFixed(1)}`);
-  } catch {
-    console.warn("[DecisionEngine] Technical analysis unavailable, using neutral defaults");
+export async function evaluateMultiPair(priceMap: Map<string, TickerData>): Promise<MultiPairResult> {
+  const symbols = Array.from(priceMap.keys());
+  if (symbols.length === 0) {
+    return { decisions: {}, allSignals: [] };
   }
 
-  // Step 2: Send to LLM for decision
-  const prompt = buildAnalysisPrompt(ticker, ta);
+  // Step 1: Run technical analysis for ALL symbols in parallel
+  console.log(`[DecisionEngine] Running TA on ${symbols.length} symbol(s):`, symbols.join(", "));
+  const taResults = await Promise.all(
+    symbols.map(async (symbol) => ({ symbol, ta: await getTechnicalAnalysisForSymbol(symbol) }))
+  );
+
+  for (const { symbol, ta } of taResults) {
+    console.log(`[DecisionEngine] ${symbol} — RSI: ${ta.rsi.toFixed(1)}, MACD HIST: ${ta.macdHist > 0 ? "+" : ""}${ta.macdHist.toFixed(1)}`);
+  }
+
+  // Build symbol data map for prompt
+  const symbolData = new Map<string, { ticker: TickerData; ta: TASingle }>();
+  for (const { symbol, ta } of taResults) {
+    symbolData.set(symbol, { ticker: priceMap.get(symbol)!, ta });
+  }
+
+  // Step 2: Single LLM call with all symbols
+  const prompt = buildMultiPrompt(symbolData);
 
   try {
     const response = await chatCompletion({
       messages: [
-        { role: "system", content: "You are a professional quantitative trader. Analyze market data and provide concise, actionable decisions based on RSI, MACD, and price action. Never use markdown formatting in your response." },
+        { role: "system", content: "You are a professional quantitative trader. Analyze market data and provide concise, actionable decisions for each cryptocurrency based on RSI, MACD, and price action. Never use markdown formatting in your response." },
         { role: "user", content: prompt },
       ],
-      temperature: 0.3, // Lower = more consistent analysis
-      maxTokens: 1024,
+      temperature: 0.3,
+      maxTokens: 2048,
     });
 
-    return parseDecisionResponse(response);
+    return parseMultiResponse(response, symbols);
   } catch (error) {
-    console.error(`[DecisionEngine] LLM analysis failed: ${error}`);
-    // Fallback to simple heuristic analysis with indicator context
-    return fallbackAnalysis(ticker, ta);
+    console.error(`[DecisionEngine] LLM multi-pair analysis failed: ${error}`);
+    // Fallback: heuristic per-symbol analysis
+    const { decisions, allSignals } = fallbackMultiAnalysis(symbolData);
+    return { decisions, allSignals };
   }
 }
 
-/**
- * Simple rule-based fallback when LLM is unavailable.
- */
-function fallbackAnalysis(
-  ticker: TickerData,
-  ta: { rsi: number; macdDif: number; macdHist: number }
-): { decision: TradingDecision; signals: Signal[] } {
-  const range = ticker.high24h - ticker.low24h;
-  const pricePosition = (ticker.lastPrice - ticker.low24h) / range;
+/** Simple rule-based fallback when LLM is unavailable — runs per-symbol */
+function fallbackMultiAnalysis(
+  symbolData: Map<string, { ticker: TickerData; ta: TASingle }>
+): { decisions: Record<string, TradingDecision>; allSignals: Signal[] } {
+  const decisions: Record<string, TradingDecision> = {};
+  const allSignals: Signal[] = [];
 
-  // Combine LLM-like heuristics with real indicator values
-  let strength: number = 0;
+  for (const [symbol, { ticker, ta }] of symbolData) {
+    const range = ticker.high24h - ticker.low24h;
+    const pricePosition = range > 0 ? (ticker.lastPrice - ticker.low24h) / range : 0.5;
 
-  // RSI contribution (overbought = sell, oversold = buy)
-  if (ta.rsi > 70) strength -= 0.3;      // Overbought → bearish bias
-  else if (ta.rsi < 30) strength += 0.3; // Oversold → bullish bias
+    let strength = 0;
+    if (ta.rsi > 70) strength -= 0.3;
+    else if (ta.rsi < 30) strength += 0.3;
+    if (ta.macdHist > 50) strength += 0.2;
+    else if (ta.macdHist < -50) strength -= 0.2;
+    if (pricePosition > 0.9) strength -= 0.1;
+    else if (pricePosition < 0.1) strength += 0.1;
 
-  // MACD contribution
-  if (ta.macdHist > 50) strength += 0.2;  // Strong positive momentum
-  else if (ta.macdHist < -50) strength -= 0.2;
+    const action: "buy" | "sell" | "hold" =
+      strength > 0.15 ? "buy" : strength < -0.15 ? "sell" : "hold";
 
-  // Price position in range
-  if (pricePosition > 0.9) strength -= 0.1; // Near top → caution
-  else if (pricePosition < 0.1) strength += 0.1; // Near bottom → opportunity
+    decisions[symbol] = {
+      action,
+      strength,
+      confidence: Math.min(1, Math.abs(strength)),
+      reason: `RSI(${ta.rsi.toFixed(1)}) MACD(${ta.macdHist.toFixed(1)}) Range ${pricePosition > 0.7 ? "top" : pricePosition < 0.3 ? "bottom" : "mid"}: ${(strength > 0 ? "+" : "")}${strength.toFixed(2)}`,
+    };
 
-  const action: "buy" | "sell" | "hold" =
-    strength > 0.15 ? "buy" : strength < -0.15 ? "sell" : "hold";
+    allSignals.push({
+      id: crypto.randomUUID(), name: `Heuristic ${symbol}`, source: "technical" as const,
+      direction: strength >= 0.1 ? "bullish" : strength <= -0.1 ? "bearish" : "neutral",
+      strength: Math.abs(strength), timestamp: new Date(),
+    });
+  }
 
-  const reason = `RSI(${ta.rsi.toFixed(1)}) MACD(${ta.macdHist.toFixed(1)}) Range ${pricePosition > 0.7 ? "top" : pricePosition < 0.3 ? "bottom" : "mid"}: ${(strength > 0 ? "+" : "")}${strength.toFixed(2)}`;
-
-  const decision: TradingDecision = {
-    action,
-    strength,
-    confidence: Math.min(1, Math.abs(strength)),
-    reason,
-  };
-
-  const signals: Signal[] = [
-    { id: crypto.randomUUID(), name: "RSI(14)", source: "technical" as const, direction: ta.rsi > 70 ? "bearish" : ta.rsi < 30 ? "bullish" : "neutral", strength: Math.abs((ta.rsi - 50) / 50), timestamp: new Date() },
-    { id: crypto.randomUUID(), name: "MACD Momentum", source: "technical" as const, direction: ta.macdHist > 50 ? "bullish" : ta.macdHist < -50 ? "bearish" : "neutral", strength: Math.min(1, Math.abs(ta.macdHist) / 200), timestamp: new Date() },
-    { id: crypto.randomUUID(), name: "24h Range", source: "technical" as const, direction: pricePosition > 0.5 ? "bearish" : "bullish", strength: Math.abs(pricePosition - 0.5) * 2, timestamp: new Date() },
-  ];
-
-  return { decision, signals };
+  return { decisions, allSignals };
 }

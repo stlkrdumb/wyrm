@@ -1,13 +1,14 @@
-import type { Signal, TickerData, PortfolioSnapshot, Position, Trade } from "../types";
-import { TradingDecision } from "../types";
-import { getTickerPrice } from "./market-data.service";
-import { evaluateSignals } from "./decision-engine.service";
+import type { Signal, TickerData, TradingDecision, PortfolioSnapshot, Position, Trade } from "../types";
 import {
   loadBalanceState,
   saveBalanceState,
   resetBalanceState,
   type PortfolioState as SavedPortfolioState,
 } from "./balance-store";
+import { marketWS, type WSSubscription } from "./market-ws.service";
+import { priceStore } from "./price-store";
+import { getTickerPrice } from "./market-data.service";
+import { evaluateSignals, evaluateMultiPair, type MultiPairResult } from "./decision-engine.service";
 
 interface AgentState {
   status: "running" | "stopped" | "paused";
@@ -25,9 +26,27 @@ const config = {
   get initialCash(): number {
     return Number(process.env.SIM_INITIAL_CASH) || 1000;
   },
+  tradingSymbols: (process.env.TRADING_SYMBOLS || "BTCUSDT").split(",").map(s => s.trim().toUpperCase()).filter(Boolean),
+  maxActivePositions: Number(process.env.MAX_ACTIVE_POSITIONS) || 3,
 };
 
 let tradeCounter = 0;
+
+/** Initialize WebSocket subscriptions on startup */
+async function initWebSocketSubscriptions(): Promise<void> {
+  const subscriptions: WSSubscription[] = config.tradingSymbols.map((symbol) => ({
+    instType: "SPOT",
+    channel: "ticker",
+    instId: symbol,
+  }));
+
+  try {
+    await marketWS.subscribe(subscriptions);
+    console.log(`[Agent] WebSocket initialized for ${config.tradingSymbols.length} symbol(s):`, config.tradingSymbols.join(", "));
+  } catch (err) {
+    console.warn(`[Agent] WS init failed (will fall back to REST):`, err instanceof Error ? err.message : String(err));
+  }
+}
 
 /** Build initial state — prefer saved balance over fresh default */
 function buildInitialState(): AgentState {
@@ -92,28 +111,31 @@ function stopInterval() {
 
 /** Close all open positions at current market price (used when agent stops) */
 export async function flattenPositions(): Promise<{ closed: number; totalPnlRealized: number }> {
-  const symbol = process.env.AGENT_SYMBOL || "BTCUSDT";
-  let ticker: TickerData;
-
-  try {
-    ticker = await getTickerPrice(symbol);
-  } catch (err) {
-    console.warn(`[Agent] Could not fetch price for flatten, using cached ticker: ${err}`);
-    ticker = state.ticker ?? { symbol, lastPrice: 0, high24h: 0, low24h: 0, volume24h: 0, change24hPercent: 0, timestamp: new Date() };
-  }
-
   const closedPositions: Position[] = [];
   let totalPnlRealized = 0;
 
-  if (ticker.lastPrice === 0 && state.positions.length > 0) {
+  // Fetch prices for all open positions (WS-backed with REST fallback)
+  const prices: Map<string, TickerData> = new Map();
+  const uniqueSymbols = [...new Set(state.positions.map((p) => p.symbol))];
+
+  for (const symbol of uniqueSymbols) {
+    const ticker = await getLivePrice(symbol);
+    if (ticker && ticker.lastPrice > 0) prices.set(symbol, ticker);
+  }
+
+  // Check we have at least one price
+  if (prices.size === 0 && state.positions.length > 0) {
     console.warn("[Agent] Cannot flatten — no price data available, keeping positions");
     return { closed: 0, totalPnlRealized: 0 };
   }
 
-  // Add position sale proceeds to liquid balance
   for (const pos of state.positions) {
     if (pos.size <= 0) continue;
-    const pnl = Math.round((ticker.lastPrice - pos.entryPrice) * pos.size);
+    const ticker = prices.get(pos.symbol);
+    const price = ticker?.lastPrice ?? state.ticker?.lastPrice ?? 0;
+    if (price === 0) continue;
+
+    const pnl = Math.round((price - pos.entryPrice) * pos.size);
     tradeCounter++;
     state.trades.push({
       id: `T${tradeCounter}`,
@@ -122,11 +144,11 @@ export async function flattenPositions(): Promise<{ closed: number; totalPnlReal
       side: "sell",
       action: "exit",
       size: pos.size,
-      price: ticker.lastPrice,
+      price,
       pnl,
     });
     totalPnlRealized += pnl;
-    state.portfolio.cash += ticker.lastPrice * pos.size; // return capital from sale
+    state.portfolio.cash += price * pos.size; // return capital from sale
     closedPositions.push(pos);
   }
 
@@ -137,7 +159,6 @@ export async function flattenPositions(): Promise<{ closed: number; totalPnlReal
   // Clear all positions
   const closedCount = state.positions.length;
   state.positions = [];
-  state.ticker = ticker;
 
   const realEquity = state.portfolio.cash; // no open positions, equity = cash
   state.portfolio = { ...state.portfolio, timestamp: new Date(), equity: realEquity, positions: [], totalPnL: realEquity - config.initialCash };
@@ -152,7 +173,7 @@ export async function flattenPositions(): Promise<{ closed: number; totalPnlReal
     winRate: state.portfolio.winRate,
   });
 
-  console.log(`[Agent] Flattened ${closedCount} position(s) at $${ticker.lastPrice.toLocaleString()} — realized PnL: ${totalPnlRealized >= 0 ? "+" : ""}$${totalPnlRealized.toLocaleString()}`);
+  console.log(`[Agent] Flattened ${closedCount} position(s) across ${uniqueSymbols.length} symbol(s) — realized PnL: ${totalPnlRealized >= 0 ? "+" : ""}$${totalPnlRealized.toLocaleString()}`);
 
   return { closed: closedCount, totalPnlRealized };
 }
@@ -161,46 +182,109 @@ export async function evaluateDecision(ticker: TickerData): Promise<{ decision: 
   return await evaluateSignals(ticker);
 }
 
+/** Helper: get latest price for a symbol (WS-backed with REST fallback) */
+async function getLivePrice(symbol: string): Promise<TickerData | null> {
+  // Try PriceStore first (WS-backed)
+  const cached = marketWS.getPriceStore().getCached(symbol);
+
+  if (cached && !marketWS.getPriceStore().isStale(symbol, 60_000)) {
+    return {
+      symbol: cached.symbol,
+      lastPrice: cached.lastPrice,
+      high24h: cached.high24h,
+      low24h: cached.low24h,
+      volume24h: cached.quoteVolume,
+      change24hPercent: cached.changePercent,
+      timestamp: cached.updatedAt,
+    };
+  }
+
+  // Fallback to REST
+  try {
+    const ticker = await getTickerPrice(symbol);
+    console.log(`[Agent] REST fallback for ${symbol}: $${ticker.lastPrice}`);
+    return ticker;
+  } catch (err) {
+    console.warn(`[Agent] REST fetch failed for ${symbol}:`, err instanceof Error ? err.message : String(err));
+    return null;
+  }
+}
+
+/** Helper: check how many unique symbols are currently in open positions */
+function countUniqueSymbols(): number {
+  const unique = new Set(state.positions.map((p) => p.symbol));
+  return unique.size;
+}
+
 export async function runAgentCycle(): Promise<{ decision: TradingDecision; signals: Signal[]; tickerPrice: number }> {
   // Abort immediately if agent was stopped while cycle was in-flight
   if (state.status !== "running") return { decision: null as any, signals: [], tickerPrice: 0 };
 
-  const symbol = process.env.AGENT_SYMBOL || "BTCUSDT";
+  const symbols = config.tradingSymbols;
 
-  // Fetch real price from Bitget via Agent Hub bgc CLI (with fallback to simulate)
-  let ticker: TickerData;
-  try {
-    ticker = await getTickerPrice(symbol);
-    console.log(`[Agent] Real price fetched: ${ticker.symbol} $${ticker.lastPrice} (${ticker.change24hPercent > 0 ? "+" : ""}${ticker.change24hPercent}% 24h)`);
-  } catch (error) {
-    console.warn(`[Agent] Bitget ticker fetch failed, falling back to simulated price: ${error}`);
-    const basePrice = 103250 + (Math.random() - 0.5) * 800;
-    ticker = { symbol, lastPrice: Math.round(basePrice), high24h: basePrice*1.02, low24h: basePrice*0.98, volume24h: 0, change24hPercent: (Math.random()-0.5)*4, timestamp: new Date() };
+  // 1. Fetch prices for ALL active symbols (WS-backed with REST fallback)
+  const priceMap = new Map<string, TickerData>();
+  for (const symbol of symbols) {
+    const ticker = await getLivePrice(symbol);
+    if (ticker) priceMap.set(symbol, ticker);
   }
 
-  // LLM-powered analysis using real market data
-  const { decision, signals } = await evaluateDecision(ticker);
-  state.ticker = ticker;
-  state.decision = decision;
-  state.signals = signals;
+  // If we got no prices at all, abort
+  if (priceMap.size === 0) {
+    console.warn("[Agent] No price data available — skipping cycle");
+    return { decision: null as any, signals: [], tickerPrice: 0 };
+  }
+
+  // Use BTCUSDT as the primary display ticker
+  const displayTicker = priceMap.get("BTCUSDT") ?? priceMap.values().next().value!;
+  state.ticker = displayTicker;
   state.lastCycleAt = new Date();
 
-  // Track liquid balance (decreases on buy, increases on sell)
+  // Log prices for all symbols
+  for (const [symbol, ticker] of priceMap) {
+    console.log(`[Agent] ${symbol}: $${ticker.lastPrice.toLocaleString()} (${ticker.change24hPercent > 0 ? "+" : ""}${ticker.change24hPercent}% 24h)`);
+  }
+
+  // 2. Multi-pair LLM analysis
+  const multiResult: MultiPairResult = await evaluateMultiPair(priceMap);
+  state.decision = Object.values(multiResult.decisions).sort((a, b) => Math.abs(b.strength) - Math.abs(a.strength))[0] ?? { action: "hold", strength: 0, confidence: 0, reason: "" };
+  state.signals = multiResult.allSignals;
+
+  // 3. Execute trades — process decisions sorted by conviction strength
   let liquidBalance = state.portfolio.cash;
 
-  if (decision.action !== "hold") {
+  // Sort decisions by absolute strength (highest conviction first)
+  const entries = Object.entries(multiResult.decisions)
+    .sort(([, a], [, b]) => Math.abs(b.strength) - Math.abs(a.strength));
+
+  for (const [symbol, decision] of entries) {
+    if (decision.action === "hold") continue;
+
+    const ticker = priceMap.get(symbol);
+    if (!ticker) continue;
+
+    // Skip if symbol is already at max position count and this is a buy
+    if (decision.action === "buy" && countUniqueSymbols() >= config.maxActivePositions) {
+      console.log(`[Agent] ${symbol}: skipping buy — already at max open positions (${config.maxActivePositions})`);
+      continue;
+    }
+
+    // Trade size: 5% of total equity per trade
     const totalEquity = liquidBalance + state.positions.reduce((s, p) => s + p.size * ticker.lastPrice, 0);
     const tradeSize = Math.min(1, (totalEquity * 0.05) / ticker.lastPrice);
 
-    if (decision.action === "buy") {
-      const idx = state.positions.findIndex((p) => p.symbol === symbol);
-      const now = new Date();
-      tradeCounter++;
+    if (tradeSize <= 0 || ticker.lastPrice === 0) continue;
 
+    const idx = state.positions.findIndex((p) => p.symbol === symbol);
+    const now = new Date();
+    tradeCounter++;
+
+    if (decision.action === "buy") {
       // Deduct from liquid balance (cost basis)
       const cost = ticker.lastPrice * tradeSize;
       if (cost <= liquidBalance) {
         if (idx >= 0) {
+          // Add to existing position
           const p = state.positions[idx];
           state.positions[idx] = { ...p, size: p.size + tradeSize, entryPrice: Math.round((p.entryPrice * p.size + ticker.lastPrice * tradeSize) / (p.size + tradeSize)) };
           state.trades.push({ id: `T${tradeCounter}`, timestamp: now, symbol, side: "buy", action: "add", size: tradeSize, price: ticker.lastPrice });
@@ -210,36 +294,39 @@ export async function runAgentCycle(): Promise<{ decision: TradingDecision; sign
           state.trades.push({ id: `T${tradeCounter}`, timestamp: now, symbol, side: "buy", action: "entry", size: tradeSize, price: ticker.lastPrice });
         }
         liquidBalance -= cost;
+      } else {
+        console.log(`[Agent] ${symbol}: skipping buy — insufficient funds (need $${cost.toFixed(2)}, have $${liquidBalance.toFixed(2)})`);
       }
-    } else {
-      // Sell
-      const idx = state.positions.findIndex((p) => p.symbol === symbol);
-      const now = new Date();
-      tradeCounter++;
+    } else if (decision.action === "sell") {
+      if (idx >= 0) {
+        const pos = state.positions[idx];
 
-      if (idx >= 0 && state.positions[idx].size <= tradeSize) {
-        // Full exit — calculate PnL
-        const p = state.positions[idx];
-        const pnl = Math.round((ticker.lastPrice - p.entryPrice) * p.size);
-        state.trades.push({ id: `T${tradeCounter}`, timestamp: now, symbol, side: "sell", action: "exit", size: p.size, price: ticker.lastPrice, pnl });
-        state.portfolio.totalPnL += pnl;
-        liquidBalance += ticker.lastPrice * p.size; // return capital
-        state.positions.splice(idx, 1);
-      } else if (idx >= 0) {
-        // Partial reduce
-        const tradeCost = ticker.lastPrice * tradeSize;
-        const avgEntry = Math.round(state.positions[idx].entryPrice);
-        const pnl = Math.round((ticker.lastPrice - avgEntry) * tradeSize);
-        state.trades.push({ id: `T${tradeCounter}`, timestamp: now, symbol, side: "sell", action: "reduce", size: tradeSize, price: ticker.lastPrice, pnl });
-        state.portfolio.totalPnL += pnl;
-        liquidBalance += tradeCost; // return partial capital
-        state.positions[idx] = { ...state.positions[idx], size: state.positions[idx].size - tradeSize };
+        if (pos.size <= tradeSize) {
+          // Full exit — calculate PnL
+          const pnl = Math.round((ticker.lastPrice - pos.entryPrice) * pos.size);
+          state.trades.push({ id: `T${tradeCounter}`, timestamp: now, symbol, side: "sell", action: "exit", size: pos.size, price: ticker.lastPrice, pnl });
+          state.portfolio.totalPnL += pnl;
+          liquidBalance += ticker.lastPrice * pos.size; // return capital
+          state.positions.splice(idx, 1);
+        } else {
+          // Partial reduce
+          const avgEntry = Math.round(pos.entryPrice);
+          const pnl = Math.round((ticker.lastPrice - avgEntry) * tradeSize);
+          state.trades.push({ id: `T${tradeCounter}`, timestamp: now, symbol, side: "sell", action: "reduce", size: tradeSize, price: ticker.lastPrice, pnl });
+          state.portfolio.totalPnL += pnl;
+          liquidBalance += ticker.lastPrice * tradeSize; // return partial capital
+          state.positions[idx] = { ...state.positions[idx], size: pos.size - tradeSize };
+        }
+      } else {
+        console.log(`[Agent] ${symbol}: skipping sell — no position to close`);
       }
     }
+
     state.portfolio.totalTrades++;
   }
 
-  const totalPosVal = state.positions.reduce((s, p) => s + p.size * ticker.lastPrice, 0);
+  const displayTickerLastPrice = displayTicker?.lastPrice ?? 0;
+  const totalPosVal = state.positions.reduce((s, p) => s + p.size * displayTickerLastPrice, 0);
   const realEquity = liquidBalance + totalPosVal;
   state.portfolio = {
     ...state.portfolio,
@@ -262,7 +349,7 @@ export async function runAgentCycle(): Promise<{ decision: TradingDecision; sign
     winRate: state.portfolio.winRate,
   });
 
-  return { decision, signals, tickerPrice: ticker.lastPrice };
+  return { decision: state.decision!, signals: state.signals, tickerPrice: displayTicker.lastPrice };
 }
 
 export function getAgentState(): AgentState { return { ...state }; }
@@ -286,6 +373,9 @@ export async function setAgentStatus(s: "running" | "stopped" | "paused"): Promi
     } catch (err) {
       console.error("[Agent] Flatten error:", err);
     }
+
+    // Clean up WebSocket connection on stop
+    marketWS.disconnect();
   }
   // "paused" — just stop timer, keep positions intact
 
