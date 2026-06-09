@@ -122,21 +122,33 @@ function Summary({ portfolio }: { portfolio: PortfolioData }) {
   const pnl = portfolio.totalPnL;
   const pnlPositive = pnl > 0;
 
+  const winRateColor = portfolio.totalTrades === 0 
+    ? "text-zinc-500" 
+    : portfolio.winRate >= 50 
+      ? "text-emerald-400" 
+      : "text-rose-400";
+
+  const pnlColor = pnl > 0 
+    ? "text-emerald-400" 
+    : pnl < 0 
+      ? "text-rose-400" 
+      : "text-zinc-400";
+
   return (
-    <div className="mt-2 pt-3 border-t border-zinc-900 grid grid-cols-3 gap-2 text-[10px] font-mono">
-      <div className="bg-zinc-950/40 py-1.5 rounded border border-zinc-900">
-        <span className="text-zinc-500 text-[8px] uppercase tracking-wider block">Trades</span>
-        <span className="font-bold text-zinc-200 tabular-nums">{portfolio.totalTrades}</span>
+    <div className="mt-3 pt-3.5 border-t border-zinc-900/50 grid grid-cols-3 gap-2.5 text-center text-[10px] font-mono flex-shrink-0">
+      <div className="bg-zinc-950/50 py-2 rounded border border-zinc-900/80 hover:bg-zinc-900/10 hover:border-zinc-800 transition-all duration-200 flex flex-col gap-1">
+        <span className="text-zinc-500 text-[8px] uppercase tracking-widest font-bold block">Trades</span>
+        <span className="font-bold text-zinc-200 tabular-nums text-[12px]">{portfolio.totalTrades}</span>
       </div>
-      <div className="bg-zinc-950/40 py-1.5 rounded border border-zinc-900">
-        <span className="text-zinc-500 text-[8px] uppercase tracking-wider block">Win Rate</span>
-        <span className={`font-bold tabular-nums ${portfolio.winRate >= 50 ? "text-emerald-450" : "text-rose-450"}`}>
+      <div className="bg-zinc-950/50 py-2 rounded border border-zinc-900/80 hover:bg-zinc-900/10 hover:border-zinc-800 transition-all duration-200 flex flex-col gap-1">
+        <span className="text-zinc-500 text-[8px] uppercase tracking-widest font-bold block">Win Rate</span>
+        <span className={`font-bold tabular-nums text-[12px] ${winRateColor}`}>
           {portfolio.winRate.toFixed(0)}%
         </span>
       </div>
-      <div className="bg-zinc-950/40 py-1.5 rounded border border-zinc-900">
-        <span className="text-zinc-500 text-[8px] uppercase tracking-wider block">Realized PnL</span>
-        <span className={`font-bold tabular-nums ${pnlPositive ? "text-emerald-450" : pnl < 0 ? "text-rose-450" : "text-zinc-450"}`}>
+      <div className="bg-zinc-950/50 py-2 rounded border border-zinc-900/80 hover:bg-zinc-900/10 hover:border-zinc-800 transition-all duration-200 flex flex-col gap-1">
+        <span className="text-zinc-500 text-[8px] uppercase tracking-widest font-bold block">Realized PnL</span>
+        <span className={`font-bold tabular-nums text-[12px] ${pnlColor}`}>
           {pnl === 0 ? "$0.00" : (pnl > 0 ? "+" : "-") + "$" + Math.abs(pnl).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </span>
       </div>
