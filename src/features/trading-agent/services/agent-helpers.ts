@@ -28,6 +28,12 @@ export const config = {
   get takeProfitPct(): number {
     return Number(process.env.SIM_TAKE_PROFIT_PCT) || 10; // default 10%
   },
+  get orderSizePct(): number {
+    return Number(process.env.SIM_ORDER_SIZE_PCT) || 0.05; // default 5%
+  },
+  get feePct(): number {
+    return Number(process.env.SIM_FEE_PCT) || 0.001; // default 0.1%
+  },
 };
 
 let tradeCounter = 0;
@@ -38,6 +44,13 @@ export function getTradeCounter(): number {
 
 export function setTradeCounter(val: number): void {
   tradeCounter = val;
+}
+
+export function calculateWinRate(trades: Trade[]): number {
+  const closed = trades.filter(t => t.pnl !== undefined && t.pnl !== null);
+  if (closed.length === 0) return 0;
+  const wins = closed.filter(t => t.pnl! > 0).length;
+  return (wins / closed.length) * 100;
 }
 
 /** Get latest price for a symbol (WS-backed with REST fallback) */
@@ -90,7 +103,10 @@ export async function flattenPositions(state: AgentState): Promise<{ closed: num
     const price = ticker?.lastPrice ?? state.ticker?.lastPrice ?? 0;
     if (price === 0) continue;
 
-    const pnl = (price - pos.entryPrice) * pos.size;
+    const revenue = price * pos.size;
+    const fee = revenue * config.feePct;
+    const pnl = (price - pos.entryPrice) * pos.size - fee;
+
     tradeCounter++;
     state.trades.push({
       id: `T${tradeCounter}`,
@@ -103,7 +119,7 @@ export async function flattenPositions(state: AgentState): Promise<{ closed: num
       pnl,
     });
     totalPnlRealized += pnl;
-    state.portfolio.cash += price * pos.size;
+    state.portfolio.cash += revenue - fee;
     closedPositions.push(pos);
   }
 
@@ -114,22 +130,24 @@ export async function flattenPositions(state: AgentState): Promise<{ closed: num
   state.positions = [];
 
   const realEquity = state.portfolio.cash;
+  const winRate = calculateWinRate(state.trades);
   state.portfolio = {
     ...state.portfolio,
     timestamp: new Date(),
     equity: realEquity,
     positions: [],
     totalPnL: realEquity - state.startEquity,
+    winRate,
   };
 
   saveBalanceState({
     initialCash: config.initialCash,
-    startCash: realEquity,
+    startCash: state.startEquity,
     cash: state.portfolio.cash,
     accumulatedRealizedPnL: state.portfolio.totalPnL,
     positions: [],
     totalTrades: state.portfolio.totalTrades,
-    winRate: state.portfolio.winRate,
+    winRate,
   });
 
   console.log(`[Agent] Flattened ${closedCount} position(s) across ${uniqueSymbols.length} symbol(s) — realized PnL: ${totalPnlRealized >= 0 ? "+" : ""}$${totalPnlRealized.toLocaleString()}`);
@@ -161,8 +179,14 @@ export function executeTrades(
       continue;
     }
 
-    const totalEquity = liquidBalance + state.positions.reduce((s, p) => s + p.size * ticker.lastPrice, 0);
-    const tradeSize = Math.min(1, (totalEquity * 0.05) / ticker.lastPrice);
+    const totalEquity = liquidBalance + state.positions.reduce((s, p) => {
+      const posPrice = priceMap.get(p.symbol)?.lastPrice ?? p.entryPrice;
+      return s + (p.size * posPrice);
+    }, 0);
+
+    const strengthFactor = Math.abs(decision.strength);
+    const allocationPct = config.orderSizePct * strengthFactor;
+    const tradeSize = (totalEquity * allocationPct) / ticker.lastPrice;
 
     if (tradeSize <= 0 || ticker.lastPrice === 0) continue;
 
@@ -172,7 +196,9 @@ export function executeTrades(
 
     if (decision.action === "buy") {
       const cost = ticker.lastPrice * tradeSize;
-      if (cost <= liquidBalance) {
+      const fee = cost * config.feePct;
+      const totalCost = cost + fee;
+      if (totalCost <= liquidBalance) {
         if (idx >= 0) {
           const p = state.positions[idx];
           state.positions[idx] = {
@@ -185,26 +211,30 @@ export function executeTrades(
           state.positions.push({ symbol, side: "long", size: tradeSize, entryPrice: ticker.lastPrice, unrealizedPnL: 0 });
           state.trades.push({ id: `T${tradeCounter}`, timestamp: now, symbol, side: "buy", action: "entry", size: tradeSize, price: ticker.lastPrice });
         }
-        liquidBalance -= cost;
+        liquidBalance -= totalCost;
       } else {
-        console.log(`[Agent] ${symbol}: skipping buy — insufficient funds (need $${cost.toFixed(2)}, have $${liquidBalance.toFixed(2)})`);
+        console.log(`[Agent] ${symbol}: skipping buy — insufficient funds (need $${totalCost.toFixed(2)}, have $${liquidBalance.toFixed(2)})`);
       }
     } else if (decision.action === "sell") {
       if (idx >= 0) {
         const pos = state.positions[idx];
 
         if (pos.size <= tradeSize) {
-          const pnl = (ticker.lastPrice - pos.entryPrice) * pos.size;
+          const revenue = ticker.lastPrice * pos.size;
+          const fee = revenue * config.feePct;
+          const pnl = (ticker.lastPrice - pos.entryPrice) * pos.size - fee;
           state.trades.push({ id: `T${tradeCounter}`, timestamp: now, symbol, side: "sell", action: "exit", size: pos.size, price: ticker.lastPrice, pnl });
           state.portfolio.totalPnL += pnl;
-          liquidBalance += ticker.lastPrice * pos.size;
+          liquidBalance += revenue - fee;
           state.positions.splice(idx, 1);
         } else {
           const avgEntry = pos.entryPrice;
-          const pnl = (ticker.lastPrice - avgEntry) * tradeSize;
+          const revenue = ticker.lastPrice * tradeSize;
+          const fee = revenue * config.feePct;
+          const pnl = (ticker.lastPrice - avgEntry) * tradeSize - fee;
           state.trades.push({ id: `T${tradeCounter}`, timestamp: now, symbol, side: "sell", action: "reduce", size: tradeSize, price: ticker.lastPrice, pnl });
           state.portfolio.totalPnL += pnl;
-          liquidBalance += ticker.lastPrice * tradeSize;
+          liquidBalance += revenue - fee;
           state.positions[idx] = { ...state.positions[idx], size: pos.size - tradeSize };
         }
       } else {
@@ -222,6 +252,7 @@ export function executeTrades(
     totalPosVal += p.size * price;
   }
   const realEquity = liquidBalance + totalPosVal;
+  const winRate = calculateWinRate(state.trades);
   state.portfolio = {
     ...state.portfolio,
     timestamp: new Date(),
@@ -230,6 +261,7 @@ export function executeTrades(
     equity: realEquity,
     positions: [...state.positions],
     totalPnL: realEquity - state.startEquity,
+    winRate,
   };
 
   const savedPositions = state.positions.map(p => ({ symbol: p.symbol, side: p.side as "long" | "short", size: p.size, entryPrice: p.entryPrice }));
@@ -240,6 +272,6 @@ export function executeTrades(
     accumulatedRealizedPnL: state.portfolio.totalPnL,
     positions: savedPositions,
     totalTrades: state.portfolio.totalTrades,
-    winRate: state.portfolio.winRate,
+    winRate,
   });
 }

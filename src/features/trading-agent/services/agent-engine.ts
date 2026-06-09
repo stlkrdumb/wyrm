@@ -163,7 +163,7 @@ function buildInitialState(): AgentState {
       positions: [],
       totalTrades: saved?.totalTrades || 0,
       winRate: saved?.winRate || 0,
-      totalPnL: Math.round(realizedPnL),
+      totalPnL: realizedPnL,
     },
     startEquity: startEquity,
   };
