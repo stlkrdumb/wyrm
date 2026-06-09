@@ -6,7 +6,8 @@ import type { SignalData, DecisionData } from "../hooks/use-agent";
 
 function tickerFromSignalName(name: string): string {
   const raw = name.replace(/^(LLM|Heuristic)\s*/, "").trim();
-  if (/^[A-Z]{3,6}USDT$/.test(raw)) {
+  // Support base symbols from 2 to 10 alphanumeric characters (e.g. OPUSDT -> OP/USDT, 1000SATSUSDT -> 1000SATS/USDT)
+  if (/^[A-Z0-9]{2,10}USDT$/.test(raw)) {
     return `${raw.slice(0, -4)}/USDT`;
   }
   return raw;
@@ -101,7 +102,7 @@ export const SignalPanel = memo(function SignalPanel({ signals, decision }: Prop
         <div className="flex flex-col gap-2 max-h-[140px] overflow-y-auto scrollbar-none pr-1 -mr-1">
           {signals.map((signal, i) => (
             <div key={i} className="flex items-start justify-between py-1.5 border-b border-zinc-900/20 last:border-0 font-mono gap-3">
-              <div className="flex items-start gap-2.5 min-w-0 flex-1">
+              <div className="flex items-start gap-2.5 min-w-[85px] flex-1">
                 <span className="mt-0.5 flex-shrink-0">{directionIcon(signal.direction)}</span>
                 <span className="text-[11px] text-zinc-300 whitespace-nowrap">{tickerFromSignalName(signal.name)}</span>
               </div>
