@@ -243,6 +243,16 @@ export async function runAgentCycle(): Promise<{ decision: TradingDecision; sign
 
   for (const [symbol, decision] of Object.entries(multiResult.decisions)) {
     const ticker = priceMap.get(symbol);
+
+    if (decision.action !== "hold" && (decision.size === undefined || decision.size === 0)) {
+      if (ticker && ticker.lastPrice > 0) {
+        const totalEquity = state.portfolio.equity;
+        const strengthFactor = Math.abs(decision.strength);
+        const allocationPct = config.orderSizePct * strengthFactor;
+        decision.size = (totalEquity * allocationPct) / ticker.lastPrice;
+      }
+    }
+
     const validation = riskManager.validateDecision(decision, state.portfolio, ticker);
 
     let record: DecisionRecord = {

@@ -186,7 +186,7 @@ export function executeTrades(
 
     const strengthFactor = Math.abs(decision.strength);
     const allocationPct = config.orderSizePct * strengthFactor;
-    const tradeSize = (totalEquity * allocationPct) / ticker.lastPrice;
+    const tradeSize = decision.size ?? ((totalEquity * allocationPct) / ticker.lastPrice);
 
     if (tradeSize <= 0 || ticker.lastPrice === 0) continue;
 
