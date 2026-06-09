@@ -10,9 +10,9 @@ interface Props {
 export function PositionsPanel({ positions, tickers }: Props) {
   if (positions.length === 0) {
     return (
-      <div className="flex flex-col gap-4 p-5 rounded border border-zinc-900 bg-zinc-950/40 backdrop-blur-md relative overflow-hidden">
-        <div className="flex items-center justify-between border-b border-zinc-900/50 pb-3">
-          <span className="text-[10px] tracking-widest text-zinc-500 font-bold uppercase">Spot Positions</span>
+      <div className="flex flex-col gap-4 p-5 rounded border border-zinc-900 bg-zinc-950/40 backdrop-blur-md relative overflow-hidden h-[300px] justify-center items-center">
+        <div className="absolute top-4 left-5 flex justify-between border-b border-zinc-900/50 pb-3 w-[calc(100%-40px)]">
+          <span className="text-[10px] tracking-widest text-zinc-500 font-bold uppercase">Spot Holdings</span>
         </div>
         <div className="text-[11px] font-mono text-zinc-500 py-12 text-center tracking-wide uppercase">
           No holdings active • awaiting entry signals
@@ -22,18 +22,18 @@ export function PositionsPanel({ positions, tickers }: Props) {
   }
 
   return (
-    <div className="flex flex-col gap-4 p-5 rounded border border-zinc-900 bg-zinc-950/40 backdrop-blur-md relative overflow-hidden">
+    <div className="flex flex-col gap-4 p-5 rounded border border-zinc-900 bg-zinc-950/40 backdrop-blur-md relative overflow-hidden h-[300px]">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-zinc-900/50 pb-3">
+      <div className="flex items-center justify-between border-b border-zinc-900/50 pb-3 flex-shrink-0">
         <span className="text-[10px] tracking-widest text-zinc-500 font-bold uppercase">Spot Positions ({positions.length})</span>
-        <span className="text-[10px] tracking-widest text-zinc-500 font-mono">
+        <span className="text-[10px] tracking-widest text-zinc-550 font-mono">
           PORTFOLIO ASSETS
         </span>
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="flex-grow overflow-y-auto scrollbar-none">
         <table className="w-full text-[11px] font-mono">
-          <thead>
+          <thead className="sticky top-0 bg-zinc-950/80 backdrop-blur-sm z-10">
             <tr className="text-zinc-500 text-left border-b border-zinc-900/80 pb-2">
               <th className="py-2 font-bold uppercase tracking-wider">Asset</th>
               <th className="text-right py-2 font-bold uppercase tracking-wider">Holdings</th>
@@ -42,7 +42,7 @@ export function PositionsPanel({ positions, tickers }: Props) {
               <th className="text-right py-2 font-bold uppercase tracking-wider">Unrealized PnL</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-zinc-900/40">
             {positions.map((p) => {
               const symTicker = tickers?.[p.symbol];
               const currentPrice = symTicker?.lastPrice ?? p.entryPrice;
@@ -60,16 +60,16 @@ export function PositionsPanel({ positions, tickers }: Props) {
                   <td className="py-2.5 font-bold text-zinc-100">
                     <div className="flex items-center gap-2">
                       <span>{p.symbol}</span>
-                      <span className="text-[8px] px-1 py-0.2 rounded font-bold tracking-wider uppercase border bg-zinc-900 text-zinc-400 border-zinc-850">
+                      <span className="text-[8px] px-1 py-0.2 rounded font-bold tracking-wider uppercase border bg-zinc-900 text-zinc-400 border-zinc-855">
                         SPOT
                       </span>
                     </div>
                   </td>
                   <td className="py-2.5 text-right tabular-nums text-zinc-300">{p.size.toFixed(4)}</td>
-                  <td className="py-2.5 text-right tabular-nums text-zinc-500">${p.entryPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
+                  <td className="py-2.5 text-right tabular-nums text-zinc-550">${p.entryPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
                   <td className="py-2.5 text-right tabular-nums text-zinc-200 font-semibold">${currentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                   <td className={`py-2.5 text-right tabular-nums font-bold ${
-                    displayedPnl === 0 ? "text-zinc-500" :
+                    displayedPnl === 0 ? "text-zinc-550" :
                     displayedPnl > 0 ? "text-emerald-400" : "text-rose-400"
                   }`}>
                     {pnlString}

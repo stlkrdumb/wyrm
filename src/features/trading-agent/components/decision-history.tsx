@@ -5,9 +5,10 @@ import type { DecisionRecord } from "@/features/trading-agent/types/history.type
 
 interface Props {
   onBack?: () => void;
+  isTabMode?: boolean;
 }
 
-export function DecisionHistory({ onBack }: Props) {
+export function DecisionHistory({ onBack, isTabMode }: Props) {
   const [history, setHistory] = useState<DecisionRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -36,7 +37,9 @@ export function DecisionHistory({ onBack }: Props) {
   );
 
   if (loading) return (
-    <div className="flex flex-col gap-4 p-5 rounded border border-zinc-900 bg-zinc-950/40 backdrop-blur-md h-[450px] justify-center items-center">
+    <div className={`flex flex-col gap-4 justify-center items-center ${
+      isTabMode ? "flex-grow" : "p-5 rounded border border-zinc-900 bg-zinc-950/40 backdrop-blur-md h-[450px]"
+    }`}>
       <div className="text-[11px] font-mono text-zinc-500 py-12 text-center tracking-wide uppercase animate-pulse">
         FETCHING DECISION HISTORY...
       </div>
@@ -44,33 +47,17 @@ export function DecisionHistory({ onBack }: Props) {
   );
 
   if (error) return (
-    <div className="flex flex-col gap-4 p-5 rounded border border-zinc-900 bg-zinc-950/40 backdrop-blur-md h-[450px] justify-center items-center">
+    <div className={`flex flex-col gap-4 justify-center items-center ${
+      isTabMode ? "flex-grow" : "p-5 rounded border border-zinc-900 bg-zinc-950/40 backdrop-blur-md h-[450px]"
+    }`}>
       <div className="text-[11px] font-mono text-rose-500 py-12 text-center tracking-wide uppercase">
         ERROR: {error}
       </div>
     </div>
   );
 
-  return (
-    <div className="flex flex-col gap-4 p-5 rounded border border-zinc-900 bg-zinc-950/40 backdrop-blur-md relative overflow-hidden h-[450px]">
-      <div className="flex items-center justify-between border-b border-zinc-900/50 pb-3 flex-shrink-0">
-        {onBack ? (
-          <button 
-            onClick={onBack}
-            className="text-[10px] font-bold tracking-widest text-zinc-500 hover:text-zinc-200 transition-colors"
-          >
-            ← BACK TO DASHBOARD
-          </button>
-        ) : (
-          <span className="text-[10px] tracking-widest text-zinc-500 font-bold uppercase">
-            Agent Decision Log
-          </span>
-        )}
-        <span className="text-[10px] tracking-widest text-zinc-650 font-mono">
-          LOGS: {filteredHistory.length}
-        </span>
-      </div>
-
+  const content = (
+    <>
       <div className="flex flex-col gap-3 flex-shrink-0">
         <input 
           type="text"
@@ -121,6 +108,33 @@ export function DecisionHistory({ onBack }: Props) {
           </tbody>
         </table>
       </div>
+    </>
+  );
+
+  if (isTabMode) {
+    return <div className="flex-grow flex flex-col overflow-hidden">{content}</div>;
+  }
+
+  return (
+    <div className="flex flex-col gap-4 p-5 rounded border border-zinc-900 bg-zinc-950/40 backdrop-blur-md relative overflow-hidden h-[450px]">
+      <div className="flex items-center justify-between border-b border-zinc-900/50 pb-3 flex-shrink-0">
+        {onBack ? (
+          <button 
+            onClick={onBack}
+            className="text-[10px] font-bold tracking-widest text-zinc-500 hover:text-zinc-200 transition-colors"
+          >
+            ← BACK TO DASHBOARD
+          </button>
+        ) : (
+          <span className="text-[10px] tracking-widest text-zinc-500 font-bold uppercase">
+            Agent Decision Log
+          </span>
+        )}
+        <span className="text-[10px] tracking-widest text-zinc-650 font-mono">
+          LOGS: {filteredHistory.length}
+        </span>
+      </div>
+      {content}
     </div>
   );
 }
