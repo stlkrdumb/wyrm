@@ -101,10 +101,11 @@ function TradeRow({ trade }: { trade: TradeData }) {
       </div>
 
       <div className="flex items-center justify-between text-[10px]">
-        <div className="flex items-center gap-1.5 tabular-nums text-zinc-400">
-          <span className="text-[9px] font-bold uppercase">Qty</span>
+        <div className="flex items-center gap-1.5 tabular-nums text-zinc-450">
+          <span className="text-[9px] font-bold uppercase text-zinc-550">Qty</span>
+          <span className="text-zinc-200 font-bold">{trade.size.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</span>
           <span className="text-zinc-650">@</span>
-          <span className="text-zinc-200">${trade.price.toLocaleString()}</span>
+          <span className="text-zinc-200">${trade.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
         </div>
 
         {pnlDisplay && (
