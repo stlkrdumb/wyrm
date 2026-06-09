@@ -275,3 +275,39 @@ export async function setAgentStatus(s: "running" | "stopped" | "paused"): Promi
 initWebSocketSubscriptions().catch((err) => {
   console.warn(`[Agent] WS init failed (will fall back to REST):`, err instanceof Error ? err.message : String(err));
 });
+
+// ─── Graceful Shutdown & Crash Handlers ─────────────────
+
+async function handleGracefulShutdown(signal: string) {
+  console.log(`\n[Agent] Process received ${signal}. Clean shutdown initialized...`);
+  if (state.status === "running") {
+    try {
+      console.log(`[Agent] Emergency flattening open positions...`);
+      await setAgentStatus("stopped");
+    } catch (err) {
+      console.error("[Agent] Error during shutdown flattening:", err);
+    }
+  } else {
+    marketWS.disconnect();
+  }
+  console.log("[Agent] Shutdown complete. Exiting.");
+  process.exit(0);
+}
+
+process.on("SIGINT", () => handleGracefulShutdown("SIGINT"));
+process.on("SIGTERM", () => handleGracefulShutdown("SIGTERM"));
+
+process.on("uncaughtException", async (err) => {
+  console.error("\n[Agent] CRITICAL: Uncaught Exception crash:", err);
+  if (state.status === "running") {
+    try {
+      console.log(`[Agent] Emergency flattening open positions before crash exit...`);
+      await setAgentStatus("stopped");
+    } catch (flatErr) {
+      console.error("[Agent] Failed to flatten during crash:", flatErr);
+    }
+  } else {
+    marketWS.disconnect();
+  }
+  process.exit(1);
+});
