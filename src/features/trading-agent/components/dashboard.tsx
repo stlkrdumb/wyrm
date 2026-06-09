@@ -18,10 +18,14 @@ export function Dashboard() {
     <div className="flex flex-col min-h-screen bg-zinc-950/20 text-zinc-100">
       <StatusHeader agent={agent} />
 
-      <main className="flex-1 p-6 grid grid-cols-1 xl:grid-cols-3 gap-6 max-w-[1800px] mx-auto w-full">
+      {/* Full-width scrolling ticker tape */}
+      <div className="px-6 pt-6 max-w-[1800px] mx-auto w-full flex-shrink-0">
+        <MarketWatch tickers={agent.state.tickers} />
+      </div>
+
+      <main className="flex-1 px-6 pb-6 pt-4 grid grid-cols-1 xl:grid-cols-3 gap-6 max-w-[1800px] mx-auto w-full">
         {/* Column 1: Live Market & Execution Log */}
         <div className="flex flex-col gap-6">
-          <MarketWatch tickers={agent.state.tickers} />
           <EquityChart portfolio={agent.state.portfolio} ticker={agent.state.ticker} tickers={agent.state.tickers} />
           <PositionsPanel positions={agent.state.positions} tickers={agent.state.tickers} />
           <TradeLog trades={agent.state.trades} portfolio={agent.state.portfolio} />
