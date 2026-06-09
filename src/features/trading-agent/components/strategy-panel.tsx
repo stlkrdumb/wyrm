@@ -3,6 +3,24 @@
 import { useEffect, useState, memo } from "react";
 import { Sliders, Save, CheckCircle, Loader2 } from "lucide-react";
 
+const STRATEGY_PRESETS = [
+  {
+    name: "CONSERVATIVE",
+    persona: "Conservative quantitative analyst prioritizing capital preservation and compounding.",
+    instructions: "Trade conservatively. Always favor 'hold' unless conviction is very high. Wait for strong oversold indicators (1h RSI < 30) and Bollinger Band lower border breaks. Limit trade sizes and take profits early."
+  },
+  {
+    name: "BALANCED",
+    persona: "Balanced macro trend strategist seeking medium-term swings while maintaining risk guardrails.",
+    instructions: "Execute a balanced profile. Buy support zones on 1-hour chart confirmations and take profits at daily resistance levels. Distribute sizes evenly. Do not enter trades during high-volatility spikes."
+  },
+  {
+    name: "AGGRESSIVE",
+    persona: "High-frequency momentum trader looking to scalp quick micro-trends in volatile conditions.",
+    instructions: "Look for quick momentum scalping on 5m chart trend changes. Enter trades on RSI breakouts above 55 or below 45. Target high-volatility moves. Accept higher drawdown limits to capture larger swings."
+  }
+];
+
 export const StrategyPanel = memo(function StrategyPanel() {
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [persona, setPersona] = useState("");
@@ -101,6 +119,27 @@ export const StrategyPanel = memo(function StrategyPanel() {
 
       {!isCollapsed && (
         <div className="flex flex-col gap-4 font-mono text-[11px] mt-1">
+          {/* Strategy Presets */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">
+              Cognitive Core Presets
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {STRATEGY_PRESETS.map((preset) => (
+                <button
+                  key={preset.name}
+                  onClick={() => {
+                    setPersona(preset.persona);
+                    setInstructions(preset.instructions);
+                  }}
+                  className="py-1.5 px-2.5 rounded border border-zinc-900 bg-zinc-950/60 text-[9px] hover:bg-zinc-900 hover:text-zinc-200 hover:border-zinc-800 transition-all cursor-pointer font-bold tracking-wider uppercase text-zinc-450 text-center"
+                >
+                  {preset.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Persona Input */}
           <div className="flex flex-col gap-1.5">
             <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider">
