@@ -83,7 +83,11 @@ MAX_ACTIVE_POSITIONS=3
    ```
 2. Install Python requirements for technical analysis:
    ```bash
+   # Using standard pip
    pip3 install -r src/features/trading-agent/analysis/requirements.txt
+
+   # Or using uv (extremely fast modern alternative)
+   uv pip install --system -r src/features/trading-agent/analysis/requirements.txt
    ```
 
 ---
