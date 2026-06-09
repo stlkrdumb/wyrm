@@ -179,6 +179,9 @@ function buildInitialState(): AgentState {
   };
 }
 
+/** Shared LLM progress tracker — updated by chatCompletion callbacks */
+export let llmProgress: { text: string; tokensReceived: number } | null = null;
+
 let state: AgentState = buildInitialState();
 let intervalId: ReturnType<typeof setInterval> | null = null;
 
@@ -209,10 +212,16 @@ export async function flattenPositions(): Promise<{ closed: number; totalPnlReal
   return await helperFlattenPositions(state);
 }
 
-export async function evaluateDecision(ticker: TickerData): Promise<{ decision: TradingDecision; signals: Signal[] }> {
+/** Callback for LLM token streaming progress */
+type OnTokenCallback = (token: string) => void;
+
+export async function evaluateDecision(
+  ticker: TickerData,
+  onToken?: OnTokenCallback
+): Promise<{ decision: TradingDecision; signals: Signal[] }> {
   const priceMap = new Map<string, TickerData>();
   priceMap.set(ticker.symbol, ticker);
-  const result = await evaluateMultiPair(priceMap);
+  const result = await evaluateMultiPair(priceMap, [], onToken);
   const firstSymbol = Object.keys(result.decisions)[0];
   return {
     decision: result.decisions[firstSymbol],
@@ -316,7 +325,7 @@ export function updateCircuitBreakerThreshold(thresholdPct: number): void {
   });
 }
 
-export async function runAgentCycle(): Promise<{ decision: TradingDecision; signals: Signal[]; tickerPrice: number }> {
+export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ decision: TradingDecision; signals: Signal[]; tickerPrice: number }> {
   if (state.circuitBreakerTripped) {
     state.status = "stopped";
     return { decision: { action: "hold", strength: 0, confidence: 0, reason: "Circuit Breaker Tripped" } as any, signals: [], tickerPrice: 0 };
@@ -339,11 +348,20 @@ export async function runAgentCycle(): Promise<{ decision: TradingDecision; sign
   state.ticker = displayTicker;
   state.lastCycleAt = new Date();
 
+  // Setup LLM progress tracking for this cycle
+  llmProgress = { text: "", tokensReceived: 0 };
+
   for (const [symbol, ticker] of priceMap) {
     console.log(`[Agent] ${symbol}: $${ticker.lastPrice.toLocaleString()} (${ticker.change24hPercent > 0 ? "+" : ""}${ticker.change24hPercent}% 24h)`);
   }
 
-  const multiResult: MultiPairResult = await evaluateMultiPair(priceMap, state.positions);
+  const multiResult: MultiPairResult = await evaluateMultiPair(priceMap, state.positions, (token: string) => {
+    if (!llmProgress) llmProgress = { text: "", tokensReceived: 0 };
+    llmProgress.text += token;
+    llmProgress.tokensReceived += 1;
+    // Also update state for polling
+    state.llmProgress = llmProgress;
+  });
   
   const validatedDecisions: Record<string, TradingDecision> = {};
   let bestDecision: TradingDecision | null = null;

@@ -17,6 +17,7 @@ export interface AgentState {
   circuitBreakerTripped: boolean;
   circuitBreakerThresholdPct: number;
   peakEquity: number;
+  llmProgress?: { text: string; tokensReceived: number } | null;
 }
 
 export const config = {

@@ -81,6 +81,10 @@ export const StatusHeader = memo(function StatusHeader({ agent }: Props) {
 
   const uptime = lastCycleAt ? new Date(lastCycleAt).toLocaleTimeString() : "--:--:--";
 
+  // LLM progress display — only shown when agent is running and has active analysis
+  const llmStatus = state.llmProgress?.text || "";
+  const showLlmProgress = status === "running" && llmStatus.length > 0;
+
   return (
     <header className="flex items-center justify-between px-6 py-4 border-b border-zinc-900 bg-zinc-950/70 backdrop-blur-md">
       {/* Left: Logo + WS status */}
@@ -97,6 +101,13 @@ export const StatusHeader = memo(function StatusHeader({ agent }: Props) {
         {renderWSBadge()}
         {lastCycleAt && (
           <span className="text-[10px] tracking-wider uppercase text-zinc-500 font-mono">CYCLE: {uptime}</span>
+        )}
+        {showLlmProgress && (
+          <span className="inline-flex items-center gap-2 px-2.5 py-1 rounded text-[10px] font-medium tracking-wider uppercase bg-purple-500/10 text-purple-400 border border-purple-500/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse" />
+            LLM ANALYZING
+            <span className="text-zinc-600 font-normal">({state.llmProgress?.tokensReceived || 0} tokens)</span>
+          </span>
         )}
       </div>
 

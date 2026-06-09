@@ -3,7 +3,7 @@ import path from "node:path";
 dotenv.config({ path: path.join(process.cwd(), ".env.local"), override: true });
 
 import { NextRequest, NextResponse } from "next/server";
-import { runAgentCycle, getAgentState, setAgentStatus } from "@/features/trading-agent/services/agent-engine";
+import { runAgentCycle, getAgentState, setAgentStatus, llmProgress } from "@/features/trading-agent/services/agent-engine";
 import { priceStore } from "@/features/trading-agent/services/price-store";
 import { marketWS } from "@/features/trading-agent/services/market-ws.service";
 import { WS_STALENESS_THRESHOLD_MS } from "@/features/trading-agent/constants/config.constants";
@@ -139,6 +139,7 @@ export async function GET(request: NextRequest) {
       id: t.id, timestamp: t.timestamp.toISOString(), symbol: t.symbol, side: t.side,
       action: t.action, size: t.size, price: t.price, pnl: t.pnl ?? null,
     })),
+    llmProgress: llmProgress || currentState.llmProgress || null,
     circuitBreakerTripped: currentState.circuitBreakerTripped,
     circuitBreakerThresholdPct: currentState.circuitBreakerThresholdPct,
     peakEquity: currentState.peakEquity,

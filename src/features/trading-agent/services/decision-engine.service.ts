@@ -157,7 +157,8 @@ export async function evaluateDecision(ticker: TickerData): Promise<{ decision: 
  */
 export async function evaluateMultiPair(
   priceMap: Map<string, TickerData>,
-  activePositions: import("@/features/trading-agent/types").Position[] = []
+  activePositions: import("@/features/trading-agent/types").Position[] = [],
+  onToken?: (token: string) => void
 ): Promise<MultiPairResult> {
   const symbols = Array.from(priceMap.keys());
   if (symbols.length === 0) {
@@ -213,6 +214,7 @@ Analyze the provided market data and generate concise, actionable decisions for 
       ],
       temperature: 0.3,
       maxTokens: 2048,
+      onToken,
     });
 
     return parseMultiResponse(response, symbols);

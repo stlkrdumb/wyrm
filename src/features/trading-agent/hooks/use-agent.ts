@@ -50,6 +50,7 @@ interface AgentState {
   circuitBreakerTripped: boolean;
   circuitBreakerThresholdPct: number;
   peakEquity: number;
+  llmProgress?: { text: string; tokensReceived: number } | null;
 }
 
 let lastKnownState: AgentState | null = null;
@@ -95,6 +96,7 @@ export function useAgent() {
         circuitBreakerTripped: !!data.circuitBreakerTripped,
         circuitBreakerThresholdPct: Number(data.circuitBreakerThresholdPct) || 5.0,
         peakEquity: Number(data.peakEquity) || 1000,
+        llmProgress: data.llmProgress || null,
       };
 
       lastKnownState = normalized;
