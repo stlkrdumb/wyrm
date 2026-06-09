@@ -21,6 +21,8 @@ interface CandleKey {
 /** ──────────────── Price Store ───────────────────── */
 
 export class PriceStore {
+  public isBacktesting = false;
+
   /** Ticker snapshots keyed by symbol */
   private tickers = new Map<string, PriceSnapshot>();
 
@@ -99,6 +101,11 @@ export class PriceStore {
     return this.candles.get(`${symbol.toUpperCase()}:${interval}`);
   }
 
+  setCandles(symbol: string, interval: string, candles: Candlestick[]): void {
+    const key = `${symbol.toUpperCase()}:${interval}`;
+    this.candles.set(key, [...candles]);
+  }
+
   /** Get most recent candle close price for a symbol+interval */
   getLatestCandleClose(symbol: string, interval: string): number {
     const candles = this.candles.get(`${symbol.toUpperCase()}:${interval}`);
@@ -107,6 +114,7 @@ export class PriceStore {
 
   /** Check if candle cache is stale (older than TTL) */
   isCandleStale(symbol: string, interval: string, ttlMs = 5 * 60_000): boolean {
+    if (this.isBacktesting) return false;
     const candles = this.candles.get(`${symbol.toUpperCase()}:${interval}`);
     if (!candles || candles.length === 0) return true;
     return Date.now() - candles[candles.length - 1].timestamp > ttlMs;

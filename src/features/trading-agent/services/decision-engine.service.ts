@@ -32,35 +32,42 @@ async function runTAForTimeframe(symbol: string, interval: string): Promise<any>
 
   // If cached candles are stale or missing, fetch from REST
   if (!candles || candles.length < 20 || store.isCandleStale(symbol, interval, 5 * 60_000)) {
-    try {
-      const granularityMap: Record<string, string> = {
-        "5m": "5min",
-        "1h": "1h",
-        "1d": "1day",
-      };
-      const gran = granularityMap[interval] ?? "1h";
-      const resp = await optionalFetch<{ code: string; data: string[][] }>(
-        `https://api.bitget.com/api/v2/spot/market/candles?symbol=${symbol}&granularity=${gran}&limit=50`
-      );
-      const ohlcvs = resp.data ?? [];
-      
-      // Convert to Candlestick format
-      // Note: Bitget returns candles descending, so we reverse it to ascending
-      candles = ohlcvs.reverse().map((c: string[]) => ({
-        timestamp: Number(c[0]),
-        open: Number(c[1]),
-        high: Number(c[2]),
-        low: Number(c[3]),
-        close: Number(c[4]),
-        volume: Number(c[5]),
-      }));
-
-      // Cache them in store so subsequent requests are fast
-      for (const c of candles) {
-        store.updateCandle(symbol, interval, c);
+    if (store.isBacktesting) {
+      // Offline mode: do not fetch from live Bitget API during backtests to avoid lookahead bias and API spam
+      if (!candles || candles.length === 0) {
+        return null;
       }
-    } catch (err) {
-      console.warn(`[DecisionEngine] REST candles fetch failed for ${symbol} (${interval}):`, err);
+    } else {
+      try {
+        const granularityMap: Record<string, string> = {
+          "5m": "5min",
+          "1h": "1h",
+          "1d": "1day",
+        };
+        const gran = granularityMap[interval] ?? "1h";
+        const resp = await optionalFetch<{ code: string; data: string[][] }>(
+          `https://api.bitget.com/api/v2/spot/market/candles?symbol=${symbol}&granularity=${gran}&limit=50`
+        );
+        const ohlcvs = resp.data ?? [];
+        
+        // Convert to Candlestick format
+        // Note: Bitget returns candles descending, so we reverse it to ascending
+        candles = ohlcvs.reverse().map((c: string[]) => ({
+          timestamp: Number(c[0]),
+          open: Number(c[1]),
+          high: Number(c[2]),
+          low: Number(c[3]),
+          close: Number(c[4]),
+          volume: Number(c[5]),
+        }));
+
+        // Cache them in store so subsequent requests are fast
+        for (const c of candles) {
+          store.updateCandle(symbol, interval, c);
+        }
+      } catch (err) {
+        console.warn(`[DecisionEngine] REST candles fetch failed for ${symbol} (${interval}):`, err);
+      }
     }
   }
 
