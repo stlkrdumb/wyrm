@@ -1,42 +1,1052 @@
 [
   {
-    "timestamp": "2026-06-01T00:00:00Z",
+    "timestamp": "2026-06-09T06:00:00.000Z",
     "tickers": {
-      "BTCUSDT": { "lastPrice": 65000, "change24hPercent": 1.2 },
-      "ETHUSDT": { "lastPrice": 3500, "change24hPercent": 0.8 },
-      "SOLUSDT": { "lastPrice": 140, "change24hPercent": 2.5 }
+      "BTCUSDT": {
+        "lastPrice": 63419.99,
+        "change24hPercent": 0
+      },
+      "ETHUSDT": {
+        "lastPrice": 1691.99,
+        "change24hPercent": 0
+      },
+      "SOLUSDT": {
+        "lastPrice": 67.38,
+        "change24hPercent": 0
+      },
+      "BNBUSDT": {
+        "lastPrice": 604.1,
+        "change24hPercent": 0
+      }
     }
   },
   {
-    "timestamp": "2026-06-01T01:00:00Z",
+    "timestamp": "2026-06-09T05:00:00.000Z",
     "tickers": {
-      "BTCUSDT": { "lastPrice": 65200, "change24hPercent": 1.5 },
-      "ETHUSDT": { "lastPrice": 3510, "change24hPercent": 0.9 },
-      "SOLUSDT": { "lastPrice": 142, "change24hPercent": 2.8 }
+      "BTCUSDT": {
+        "lastPrice": 63345.01,
+        "change24hPercent": -0.12
+      },
+      "ETHUSDT": {
+        "lastPrice": 1688.18,
+        "change24hPercent": -0.23
+      },
+      "SOLUSDT": {
+        "lastPrice": 67.19,
+        "change24hPercent": -0.28
+      },
+      "BNBUSDT": {
+        "lastPrice": 603.4,
+        "change24hPercent": -0.12
+      }
     }
   },
   {
-    "timestamp": "2026-06-01T02:00:00Z",
+    "timestamp": "2026-06-09T04:00:00.000Z",
     "tickers": {
-      "BTCUSDT": { "lastPrice": 65100, "change24hPercent": 1.1 },
-      "ETHUSDT": { "lastPrice": 3505, "change24hPercent": 0.7 },
-      "SOLUSDT": { "lastPrice": 141, "change24hPercent": 2.6 }
+      "BTCUSDT": {
+        "lastPrice": 63241.9,
+        "change24hPercent": -0.28
+      },
+      "ETHUSDT": {
+        "lastPrice": 1686.41,
+        "change24hPercent": -0.33
+      },
+      "SOLUSDT": {
+        "lastPrice": 67.02,
+        "change24hPercent": -0.53
+      },
+      "BNBUSDT": {
+        "lastPrice": 602.7,
+        "change24hPercent": -0.23
+      }
     }
   },
   {
-    "timestamp": "2026-06-01T03:00:00Z",
+    "timestamp": "2026-06-09T03:00:00.000Z",
     "tickers": {
-      "BTCUSDT": { "lastPrice": 65400, "change24hPercent": 1.8 },
-      "ETHUSDT": { "lastPrice": 3520, "change24hPercent": 1.1 },
-      "SOLUSDT": { "lastPrice": 145, "change24hPercent": 3.2 }
+      "BTCUSDT": {
+        "lastPrice": 62873.7,
+        "change24hPercent": -0.86
+      },
+      "ETHUSDT": {
+        "lastPrice": 1669.6,
+        "change24hPercent": -1.32
+      },
+      "SOLUSDT": {
+        "lastPrice": 66.02,
+        "change24hPercent": -2.02
+      },
+      "BNBUSDT": {
+        "lastPrice": 599.4,
+        "change24hPercent": -0.78
+      }
     }
   },
   {
-    "timestamp": "2026-06-01T04:00:00Z",
+    "timestamp": "2026-06-09T02:00:00.000Z",
     "tickers": {
-      "BTCUSDT": { "lastPrice": 65800, "change24hPercent": 2.1 },
-      "ETHUSDT": { "lastPrice": 3540, "change24hPercent": 1.4 },
-      "SOLUSDT": { "lastPrice": 148, "change24hPercent": 3.8 }
+      "BTCUSDT": {
+        "lastPrice": 62870,
+        "change24hPercent": -0.87
+      },
+      "ETHUSDT": {
+        "lastPrice": 1668.08,
+        "change24hPercent": -1.41
+      },
+      "SOLUSDT": {
+        "lastPrice": 65.91,
+        "change24hPercent": -2.18
+      },
+      "BNBUSDT": {
+        "lastPrice": 598.1,
+        "change24hPercent": -0.99
+      }
+    }
+  },
+  {
+    "timestamp": "2026-06-09T01:00:00.000Z",
+    "tickers": {
+      "BTCUSDT": {
+        "lastPrice": 62764.14,
+        "change24hPercent": -1.03
+      },
+      "ETHUSDT": {
+        "lastPrice": 1668.95,
+        "change24hPercent": -1.36
+      },
+      "SOLUSDT": {
+        "lastPrice": 65.99,
+        "change24hPercent": -2.06
+      },
+      "BNBUSDT": {
+        "lastPrice": 597.8,
+        "change24hPercent": -1.04
+      }
+    }
+  },
+  {
+    "timestamp": "2026-06-09T00:00:00.000Z",
+    "tickers": {
+      "BTCUSDT": {
+        "lastPrice": 62560,
+        "change24hPercent": -1.36
+      },
+      "ETHUSDT": {
+        "lastPrice": 1663.56,
+        "change24hPercent": -1.68
+      },
+      "SOLUSDT": {
+        "lastPrice": 65.43,
+        "change24hPercent": -2.89
+      },
+      "BNBUSDT": {
+        "lastPrice": 595.7,
+        "change24hPercent": -1.39
+      }
+    }
+  },
+  {
+    "timestamp": "2026-06-08T23:00:00.000Z",
+    "tickers": {
+      "BTCUSDT": {
+        "lastPrice": 63083.42,
+        "change24hPercent": -0.53
+      },
+      "ETHUSDT": {
+        "lastPrice": 1690.35,
+        "change24hPercent": -0.1
+      },
+      "SOLUSDT": {
+        "lastPrice": 66.83,
+        "change24hPercent": -0.82
+      },
+      "BNBUSDT": {
+        "lastPrice": 601.9,
+        "change24hPercent": -0.36
+      }
+    }
+  },
+  {
+    "timestamp": "2026-06-08T22:00:00.000Z",
+    "tickers": {
+      "BTCUSDT": {
+        "lastPrice": 63442.83,
+        "change24hPercent": 0.04
+      },
+      "ETHUSDT": {
+        "lastPrice": 1703.25,
+        "change24hPercent": 0.67
+      },
+      "SOLUSDT": {
+        "lastPrice": 67.2,
+        "change24hPercent": -0.27
+      },
+      "BNBUSDT": {
+        "lastPrice": 606,
+        "change24hPercent": 0.31
+      }
+    }
+  },
+  {
+    "timestamp": "2026-06-08T21:00:00.000Z",
+    "tickers": {
+      "BTCUSDT": {
+        "lastPrice": 63721,
+        "change24hPercent": 0.47
+      },
+      "ETHUSDT": {
+        "lastPrice": 1703.4,
+        "change24hPercent": 0.67
+      },
+      "SOLUSDT": {
+        "lastPrice": 67.49,
+        "change24hPercent": 0.16
+      },
+      "BNBUSDT": {
+        "lastPrice": 607.6,
+        "change24hPercent": 0.58
+      }
+    }
+  },
+  {
+    "timestamp": "2026-06-08T20:00:00.000Z",
+    "tickers": {
+      "BTCUSDT": {
+        "lastPrice": 63481.57,
+        "change24hPercent": 0.1
+      },
+      "ETHUSDT": {
+        "lastPrice": 1689.74,
+        "change24hPercent": -0.13
+      },
+      "SOLUSDT": {
+        "lastPrice": 67.48,
+        "change24hPercent": 0.15
+      },
+      "BNBUSDT": {
+        "lastPrice": 606.7,
+        "change24hPercent": 0.43
+      }
+    }
+  },
+  {
+    "timestamp": "2026-06-08T19:00:00.000Z",
+    "tickers": {
+      "BTCUSDT": {
+        "lastPrice": 63374.99,
+        "change24hPercent": -0.07
+      },
+      "ETHUSDT": {
+        "lastPrice": 1684.82,
+        "change24hPercent": -0.42
+      },
+      "SOLUSDT": {
+        "lastPrice": 67.46,
+        "change24hPercent": 0.12
+      },
+      "BNBUSDT": {
+        "lastPrice": 607.7,
+        "change24hPercent": 0.6
+      }
+    }
+  },
+  {
+    "timestamp": "2026-06-08T18:00:00.000Z",
+    "tickers": {
+      "BTCUSDT": {
+        "lastPrice": 63472.75,
+        "change24hPercent": 0.08
+      },
+      "ETHUSDT": {
+        "lastPrice": 1684.73,
+        "change24hPercent": -0.43
+      },
+      "SOLUSDT": {
+        "lastPrice": 67.44,
+        "change24hPercent": 0.09
+      },
+      "BNBUSDT": {
+        "lastPrice": 607.8,
+        "change24hPercent": 0.61
+      }
+    }
+  },
+  {
+    "timestamp": "2026-06-08T17:00:00.000Z",
+    "tickers": {
+      "BTCUSDT": {
+        "lastPrice": 63549.3,
+        "change24hPercent": 0.2
+      },
+      "ETHUSDT": {
+        "lastPrice": 1686.87,
+        "change24hPercent": -0.3
+      },
+      "SOLUSDT": {
+        "lastPrice": 67.38,
+        "change24hPercent": 0
+      },
+      "BNBUSDT": {
+        "lastPrice": 607.9,
+        "change24hPercent": 0.63
+      }
+    }
+  },
+  {
+    "timestamp": "2026-06-08T16:00:00.000Z",
+    "tickers": {
+      "BTCUSDT": {
+        "lastPrice": 63530.13,
+        "change24hPercent": 0.17
+      },
+      "ETHUSDT": {
+        "lastPrice": 1682.7,
+        "change24hPercent": -0.55
+      },
+      "SOLUSDT": {
+        "lastPrice": 66.96,
+        "change24hPercent": -0.62
+      },
+      "BNBUSDT": {
+        "lastPrice": 604,
+        "change24hPercent": -0.02
+      }
+    }
+  },
+  {
+    "timestamp": "2026-06-08T15:00:00.000Z",
+    "tickers": {
+      "BTCUSDT": {
+        "lastPrice": 63774.91,
+        "change24hPercent": 0.56
+      },
+      "ETHUSDT": {
+        "lastPrice": 1691.61,
+        "change24hPercent": -0.02
+      },
+      "SOLUSDT": {
+        "lastPrice": 67.18,
+        "change24hPercent": -0.3
+      },
+      "BNBUSDT": {
+        "lastPrice": 604,
+        "change24hPercent": -0.02
+      }
+    }
+  },
+  {
+    "timestamp": "2026-06-08T14:00:00.000Z",
+    "tickers": {
+      "BTCUSDT": {
+        "lastPrice": 63969.99,
+        "change24hPercent": 0.87
+      },
+      "ETHUSDT": {
+        "lastPrice": 1691.35,
+        "change24hPercent": -0.04
+      },
+      "SOLUSDT": {
+        "lastPrice": 67.27,
+        "change24hPercent": -0.16
+      },
+      "BNBUSDT": {
+        "lastPrice": 603.3,
+        "change24hPercent": -0.13
+      }
+    }
+  },
+  {
+    "timestamp": "2026-06-08T13:00:00.000Z",
+    "tickers": {
+      "BTCUSDT": {
+        "lastPrice": 63755.61,
+        "change24hPercent": 0.53
+      },
+      "ETHUSDT": {
+        "lastPrice": 1681.62,
+        "change24hPercent": -0.61
+      },
+      "SOLUSDT": {
+        "lastPrice": 66.79,
+        "change24hPercent": -0.88
+      },
+      "BNBUSDT": {
+        "lastPrice": 600.5,
+        "change24hPercent": -0.6
+      }
+    }
+  },
+  {
+    "timestamp": "2026-06-08T12:00:00.000Z",
+    "tickers": {
+      "BTCUSDT": {
+        "lastPrice": 63878.62,
+        "change24hPercent": 0.72
+      },
+      "ETHUSDT": {
+        "lastPrice": 1695.41,
+        "change24hPercent": 0.2
+      },
+      "SOLUSDT": {
+        "lastPrice": 67.26,
+        "change24hPercent": -0.18
+      },
+      "BNBUSDT": {
+        "lastPrice": 603.2,
+        "change24hPercent": -0.15
+      }
+    }
+  },
+  {
+    "timestamp": "2026-06-08T11:00:00.000Z",
+    "tickers": {
+      "BTCUSDT": {
+        "lastPrice": 63482.51,
+        "change24hPercent": 0.1
+      },
+      "ETHUSDT": {
+        "lastPrice": 1683.69,
+        "change24hPercent": -0.49
+      },
+      "SOLUSDT": {
+        "lastPrice": 66.68,
+        "change24hPercent": -1.04
+      },
+      "BNBUSDT": {
+        "lastPrice": 602.2,
+        "change24hPercent": -0.31
+      }
+    }
+  },
+  {
+    "timestamp": "2026-06-08T10:00:00.000Z",
+    "tickers": {
+      "BTCUSDT": {
+        "lastPrice": 63159.46,
+        "change24hPercent": -0.41
+      },
+      "ETHUSDT": {
+        "lastPrice": 1672.43,
+        "change24hPercent": -1.16
+      },
+      "SOLUSDT": {
+        "lastPrice": 66.21,
+        "change24hPercent": -1.74
+      },
+      "BNBUSDT": {
+        "lastPrice": 598,
+        "change24hPercent": -1.01
+      }
+    }
+  },
+  {
+    "timestamp": "2026-06-08T09:00:00.000Z",
+    "tickers": {
+      "BTCUSDT": {
+        "lastPrice": 63500.93,
+        "change24hPercent": 0.13
+      },
+      "ETHUSDT": {
+        "lastPrice": 1671.09,
+        "change24hPercent": -1.24
+      },
+      "SOLUSDT": {
+        "lastPrice": 66.37,
+        "change24hPercent": -1.5
+      },
+      "BNBUSDT": {
+        "lastPrice": 599.9,
+        "change24hPercent": -0.7
+      }
+    }
+  },
+  {
+    "timestamp": "2026-06-08T08:00:00.000Z",
+    "tickers": {
+      "BTCUSDT": {
+        "lastPrice": 63130.72,
+        "change24hPercent": -0.46
+      },
+      "ETHUSDT": {
+        "lastPrice": 1661,
+        "change24hPercent": -1.83
+      },
+      "SOLUSDT": {
+        "lastPrice": 65.62,
+        "change24hPercent": -2.61
+      },
+      "BNBUSDT": {
+        "lastPrice": 595.5,
+        "change24hPercent": -1.42
+      }
+    }
+  },
+  {
+    "timestamp": "2026-06-08T07:00:00.000Z",
+    "tickers": {
+      "BTCUSDT": {
+        "lastPrice": 63289.53,
+        "change24hPercent": -0.21
+      },
+      "ETHUSDT": {
+        "lastPrice": 1673.38,
+        "change24hPercent": -1.1
+      },
+      "SOLUSDT": {
+        "lastPrice": 66.1,
+        "change24hPercent": -1.9
+      },
+      "BNBUSDT": {
+        "lastPrice": 596.2,
+        "change24hPercent": -1.31
+      }
+    }
+  },
+  {
+    "timestamp": "2026-06-08T06:00:00.000Z",
+    "tickers": {
+      "BTCUSDT": {
+        "lastPrice": 62994.32,
+        "change24hPercent": -0.67
+      },
+      "ETHUSDT": {
+        "lastPrice": 1666.53,
+        "change24hPercent": -1.5
+      },
+      "SOLUSDT": {
+        "lastPrice": 65.68,
+        "change24hPercent": -2.52
+      },
+      "BNBUSDT": {
+        "lastPrice": 595.9,
+        "change24hPercent": -1.36
+      }
+    }
+  },
+  {
+    "timestamp": "2026-06-08T05:00:00.000Z",
+    "tickers": {
+      "BTCUSDT": {
+        "lastPrice": 62763.33,
+        "change24hPercent": -0.92
+      },
+      "ETHUSDT": {
+        "lastPrice": 1653.67,
+        "change24hPercent": -2.04
+      },
+      "SOLUSDT": {
+        "lastPrice": 65.33,
+        "change24hPercent": -2.77
+      },
+      "BNBUSDT": {
+        "lastPrice": 595.1,
+        "change24hPercent": -1.38
+      }
+    }
+  },
+  {
+    "timestamp": "2026-06-08T04:00:00.000Z",
+    "tickers": {
+      "BTCUSDT": {
+        "lastPrice": 62681.7,
+        "change24hPercent": -0.89
+      },
+      "ETHUSDT": {
+        "lastPrice": 1656.96,
+        "change24hPercent": -1.75
+      },
+      "SOLUSDT": {
+        "lastPrice": 65.44,
+        "change24hPercent": -2.36
+      },
+      "BNBUSDT": {
+        "lastPrice": 596.5,
+        "change24hPercent": -1.03
+      }
+    }
+  },
+  {
+    "timestamp": "2026-06-08T03:00:00.000Z",
+    "tickers": {
+      "BTCUSDT": {
+        "lastPrice": 63126.33,
+        "change24hPercent": 0.4
+      },
+      "ETHUSDT": {
+        "lastPrice": 1679.6,
+        "change24hPercent": 0.6
+      },
+      "SOLUSDT": {
+        "lastPrice": 66.36,
+        "change24hPercent": 0.51
+      },
+      "BNBUSDT": {
+        "lastPrice": 603,
+        "change24hPercent": 0.6
+      }
+    }
+  },
+  {
+    "timestamp": "2026-06-08T02:00:00.000Z",
+    "tickers": {
+      "BTCUSDT": {
+        "lastPrice": 63123.68,
+        "change24hPercent": 0.4
+      },
+      "ETHUSDT": {
+        "lastPrice": 1683.8,
+        "change24hPercent": 0.94
+      },
+      "SOLUSDT": {
+        "lastPrice": 66.46,
+        "change24hPercent": 0.83
+      },
+      "BNBUSDT": {
+        "lastPrice": 602,
+        "change24hPercent": 0.65
+      }
+    }
+  },
+  {
+    "timestamp": "2026-06-08T01:00:00.000Z",
+    "tickers": {
+      "BTCUSDT": {
+        "lastPrice": 63219.36,
+        "change24hPercent": 0.73
+      },
+      "ETHUSDT": {
+        "lastPrice": 1687.29,
+        "change24hPercent": 1.1
+      },
+      "SOLUSDT": {
+        "lastPrice": 66.18,
+        "change24hPercent": 0.29
+      },
+      "BNBUSDT": {
+        "lastPrice": 604.1,
+        "change24hPercent": 1.05
+      }
+    }
+  },
+  {
+    "timestamp": "2026-06-08T00:00:00.000Z",
+    "tickers": {
+      "BTCUSDT": {
+        "lastPrice": 63635,
+        "change24hPercent": 1.72
+      },
+      "ETHUSDT": {
+        "lastPrice": 1697.71,
+        "change24hPercent": 2.05
+      },
+      "SOLUSDT": {
+        "lastPrice": 66.72,
+        "change24hPercent": 1.97
+      },
+      "BNBUSDT": {
+        "lastPrice": 605.8,
+        "change24hPercent": 1.7
+      }
+    }
+  },
+  {
+    "timestamp": "2026-06-07T23:00:00.000Z",
+    "tickers": {
+      "BTCUSDT": {
+        "lastPrice": 63330.01,
+        "change24hPercent": 0.39
+      },
+      "ETHUSDT": {
+        "lastPrice": 1690.56,
+        "change24hPercent": 0.01
+      },
+      "SOLUSDT": {
+        "lastPrice": 66.5,
+        "change24hPercent": -0.49
+      },
+      "BNBUSDT": {
+        "lastPrice": 604.3,
+        "change24hPercent": 0.4
+      }
+    }
+  },
+  {
+    "timestamp": "2026-06-07T22:00:00.000Z",
+    "tickers": {
+      "BTCUSDT": {
+        "lastPrice": 62869.86,
+        "change24hPercent": -0.9
+      },
+      "ETHUSDT": {
+        "lastPrice": 1672.56,
+        "change24hPercent": -1.8
+      },
+      "SOLUSDT": {
+        "lastPrice": 65.83,
+        "change24hPercent": -2.04
+      },
+      "BNBUSDT": {
+        "lastPrice": 603.1,
+        "change24hPercent": -0.48
+      }
+    }
+  },
+  {
+    "timestamp": "2026-06-07T21:00:00.000Z",
+    "tickers": {
+      "BTCUSDT": {
+        "lastPrice": 61777.34,
+        "change24hPercent": -3.05
+      },
+      "ETHUSDT": {
+        "lastPrice": 1634.45,
+        "change24hPercent": -4.05
+      },
+      "SOLUSDT": {
+        "lastPrice": 64.63,
+        "change24hPercent": -4.24
+      },
+      "BNBUSDT": {
+        "lastPrice": 594,
+        "change24hPercent": -2.24
+      }
+    }
+  },
+  {
+    "timestamp": "2026-06-07T20:00:00.000Z",
+    "tickers": {
+      "BTCUSDT": {
+        "lastPrice": 61875.08,
+        "change24hPercent": -2.53
+      },
+      "ETHUSDT": {
+        "lastPrice": 1628.33,
+        "change24hPercent": -3.63
+      },
+      "SOLUSDT": {
+        "lastPrice": 64.69,
+        "change24hPercent": -4.13
+      },
+      "BNBUSDT": {
+        "lastPrice": 594.4,
+        "change24hPercent": -2.03
+      }
+    }
+  },
+  {
+    "timestamp": "2026-06-07T19:00:00.000Z",
+    "tickers": {
+      "BTCUSDT": {
+        "lastPrice": 61332.06,
+        "change24hPercent": -3.22
+      },
+      "ETHUSDT": {
+        "lastPrice": 1613.19,
+        "change24hPercent": -4.25
+      },
+      "SOLUSDT": {
+        "lastPrice": 63.95,
+        "change24hPercent": -5.2
+      },
+      "BNBUSDT": {
+        "lastPrice": 588.6,
+        "change24hPercent": -3.14
+      }
+    }
+  },
+  {
+    "timestamp": "2026-06-07T18:00:00.000Z",
+    "tickers": {
+      "BTCUSDT": {
+        "lastPrice": 62028.85,
+        "change24hPercent": -2.27
+      },
+      "ETHUSDT": {
+        "lastPrice": 1630.14,
+        "change24hPercent": -3.24
+      },
+      "SOLUSDT": {
+        "lastPrice": 64.95,
+        "change24hPercent": -3.69
+      },
+      "BNBUSDT": {
+        "lastPrice": 595,
+        "change24hPercent": -2.11
+      }
+    }
+  },
+  {
+    "timestamp": "2026-06-07T17:00:00.000Z",
+    "tickers": {
+      "BTCUSDT": {
+        "lastPrice": 62157.65,
+        "change24hPercent": -2.19
+      },
+      "ETHUSDT": {
+        "lastPrice": 1631.31,
+        "change24hPercent": -3.29
+      },
+      "SOLUSDT": {
+        "lastPrice": 65.32,
+        "change24hPercent": -3.06
+      },
+      "BNBUSDT": {
+        "lastPrice": 596.3,
+        "change24hPercent": -1.91
+      }
+    }
+  },
+  {
+    "timestamp": "2026-06-07T16:00:00.000Z",
+    "tickers": {
+      "BTCUSDT": {
+        "lastPrice": 62078.27,
+        "change24hPercent": -2.29
+      },
+      "ETHUSDT": {
+        "lastPrice": 1628.62,
+        "change24hPercent": -3.21
+      },
+      "SOLUSDT": {
+        "lastPrice": 65.15,
+        "change24hPercent": -2.7
+      },
+      "BNBUSDT": {
+        "lastPrice": 594,
+        "change24hPercent": -1.66
+      }
+    }
+  },
+  {
+    "timestamp": "2026-06-07T15:00:00.000Z",
+    "tickers": {
+      "BTCUSDT": {
+        "lastPrice": 62095,
+        "change24hPercent": -2.63
+      },
+      "ETHUSDT": {
+        "lastPrice": 1629.91,
+        "change24hPercent": -3.65
+      },
+      "SOLUSDT": {
+        "lastPrice": 64.99,
+        "change24hPercent": -3.26
+      },
+      "BNBUSDT": {
+        "lastPrice": 591.4,
+        "change24hPercent": -2.09
+      }
+    }
+  },
+  {
+    "timestamp": "2026-06-07T14:00:00.000Z",
+    "tickers": {
+      "BTCUSDT": {
+        "lastPrice": 61903.57,
+        "change24hPercent": -3.23
+      },
+      "ETHUSDT": {
+        "lastPrice": 1628.06,
+        "change24hPercent": -3.74
+      },
+      "SOLUSDT": {
+        "lastPrice": 64.91,
+        "change24hPercent": -3.51
+      },
+      "BNBUSDT": {
+        "lastPrice": 591.3,
+        "change24hPercent": -1.99
+      }
+    }
+  },
+  {
+    "timestamp": "2026-06-07T13:00:00.000Z",
+    "tickers": {
+      "BTCUSDT": {
+        "lastPrice": 61705.01,
+        "change24hPercent": -3.22
+      },
+      "ETHUSDT": {
+        "lastPrice": 1617.62,
+        "change24hPercent": -3.81
+      },
+      "SOLUSDT": {
+        "lastPrice": 64.34,
+        "change24hPercent": -3.67
+      },
+      "BNBUSDT": {
+        "lastPrice": 589.1,
+        "change24hPercent": -1.9
+      }
+    }
+  },
+  {
+    "timestamp": "2026-06-07T12:00:00.000Z",
+    "tickers": {
+      "BTCUSDT": {
+        "lastPrice": 61905.78,
+        "change24hPercent": -3.09
+      },
+      "ETHUSDT": {
+        "lastPrice": 1620.17,
+        "change24hPercent": -4.44
+      },
+      "SOLUSDT": {
+        "lastPrice": 64.33,
+        "change24hPercent": -4.36
+      },
+      "BNBUSDT": {
+        "lastPrice": 588.6,
+        "change24hPercent": -2.42
+      }
+    }
+  },
+  {
+    "timestamp": "2026-06-07T11:00:00.000Z",
+    "tickers": {
+      "BTCUSDT": {
+        "lastPrice": 62624.84,
+        "change24hPercent": -1.35
+      },
+      "ETHUSDT": {
+        "lastPrice": 1630.06,
+        "change24hPercent": -3.19
+      },
+      "SOLUSDT": {
+        "lastPrice": 65.04,
+        "change24hPercent": -2.46
+      },
+      "BNBUSDT": {
+        "lastPrice": 593.5,
+        "change24hPercent": -1.44
+      }
+    }
+  },
+  {
+    "timestamp": "2026-06-07T10:00:00.000Z",
+    "tickers": {
+      "BTCUSDT": {
+        "lastPrice": 62370.83,
+        "change24hPercent": -1.25
+      },
+      "ETHUSDT": {
+        "lastPrice": 1625.82,
+        "change24hPercent": -2.79
+      },
+      "SOLUSDT": {
+        "lastPrice": 64.67,
+        "change24hPercent": -2.33
+      },
+      "BNBUSDT": {
+        "lastPrice": 592.7,
+        "change24hPercent": -0.89
+      }
+    }
+  },
+  {
+    "timestamp": "2026-06-07T09:00:00.000Z",
+    "tickers": {
+      "BTCUSDT": {
+        "lastPrice": 62534.99,
+        "change24hPercent": -1.52
+      },
+      "ETHUSDT": {
+        "lastPrice": 1633.46,
+        "change24hPercent": -2.25
+      },
+      "SOLUSDT": {
+        "lastPrice": 65.02,
+        "change24hPercent": -2.03
+      },
+      "BNBUSDT": {
+        "lastPrice": 592.5,
+        "change24hPercent": -1.23
+      }
+    }
+  },
+  {
+    "timestamp": "2026-06-07T08:00:00.000Z",
+    "tickers": {
+      "BTCUSDT": {
+        "lastPrice": 62856.64,
+        "change24hPercent": -0.43
+      },
+      "ETHUSDT": {
+        "lastPrice": 1641.31,
+        "change24hPercent": -1.19
+      },
+      "SOLUSDT": {
+        "lastPrice": 65.95,
+        "change24hPercent": 0.5
+      },
+      "BNBUSDT": {
+        "lastPrice": 597.9,
+        "change24hPercent": 0.4
+      }
+    }
+  },
+  {
+    "timestamp": "2026-06-07T07:00:00.000Z",
+    "tickers": {
+      "BTCUSDT": {
+        "lastPrice": 62400,
+        "change24hPercent": -1.41
+      },
+      "ETHUSDT": {
+        "lastPrice": 1615.14,
+        "change24hPercent": -3.48
+      },
+      "SOLUSDT": {
+        "lastPrice": 64.93,
+        "change24hPercent": -1.77
+      },
+      "BNBUSDT": {
+        "lastPrice": 589.6,
+        "change24hPercent": -1.11
+      }
+    }
+  },
+  {
+    "timestamp": "2026-06-07T06:00:00.000Z",
+    "tickers": {
+      "BTCUSDT": {
+        "lastPrice": 62106.99,
+        "change24hPercent": -1.41
+      },
+      "ETHUSDT": {
+        "lastPrice": 1611.59,
+        "change24hPercent": -3.3
+      },
+      "SOLUSDT": {
+        "lastPrice": 64.85,
+        "change24hPercent": -1.26
+      },
+      "BNBUSDT": {
+        "lastPrice": 588.6,
+        "change24hPercent": -1.23
+      }
+    }
+  },
+  {
+    "timestamp": "2026-06-07T05:00:00.000Z",
+    "tickers": {
+      "BTCUSDT": {
+        "lastPrice": 61745.01,
+        "change24hPercent": -1.62
+      },
+      "ETHUSDT": {
+        "lastPrice": 1603.92,
+        "change24hPercent": -3.01
+      },
+      "SOLUSDT": {
+        "lastPrice": 64.25,
+        "change24hPercent": -1.65
+      },
+      "BNBUSDT": {
+        "lastPrice": 585.4,
+        "change24hPercent": -1.63
+      }
     }
   }
 ]
