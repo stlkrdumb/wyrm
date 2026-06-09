@@ -44,8 +44,8 @@ class SentimentService {
       const snapshot = await this.fetchLiveSentiment(uppercaseSymbol);
       this.cache.set(uppercaseSymbol, snapshot);
       return snapshot;
-    } catch (err) {
-      console.warn(`[SentimentService] Failed to fetch live sentiment for ${uppercaseSymbol}, falling back to cache or default:`, err);
+    } catch (err: any) {
+      console.warn(`[SentimentService] Failed to fetch live sentiment for ${uppercaseSymbol}, falling back to cache or default: ${err?.message || err}`);
       if (cached) {
         return cached;
       }
@@ -75,8 +75,8 @@ class SentimentService {
         fngValue = Number(fngResp.data[0].value) || 50;
         fngClass = fngResp.data[0].value_classification || "Neutral";
       }
-    } catch (err) {
-      console.warn("[SentimentService] Fear & Greed fetch failed:", err);
+    } catch (err: any) {
+      console.warn("[SentimentService] Fear & Greed fetch failed:", err?.message || err);
     }
 
     // 2. Fetch Long/Short Ratio
@@ -92,8 +92,8 @@ class SentimentService {
         longRatio = Number(latest.longRatio) || 0.5;
         shortRatio = Number(latest.shortRatio) || 0.5;
       }
-    } catch (err) {
-      console.warn(`[SentimentService] Long/Short ratio fetch failed for ${symbol}:`, err);
+    } catch (err: any) {
+      console.warn(`[SentimentService] Long/Short ratio fetch failed for ${symbol}: ${err?.message || err}`);
     }
 
     // 3. Fetch Funding Rate
@@ -104,8 +104,8 @@ class SentimentService {
       if (frResp && frResp.code === "00000" && Array.isArray(frResp.data) && frResp.data.length > 0) {
         fundingRate = Number(frResp.data[0].fundingRate) || 0.0;
       }
-    } catch (err) {
-      console.warn(`[SentimentService] Funding rate fetch failed for ${symbol}:`, err);
+    } catch (err: any) {
+      console.warn(`[SentimentService] Funding rate fetch failed for ${symbol}: ${err?.message || err}`);
     }
 
     // 4. Fetch Open Interest
@@ -119,8 +119,8 @@ class SentimentService {
           openInterest = Number(oiItem.size) || 0.0;
         }
       }
-    } catch (err) {
-      console.warn(`[SentimentService] Open interest fetch failed for ${symbol}:`, err);
+    } catch (err: any) {
+      console.warn(`[SentimentService] Open interest fetch failed for ${symbol}: ${err?.message || err}`);
     }
 
     return {
