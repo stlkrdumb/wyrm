@@ -99,7 +99,7 @@ export const SignalPanel = memo(function SignalPanel({ signals, decision }: Prop
 
       {/* Signals List */}
       {signals.length > 0 ? (
-        <div className="flex flex-col gap-2 max-h-[140px] overflow-y-auto scrollbar-none pr-1 -mr-1">
+        <div className="flex flex-col gap-2 max-h-[140px] overflow-y-auto scrollbar-none pr-1 -mr-1 flex-shrink-0">
           {signals.map((signal, i) => (
             <div key={i} className="flex items-start justify-between py-1.5 border-b border-zinc-900/20 last:border-0 font-mono gap-3">
               <div className="flex items-start gap-2.5 min-w-[85px] flex-1">
