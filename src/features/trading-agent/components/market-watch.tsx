@@ -10,6 +10,7 @@ interface Props {
 function TickerItem({ symbol, ticker }: { symbol: string; ticker: TickerData }) {
   const prevPriceRef = useRef<number>(ticker.lastPrice);
   const [flashClass, setFlashClass] = useState<string>("");
+  const [imgError, setImgError] = useState<boolean>(false);
 
   useEffect(() => {
     if (ticker.lastPrice > prevPriceRef.current) {
@@ -26,10 +27,26 @@ function TickerItem({ symbol, ticker }: { symbol: string; ticker: TickerData }) 
   }, [ticker.lastPrice]);
 
   const isPos = ticker.change24hPercent >= 0;
+  const coin = symbol.replace(/USDT$/, "");
+  const logoUrl = `https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/${coin.toLowerCase()}.png`;
 
   return (
-    <div className={`flex items-center gap-3 px-3 py-1.5 rounded border border-zinc-900 bg-zinc-950/40 transition-all duration-300 flex-shrink-0 ${flashClass}`}>
-      <span className="font-mono font-bold text-xs text-zinc-100">{symbol}</span>
+    <div className={`flex items-center gap-2.5 px-3 py-1.5 rounded border border-zinc-900 bg-zinc-950/40 transition-all duration-300 flex-shrink-0 ${flashClass}`}>
+      {/* Coin Logo */}
+      {!imgError ? (
+        <img 
+          src={logoUrl} 
+          alt={coin} 
+          onError={() => setImgError(true)} 
+          className="w-4 h-4 rounded-full flex-shrink-0"
+        />
+      ) : (
+        <span className="w-4 h-4 rounded-full bg-zinc-900 border border-zinc-800 text-[8px] font-bold text-zinc-500 flex items-center justify-center flex-shrink-0 font-sans">
+          {coin.slice(0, 2)}
+        </span>
+      )}
+
+      <span className="font-mono font-bold text-xs text-zinc-100">{coin}/USDT</span>
       <span className="font-mono text-xs font-semibold tabular-nums text-zinc-300">
         ${ticker.lastPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}
       </span>
