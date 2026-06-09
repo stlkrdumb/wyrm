@@ -79,7 +79,7 @@ export function MarketWatch({ tickers }: Props) {
   return (
     <div className="flex flex-col gap-1.5 overflow-hidden">
       <div className="flex items-center justify-between px-2 flex-shrink-0">
-        <span className="text-[10px] tracking-widest text-zinc-500 font-bold uppercase">Market Tickers</span>
+        <span className="text-[10px] tracking-widest text-zinc-500 font-bold uppercase">Markets</span>
         <span className="text-[9px] tracking-wider text-emerald-500 font-bold uppercase flex items-center gap-1.5">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
           Live WebSocket
