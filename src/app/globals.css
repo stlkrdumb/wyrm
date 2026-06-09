@@ -1,84 +1,72 @@
 @import "tailwindcss";
 
 @theme inline {
-  --font-sans: var(--font-geist-sans);
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --font-mono: "Fira Code", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
 
 body {
-  @apply bg-black text-zinc-300 antialiased;
+  @apply bg-zinc-950 text-zinc-100 antialiased;
   font-family: var(--font-sans);
 }
 
-/* Hacker terminal effects */
+/* Swiss Industrial Dark Grid layout styles */
 
-/* Glowing text highlights */
+/* Glowing text highlights - kept for compatibility but softened */
 .glow-green {
-  text-shadow: 0 0 4px rgba(16, 185, 129, 0.4);
+  text-shadow: 0 0 8px rgba(16, 185, 129, 0.15);
 }
 
 .glow-amber {
-  text-shadow: 0 0 4px rgba(245, 158, 11, 0.4);
+  text-shadow: 0 0 8px rgba(245, 158, 11, 0.15);
 }
 
 .glow-rose {
-  text-shadow: 0 0 4px rgba(244, 63, 94, 0.4);
+  text-shadow: 0 0 8px rgba(244, 63, 94, 0.15);
 }
 
-/* Custom terminal window styling */
-.terminal-window {
-  @apply bg-zinc-950 border border-emerald-950/60 rounded p-4 shadow-xl shadow-black;
-}
-
-/* Matrix style grid background */
+/* Swiss Industrial Grid Background */
 .matrix-grid {
-  background-image: linear-gradient(rgba(16, 185, 129, 0.015) 1px, transparent 1px),
-                    linear-gradient(90deg, rgba(16, 185, 129, 0.015) 1px, transparent 1px);
-  background-size: 24px 24px;
+  background-color: #090a0c;
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+  background-size: 40px 40px;
+  position: relative;
 }
 
-/* Flashing animations */
-@keyframes flash-green {
-  0% { background-color: rgba(16, 185, 129, 0.15); }
-  100% { background-color: transparent; }
+.matrix-grid::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 0%, rgba(24, 24, 27, 0.4) 0%, transparent 75%);
+  pointer-events: none;
 }
 
-@keyframes flash-red {
-  0% { background-color: rgba(244, 63, 94, 0.15); }
-  100% { background-color: transparent; }
+/* Hide scrollbar utility */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;  /* IE/Edge */
+  scrollbar-width: none;  /* Firefox */
 }
 
-.flash-up {
-  animation: flash-green 1s ease-out;
-}
-
-.flash-down {
-  animation: flash-red 1s ease-out;
-}
-
-/* Cursor blink */
-@keyframes blink {
-  50% { opacity: 0; }
-}
-
-.cursor-blink::after {
-  content: "_";
-  animation: blink 1s step-start infinite;
-}
-
+/* Custom premium scrollbar */
 ::-webkit-scrollbar {
   width: 4px;
   height: 4px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(16, 185, 129, 0.01);
+  background: rgba(9, 10, 12, 0.5);
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-emerald-950 rounded-full border border-emerald-900/10;
+  @apply bg-zinc-800 rounded border border-zinc-900/50;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-emerald-900/35;
+  @apply bg-zinc-700;
 }
+

@@ -1,68 +1,41 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Card, CardHeader, CardTitle } from "@/shared/ui";
 import type { TickerData } from "../hooks/use-agent";
 
 interface Props {
   tickers: Record<string, TickerData | null> | null;
 }
 
-function PriceChangeBadge({ change }: { change: number }) {
-  const isPos = change >= 0;
-  return (
-    <span className={`text-[10px] font-mono font-bold tabular-nums ${isPos ? "text-emerald-400" : "text-rose-400"}`}>
-      {isPos ? "▲" : "▼"} {Math.abs(change).toFixed(2)}%
-    </span>
-  );
-}
-
-function TickerRow({ symbol, ticker }: { symbol: string; ticker: TickerData }) {
+function TickerItem({ symbol, ticker }: { symbol: string; ticker: TickerData }) {
   const prevPriceRef = useRef<number>(ticker.lastPrice);
   const [flashClass, setFlashClass] = useState<string>("");
 
   useEffect(() => {
     if (ticker.lastPrice > prevPriceRef.current) {
-      setFlashClass("flash-up");
+      setFlashClass("text-emerald-400 bg-emerald-500/10 shadow-[0_0_8px_rgba(16,185,129,0.2)] border-emerald-500/30");
       const t = setTimeout(() => setFlashClass(""), 1000);
       prevPriceRef.current = ticker.lastPrice;
       return () => clearTimeout(t);
     } else if (ticker.lastPrice < prevPriceRef.current) {
-      setFlashClass("flash-down");
+      setFlashClass("text-rose-400 bg-rose-500/10 shadow-[0_0_8px_rgba(244,63,94,0.2)] border-rose-500/30");
       const t = setTimeout(() => setFlashClass(""), 1000);
       prevPriceRef.current = ticker.lastPrice;
       return () => clearTimeout(t);
     }
   }, [ticker.lastPrice]);
 
-  const priceStr = `$${ticker.lastPrice.toLocaleString()}`;
+  const isPos = ticker.change24hPercent >= 0;
 
   return (
-    <div className={`px-4 py-2.5 flex items-center justify-between hover:bg-emerald-950/15 border-b border-emerald-950/20 last:border-0 transition-colors duration-150 ${flashClass}`}>
-      <div className="flex items-center gap-3">
-        <span className="font-semibold text-emerald-400 text-xs w-20">{symbol}</span>
-        <PriceChangeBadge change={ticker.change24hPercent} />
-      </div>
-
-      <div className="flex items-center gap-5 text-xs tabular-nums">
-        <div className="text-right">
-          <div className="text-emerald-300 font-bold glow-green">{priceStr}</div>
-          <div className="text-emerald-800 text-[9px] h-3.5 flex items-end justify-end">
-            {ticker.volume24h > 1e9
-              ? `$${(ticker.volume24h / 1e9).toFixed(1)}B`
-              : ticker.volume24h > 1e6
-                ? `$${(ticker.volume24h / 1e6).toFixed(1)}M`
-                : `$${Math.round(ticker.volume24h / 1e3)}K`}
-          </div>
-        </div>
-
-        <div className="text-right min-w-[90px]">
-          <div className="text-emerald-700/60 text-[9px] uppercase tracking-wide">Range</div>
-          <div className="text-emerald-500/80 text-[10px] leading-tight">
-            ${ticker.low24h.toLocaleString()}–${ticker.high24h.toLocaleString()}
-          </div>
-        </div>
-      </div>
+    <div className={`flex items-center gap-3 px-3 py-1.5 rounded border border-zinc-900 bg-zinc-950/40 transition-all duration-300 ${flashClass}`}>
+      <span className="font-mono font-bold text-xs text-zinc-100">{symbol}</span>
+      <span className="font-mono text-xs font-semibold tabular-nums text-zinc-300">
+        ${ticker.lastPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+      </span>
+      <span className={`text-[9px] font-bold font-mono tabular-nums ${isPos ? "text-emerald-400" : "text-rose-400"}`}>
+        {isPos ? "+" : ""}{ticker.change24hPercent.toFixed(2)}%
+      </span>
     </div>
   );
 }
@@ -70,32 +43,30 @@ function TickerRow({ symbol, ticker }: { symbol: string; ticker: TickerData }) {
 export function MarketWatch({ tickers }: Props) {
   if (!tickers || Object.keys(tickers).length === 0) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Market Feed</CardTitle>
-        </CardHeader>
-        <div className="text-xs text-emerald-700 py-6 text-center cursor-blink">Loading price feeds</div>
-      </Card>
+      <div className="flex items-center justify-between px-6 py-4 rounded border border-zinc-900 bg-zinc-950/40 backdrop-blur-md">
+        <span className="text-xs font-mono tracking-widest text-zinc-500 uppercase animate-pulse">
+          INITIALIZING MARKET STREAM...
+        </span>
+      </div>
     );
   }
 
   const entries = Object.entries(tickers).filter(([, t]) => t !== null) as [string, TickerData][];
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between">
-          <span>Active Market Feed</span>
-          <span className="text-[10px] text-emerald-600 font-mono tracking-widest uppercase">
-            Live WS
-          </span>
-        </CardTitle>
-      </CardHeader>
-      <div className="max-h-[200px] overflow-y-auto divide-y divide-emerald-950/20">
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center justify-between px-2">
+        <span className="text-[10px] tracking-widest text-zinc-500 font-bold uppercase">Market Tickers</span>
+        <span className="text-[9px] tracking-wider text-emerald-500 font-bold uppercase flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          Live WebSocket
+        </span>
+      </div>
+      <div className="flex items-center gap-3 overflow-x-auto py-1 px-0.5 scrollbar-none">
         {entries.map(([symbol, ticker]) => (
-          <TickerRow key={symbol} symbol={symbol} ticker={ticker} />
+          <TickerItem key={symbol} symbol={symbol} ticker={ticker} />
         ))}
       </div>
-    </Card>
+    </div>
   );
 }

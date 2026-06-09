@@ -1,14 +1,11 @@
 "use client";
 
 import { memo } from "react";
-import { Card, CardHeader, CardTitle, Badge } from "@/shared/ui";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import type { SignalData, DecisionData } from "../hooks/use-agent";
 
-/** Parse ticker from signal name: "LLM BTCUSDT" → "BTC/USDT", "Heuristic ETHUSDT" → "ETH/USDT" */
 function tickerFromSignalName(name: string): string {
   const raw = name.replace(/^(LLM|Heuristic)\s*/, "").trim();
-  // Convert BTCUSDT → BTC/USDT
   if (/^[A-Z]{3,6}USDT$/.test(raw)) {
     return `${raw.slice(0, -4)}/USDT`;
   }
@@ -23,64 +20,96 @@ interface Props {
 export const SignalPanel = memo(function SignalPanel({ signals, decision }: Props) {
   if (signals.length === 0 && !decision) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Market Signals</CardTitle>
-        </CardHeader>
-        <div className="text-sm text-zinc-500 py-8 text-center">Waiting for agent to start...</div>
-      </Card>
+      <div className="flex flex-col gap-4 p-5 rounded border border-zinc-900 bg-zinc-950/40 backdrop-blur-md relative overflow-hidden">
+        <div className="flex items-center justify-between border-b border-zinc-900/50 pb-3">
+          <span className="text-[10px] tracking-widest text-zinc-500 font-bold uppercase">Market Signals</span>
+        </div>
+        <div className="text-[11px] font-mono text-zinc-500 py-12 text-center tracking-wide uppercase">
+          Waiting for agent cycle initialization...
+        </div>
+      </div>
     );
   }
 
   const directionIcon = (direction: SignalData["direction"]) => {
     switch (direction) {
       case "bullish": return <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />;
-      case "bearish": return <TrendingDown className="w-3.5 h-3.5 text-red-400" />;
-      default: return <Minus className="w-3.5 h-3.5 text-zinc-400" />;
+      case "bearish": return <TrendingDown className="w-3.5 h-3.5 text-rose-400" />;
+      default: return <Minus className="w-3.5 h-3.5 text-zinc-550" />;
     }
   };
 
   const directionBadge = (direction: SignalData["direction"]) => {
     switch (direction) {
-      case "bullish": return <Badge variant="success">Bull</Badge>;
-      case "bearish": return <Badge variant="danger">Bear</Badge>;
-      default: return <Badge variant="neutral">Flat</Badge>;
+      case "bullish":
+        return (
+          <span className="px-1.5 py-0.2 rounded text-[9px] font-bold tracking-wider uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            BULL
+          </span>
+        );
+      case "bearish":
+        return (
+          <span className="px-1.5 py-0.2 rounded text-[9px] font-bold tracking-wider uppercase bg-rose-500/10 text-rose-400 border border-rose-500/20">
+            BEAR
+          </span>
+        );
+      default:
+        return (
+          <span className="px-1.5 py-0.2 rounded text-[9px] font-bold tracking-wider uppercase bg-zinc-900 text-zinc-400 border border-zinc-850">
+            FLAT
+          </span>
+        );
     }
   };
 
   const actionBadge = () => {
     if (!decision) return null;
     switch (decision.action) {
-      case "buy": return <Badge variant="success">Buy</Badge>;
-      case "sell": return <Badge variant="danger">Sell</Badge>;
-      default: return <Badge variant="neutral">Hold</Badge>;
+      case "buy":
+        return (
+          <span className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            BUY
+          </span>
+        );
+      case "sell":
+        return (
+          <span className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase bg-rose-500/10 text-rose-400 border border-rose-500/20">
+            SELL
+          </span>
+        );
+      default:
+        return (
+          <span className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase bg-zinc-900 text-zinc-400 border border-zinc-850">
+            HOLD
+          </span>
+        );
     }
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between">
-          Market Signals
-          {decision && (
-            <div className="flex items-center gap-2">
-              Action: {actionBadge()}
-            </div>
-          )}
-        </CardTitle>
-      </CardHeader>
+    <div className="flex flex-col gap-4 p-5 rounded border border-zinc-900 bg-zinc-950/40 backdrop-blur-md relative overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-zinc-900/50 pb-3">
+        <span className="text-[10px] tracking-widest text-zinc-500 font-bold uppercase">Decision Signals</span>
+        {decision && (
+          <div className="flex items-center gap-2 font-mono">
+            {actionBadge()}
+          </div>
+        )}
+      </div>
 
+      {/* Signals List */}
       {signals.length > 0 ? (
-        <div className="space-y-2">
+        <div className="flex flex-col gap-2">
           {signals.map((signal, i) => (
-            <div key={i} className="flex items-center justify-between py-1.5 text-sm">
-              <div className="flex items-center gap-2">
+            <div key={i} className="flex items-center justify-between py-1 border-b border-zinc-900/20 last:border-0 font-mono">
+              <div className="flex items-center gap-2.5">
                 {directionIcon(signal.direction)}
-                <span className="text-zinc-300">{tickerFromSignalName(signal.name)}</span>
+                <span className="text-[11px] text-zinc-300">{tickerFromSignalName(signal.name)}</span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 {directionBadge(signal.direction)}
-                <span className="text-zinc-400 tabular-nums min-w-[3.5rem] text-right">
+                <span className="text-[10px] text-zinc-400 tabular-nums min-w-[2.5rem] text-right">
                   {(signal.strength * 100).toFixed(0)}%
                 </span>
               </div>
@@ -88,83 +117,88 @@ export const SignalPanel = memo(function SignalPanel({ signals, decision }: Prop
           ))}
         </div>
       ) : (
-        <div className="text-sm text-zinc-500 py-4 text-center">No signals available</div>
+        <div className="text-[11px] font-mono text-zinc-500 py-4 text-center">No active signals</div>
       )}
 
+      {/* Decision Metric & Details */}
       {decision && (() => {
-        // Find the highest-conviction signal to display its ticker badge
         const topSignal = signals.reduce((best, s) =>
           Math.abs(s.strength) > Math.abs(best.strength) ? s : best, signals[0] ?? null
         );
         const decisionTicker = topSignal ? tickerFromSignalName(topSignal.name) : "ALL";
 
-        // Parse RSI from reason
         const rsiMatch = decision.reason.match(/RSI\s*\(?(\d+(?:\.\d+)?)\)?/i);
         const rsi = rsiMatch ? parseFloat(rsiMatch[1]) : null;
 
         return (
-          <div className="mt-3 pt-3 border-t border-zinc-800 space-y-3">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-zinc-500 font-medium">Decision Conviction</span>
+          <div className="mt-2 pt-4 border-t border-zinc-900 space-y-4 font-mono text-[11px]">
+            <div className="flex items-center justify-between">
+              <span className="text-zinc-500 uppercase text-[10px]">Decision Strength</span>
               <div className="flex items-center gap-2">
-                {topSignal && <Badge variant="info">{decisionTicker}</Badge>}
-                <span className={`font-semibold ${decision.strength > 0 ? "text-emerald-400" : decision.strength < 0 ? "text-red-400" : "text-zinc-400"}`}>
+                {topSignal && (
+                  <span className="px-1.5 py-0.2 rounded text-[8px] font-bold bg-zinc-900 text-zinc-400 border border-zinc-850">
+                    {decisionTicker}
+                  </span>
+                )}
+                <span className={`font-bold ${decision.strength > 0 ? "text-emerald-450" : decision.strength < 0 ? "text-rose-450" : "text-zinc-405"}`}>
                   {decision.strength > 0 ? "+" : ""}{(decision.strength * 100).toFixed(0)}%
                 </span>
               </div>
             </div>
 
-            {/* Custom visual horizontal strength bar */}
-            <div className="w-full bg-zinc-800/80 rounded-full h-1.5 overflow-hidden relative">
+            {/* Visual Strength Slider */}
+            <div className="w-full bg-zinc-900 rounded-full h-1 relative overflow-hidden">
               <div
                 className={`h-full rounded-full transition-all duration-500 ${
-                  decision.strength > 0 ? "bg-gradient-to-r from-emerald-500 to-teal-400" :
-                  decision.strength < 0 ? "bg-gradient-to-r from-red-500 to-pink-500" :
-                  "bg-zinc-600"
+                  decision.strength > 0 ? "bg-emerald-500" :
+                  decision.strength < 0 ? "bg-rose-500" :
+                  "bg-zinc-650"
                 }`}
                 style={{
                   width: `${Math.max(6, Math.abs(decision.strength) * 50)}%`,
                   marginLeft: decision.strength >= 0 ? "50%" : `${50 - Math.abs(decision.strength) * 50}%`
                 }}
               />
-              <div className="absolute left-1/2 top-0 w-0.5 h-full bg-zinc-600" />
+              <div className="absolute left-1/2 top-0 w-0.5 h-full bg-zinc-750" />
             </div>
 
+            {/* RSI Sub-Card */}
             {rsi !== null && (
-              <div className="space-y-1.5 py-2 px-2.5 bg-zinc-950/40 rounded-lg border border-zinc-800/40">
-                <div className="flex justify-between text-[10px] text-zinc-400 font-medium">
-                  <span>Computed RSI(14)</span>
-                  <span className={rsi >= 70 ? "text-rose-400 font-bold" : rsi <= 30 ? "text-emerald-400 font-bold" : "text-zinc-300"}>
+              <div className="space-y-1.5 py-2.5 px-3 bg-zinc-950/30 rounded border border-zinc-900/60">
+                <div className="flex justify-between text-[10px] text-zinc-500 font-bold">
+                  <span>COMPUTED RSI(14)</span>
+                  <span className={rsi >= 70 ? "text-rose-400" : rsi <= 30 ? "text-emerald-400" : "text-zinc-350"}>
                     {rsi.toFixed(1)}
                   </span>
                 </div>
-                <div className="relative w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                  <div className="absolute left-0 top-0 h-full w-[30%] bg-emerald-500/10" />
-                  <div className="absolute left-[30%] top-0 h-full w-[40%] bg-zinc-500/5" />
-                  <div className="absolute left-[70%] top-0 h-full w-[30%] bg-rose-500/10" />
+                <div className="relative w-full h-1 bg-zinc-900 rounded-full overflow-hidden">
+                  <div className="absolute left-0 top-0 h-full w-[30%] bg-emerald-500/5" />
+                  <div className="absolute left-[30%] top-0 h-full w-[40%] bg-zinc-800/10" />
+                  <div className="absolute left-[70%] top-0 h-full w-[30%] bg-rose-500/5" />
                   <div
                     className={`absolute top-0 w-1.5 h-full rounded-full transition-all duration-500 ${
-                      rsi >= 70 ? "bg-rose-400 shadow-md shadow-rose-500" :
-                      rsi <= 30 ? "bg-emerald-400 shadow-md shadow-emerald-500" :
-                      "bg-blue-400"
+                      rsi >= 70 ? "bg-rose-450" :
+                      rsi <= 30 ? "bg-emerald-450" :
+                      "bg-zinc-400"
                     }`}
                     style={{ left: `calc(${rsi}% - 3px)` }}
                   />
                 </div>
-                <div className="flex justify-between text-[8px] text-zinc-600 font-mono">
+                <div className="flex justify-between text-[8px] text-zinc-650 font-bold">
                   <span>OVERSOLD (30)</span>
                   <span>OVERBOUGHT (70)</span>
                 </div>
               </div>
             )}
 
-            <p className="text-xs text-zinc-400 leading-relaxed italic border-l border-zinc-700 pl-2 bg-zinc-950/20 py-1 rounded-r">
+            {/* Execution Reason */}
+            <p className="text-[11px] text-zinc-400 leading-relaxed italic border-l border-zinc-800 pl-3 bg-zinc-950/20 py-2 rounded-r font-sans">
               {decision.reason}
             </p>
           </div>
         );
       })()}
-    </Card>
+    </div>
   );
 }, (prev, next) => {
   return (

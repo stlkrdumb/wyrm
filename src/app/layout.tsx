@@ -1,11 +1,5 @@
 import type { Metadata } from "next";
-import { Geist } from "next/font/google";
 import "./globals.css";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "WYRM Trader — Autonomous Trading Agent",
@@ -20,10 +14,10 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} h-full antialiased dark`}
+      className="h-full antialiased dark"
       suppressHydrationWarning
     >
-      <body className="min-h-screen flex flex-col bg-black text-zinc-300 matrix-grid">{children}</body>
+      <body className="min-h-screen flex flex-col bg-zinc-950 text-zinc-100 matrix-grid">{children}</body>
     </html>
   );
 }
