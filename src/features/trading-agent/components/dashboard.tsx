@@ -11,6 +11,7 @@ import { TradeLog } from "./trade-log";
 import { MarketWatch } from "./market-watch";
 import { DecisionHistory } from "./decision-history";
 import { BacktestPanel } from "./backtest-panel";
+import { StrategyPanel } from "./strategy-panel";
 
 export function Dashboard() {
   const agent = useAgent();
@@ -46,6 +47,7 @@ export function Dashboard() {
         {/* Column 3: Strategy Simulation Sandbox & History logs */}
         <div className="flex flex-col gap-6">
           <BacktestPanel />
+          <StrategyPanel />
           
           {/* Unified Logs Console Widget */}
           <div className="flex flex-col gap-4 p-5 rounded border border-zinc-900 bg-zinc-950/40 backdrop-blur-md relative overflow-hidden h-[450px]">

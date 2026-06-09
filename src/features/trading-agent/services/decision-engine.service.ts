@@ -12,6 +12,7 @@ import {
 } from "./decision-helper";
 import { optionalFetch } from "./proxy-client";
 import { sentimentService } from "./sentiment.service";
+import { strategyService } from "./strategy.service";
 
 const exec = promisify(execFile);
 const ANALYSIS_SCRIPT = path.join(
@@ -190,10 +191,17 @@ export async function evaluateMultiPair(
   // Step 2: Single LLM call with all symbols
   const prompt = buildMultiPrompt(symbolData, activePositions);
 
+  const strategy = strategyService.getStrategy();
+  const systemPrompt = `You are an AI quantitative trading agent.
+Persona: ${strategy.persona}
+Custom Trading Rules: ${strategy.customInstructions}
+
+Analyze the provided market data and generate concise, actionable decisions for each symbol based on RSI, MACD, Bollinger Bands, price action, and futures sentiment metrics (Fear & Greed index, Long/Short ratio, funding rates, open interest). Never use markdown formatting in your response.`;
+
   try {
     const response = await chatCompletion({
       messages: [
-        { role: "system", content: "You are a professional quantitative trader. Analyze market data and provide concise, actionable decisions for each cryptocurrency based on RSI, MACD, price action, and sentiment metrics (Fear & Greed index, Long/Short ratio, funding rates, open interest). Never use markdown formatting in your response." },
+        { role: "system", content: systemPrompt },
         { role: "user", content: prompt },
       ],
       temperature: 0.3,
