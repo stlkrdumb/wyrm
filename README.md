@@ -8,9 +8,12 @@ WYRM Trader is a state-of-the-art autonomous trading agent developed for the **B
 
 * **Multi-Pair WebSocket Data**: Ingests real-time Spot ticker streams for `BTCUSDT`, `ETHUSDT`, `SOLUSDT`, and `BNBUSDT` directly from the Bitget WS server, with automatic REST fallback polling through residential proxies if direct connections are restricted.
 * **Official Bitget Formula TA**: Runs high-fidelity technical indicator calculations (RSI, MACD, Bollinger Bands) using official Bitget formulas written in Python.
-* **LLM Decision Engine**: Evaluates TA signals and price trends via OpenAI-compatible endpoints (supporting Qwen 3.6+) with an automatic timeout and model-fallback mechanism (`qwen3.6-plus` ⇄ `qwen3.6-flash`).
+* **Strategy Customizer & Presets**: Hot-reload the agent's core persona and trading instructions in real-time from the UI. Select from **Conservative**, **Balanced**, or **Aggressive** cognitive presets with a single click.
+* **Autonomous Risk Breaker (Safety Compliance)**: Monitors trailing portfolio drawdown in real-time against peak equity. If the drawdown limit is breached, it trips a flashing halt state, disables startup controls, and automatically flattens all positions to preserve capital. Supports manual reset & re-arm.
+* **Macro News & Sentiment Feed**: Integrates a keyless Google News RSS scraper that pulls, cleans, and scores live crypto headlines (**Bullish**, **Bearish**, **Neutral**) using a regex keyword analyzer. News sentiments are dynamically injected into the LLM prompt context during trading cycles.
+* **Collapsible Context Sidebar**: A premium TradingView-style sidebar displaying market sentiment gauges and live macro news. Collapses to a slim vertical icon ribbon with a single click to maximize chart space.
 * **Paper Trading Execution**: Simulates trades using a real-time order matching engine. Supports long position tracking, average entry price recalculations, and reactive unrealized PnL updates.
-* **Auditability & Log Trails**: Maintains persistent portfolio state on disk (`.data/portfolio-state.json`) with start/pause/stop lifecycle controls that automatically flatten active positions at current market rates upon stopping.
+* **Auditability & Log Trails**: Maintains persistent portfolio state on disk with start/pause/stop lifecycle controls that automatically flatten active positions at current market rates upon stopping.
 * **Premium React Dashboard**: Visualizes agent status, signal feeds, active positions, a scrollable trade log, and a dynamic equity curve powered by Recharts.
 
 ---
@@ -99,6 +102,7 @@ npm run start
 ```
 
 ### Control the Agent Loop
+
 The agent runs an automatic perception → decision → execution cycle every 3 seconds while in `running` state.
 * **Trigger a cycle manually**:
   ```bash
@@ -107,4 +111,18 @@ The agent runs an automatic perception → decision → execution cycle every 3 
 * **Toggle state (running/paused/stopped)**:
   ```bash
   curl -X PUT "http://localhost:3000/api/agent/cycle?status=running"
+  ```
+* **Manage Cognitive Strategy**:
+  ```bash
+  # Save/reload Strategy Persona and instructions
+  curl -X POST -H "Content-Type: application/json" -d '{"persona":"Extreme Bull","customInstructions":"Favor buy orders"}' http://localhost:3000/api/agent/strategy
+  ```
+* **Reset Circuit Breaker**:
+  ```bash
+  # Re-arm the risk core and reset peak equity after drawdown halt
+  curl -X POST -H "Content-Type: application/json" -d '{"action":"reset"}' http://localhost:3000/api/agent/breaker
+  ```
+* **Fetch Live RSS News**:
+  ```bash
+  curl http://localhost:3000/api/agent/news?limit=5
   ```
