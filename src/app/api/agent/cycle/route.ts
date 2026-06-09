@@ -139,6 +139,9 @@ export async function GET(request: NextRequest) {
       id: t.id, timestamp: t.timestamp.toISOString(), symbol: t.symbol, side: t.side,
       action: t.action, size: t.size, price: t.price, pnl: t.pnl ?? null,
     })),
+    circuitBreakerTripped: currentState.circuitBreakerTripped,
+    circuitBreakerThresholdPct: currentState.circuitBreakerThresholdPct,
+    peakEquity: currentState.peakEquity,
   });
 }
 

@@ -89,6 +89,11 @@ export const StatusHeader = memo(function StatusHeader({ agent }: Props) {
           WYRM // <span className="text-zinc-500 font-normal">TRADING CONSOLE</span>
         </h1>
         {renderBadge()}
+        {state.circuitBreakerTripped && (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase bg-rose-500/20 text-rose-450 border border-rose-500/30 animate-pulse">
+            💥 BREAKER TRIPPED
+          </span>
+        )}
         {renderWSBadge()}
         {lastCycleAt && (
           <span className="text-[10px] tracking-wider uppercase text-zinc-500 font-mono">CYCLE: {uptime}</span>
@@ -100,7 +105,8 @@ export const StatusHeader = memo(function StatusHeader({ agent }: Props) {
         {status !== "running" ? (
           <button
             onClick={() => setAgentStatus("running")}
-            className="inline-flex items-center justify-center rounded border border-emerald-500/30 hover:border-emerald-500 text-emerald-400 hover:bg-emerald-500/5 px-4 py-1.5 text-xs font-semibold tracking-wider uppercase transition-all duration-300 cursor-pointer"
+            disabled={state.circuitBreakerTripped}
+            className="inline-flex items-center justify-center rounded border border-emerald-500/30 hover:border-emerald-500 text-emerald-400 hover:bg-emerald-500/5 px-4 py-1.5 text-xs font-semibold tracking-wider uppercase transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
           >
             &#9654; START
           </button>
@@ -126,6 +132,7 @@ export const StatusHeader = memo(function StatusHeader({ agent }: Props) {
     prev.agent.state.status === next.agent.state.status &&
     prev.agent.state.lastCycleAt === next.agent.state.lastCycleAt &&
     prev.agent.state.wsStatus === next.agent.state.wsStatus &&
+    prev.agent.state.circuitBreakerTripped === next.agent.state.circuitBreakerTripped &&
     JSON.stringify(prev.agent.state.wsConnection) === JSON.stringify(next.agent.state.wsConnection)
   );
 });

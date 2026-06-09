@@ -21,6 +21,9 @@ export interface PortfolioState {
   }>;
   totalTrades: number;
   winRate: number;           // approximate — for display
+  circuitBreakerTripped?: boolean;
+  circuitBreakerThresholdPct?: number;
+  peakEquity?: number;
 }
 
 function ensureDir() {
@@ -62,6 +65,9 @@ export function resetBalanceState(initialCash: number): PortfolioState {
     positions: [],
     totalTrades: 0,
     winRate: 0,
+    circuitBreakerTripped: false,
+    circuitBreakerThresholdPct: 5.0,
+    peakEquity: initialCash,
   };
   saveBalanceState(state);
   console.log(`[Balance] Reset to initial: $${initialCash.toLocaleString()}`);

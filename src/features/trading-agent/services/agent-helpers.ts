@@ -14,6 +14,9 @@ export interface AgentState {
   positions: Position[];
   trades: Trade[];
   startEquity: number;
+  circuitBreakerTripped: boolean;
+  circuitBreakerThresholdPct: number;
+  peakEquity: number;
 }
 
 export const config = {
@@ -148,6 +151,9 @@ export async function flattenPositions(state: AgentState): Promise<{ closed: num
     positions: [],
     totalTrades: state.portfolio.totalTrades,
     winRate,
+    circuitBreakerTripped: state.circuitBreakerTripped,
+    circuitBreakerThresholdPct: state.circuitBreakerThresholdPct,
+    peakEquity: state.peakEquity,
   });
 
   console.log(`[Agent] Flattened ${closedCount} position(s) across ${uniqueSymbols.length} symbol(s) — realized PnL: ${totalPnlRealized >= 0 ? "+" : ""}$${totalPnlRealized.toLocaleString()}`);
@@ -273,5 +279,8 @@ export function executeTrades(
     positions: savedPositions,
     totalTrades: state.portfolio.totalTrades,
     winRate,
+    circuitBreakerTripped: state.circuitBreakerTripped,
+    circuitBreakerThresholdPct: state.circuitBreakerThresholdPct,
+    peakEquity: state.peakEquity,
   });
 }

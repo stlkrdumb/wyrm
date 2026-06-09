@@ -12,6 +12,8 @@ import { MarketWatch } from "./market-watch";
 import { DecisionHistory } from "./decision-history";
 import { BacktestPanel } from "./backtest-panel";
 import { StrategyPanel } from "./strategy-panel";
+import { CircuitBreakerPanel } from "./circuit-breaker-panel";
+import { NewsPanel } from "./news-panel";
 
 export function Dashboard() {
   const agent = useAgent();
@@ -42,11 +44,20 @@ export function Dashboard() {
             </div>
           )}
           <SentimentPanel />
+          <NewsPanel />
         </div>
 
         {/* Column 3: Strategy Simulation Sandbox & History logs */}
         <div className="flex flex-col gap-6">
           <BacktestPanel />
+          <CircuitBreakerPanel
+            circuitBreakerTripped={agent.state.circuitBreakerTripped}
+            circuitBreakerThresholdPct={agent.state.circuitBreakerThresholdPct}
+            peakEquity={agent.state.peakEquity}
+            currentEquity={agent.state.portfolio.equity}
+            resetBreaker={agent.resetBreaker}
+            updateBreakerThreshold={agent.updateBreakerThreshold}
+          />
           <StrategyPanel />
           
           {/* Unified Logs Console Widget */}

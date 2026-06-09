@@ -47,6 +47,9 @@ interface AgentState {
   trades: TradeData[];
   showHistory: boolean;
   showBacktest: boolean;
+  circuitBreakerTripped: boolean;
+  circuitBreakerThresholdPct: number;
+  peakEquity: number;
 }
 
 let lastKnownState: AgentState | null = null;
@@ -59,6 +62,9 @@ export function useAgent() {
     signals: [], portfolio: { cash: 1000, equity: 1000, initialCash: 1000, totalTrades: 0, winRate: 0, totalPnL: 0 }, positions: [], trades: [],
     showHistory: false,
     showBacktest: false,
+    circuitBreakerTripped: false,
+    circuitBreakerThresholdPct: 5.0,
+    peakEquity: 1000,
   });
 
   // Stable fetch function — only recreates if URL changes
@@ -70,7 +76,7 @@ export function useAgent() {
       const data = await res.json();
       console.log(`[Client] Got state — status=${data.status} tickers=${Object.keys(data.tickers || {}).join(",") || "(none)"}`);
 
-      // Normalize multi-ticker response into state shape
+      // Normalize response into state shape
       const normalized: AgentState = {
         status: data.status,
         lastCycleAt: data.lastCycleAt || null,
@@ -86,6 +92,9 @@ export function useAgent() {
         trades: data.trades || [],
         showHistory: state.showHistory,
         showBacktest: state.showBacktest,
+        circuitBreakerTripped: !!data.circuitBreakerTripped,
+        circuitBreakerThresholdPct: Number(data.circuitBreakerThresholdPct) || 5.0,
+        peakEquity: Number(data.peakEquity) || 1000,
       };
 
       lastKnownState = normalized;
@@ -93,7 +102,7 @@ export function useAgent() {
     } catch (err) {
       console.error("[Client] Fetch error:", err);
     }
-  }, [state.status]);
+  }, [state.status, state.showHistory, state.showBacktest]);
 
   const runCycle = useCallback(async () => {
     try {
@@ -111,8 +120,13 @@ export function useAgent() {
       if (res.ok && status === "stopped") {
         const data = await res.json();
         console.log(`[Client] Agent stopped — positions closed: ${data.closed}, realized PnL: ${data.realizedPnl}`);
+      } else if (!res.ok) {
+        const data = await res.json();
+        alert(data.message || "Failed to update agent status");
       }
-    } catch {}
+    } catch (err) {
+      console.error("[Client] Set status error:", err);
+    }
 
     setState((prev) => {
       const next = { ...prev, status };
@@ -121,8 +135,44 @@ export function useAgent() {
     });
 
     // After stopping, refresh state to show flattened positions and realized PnL
-    if (status === "stopped") {
-      await fetchState();
+    await fetchState();
+  }, [fetchState]);
+
+  const resetBreaker = useCallback(async () => {
+    try {
+      console.log(`[Client] Resetting circuit breaker...`);
+      const res = await fetch("/api/agent/breaker", {
+        method: "POST",
+        body: JSON.stringify({ action: "reset" }),
+        headers: { "Content-Type": "application/json" },
+      });
+      if (res.ok) {
+        await fetchState();
+      } else {
+        const data = await res.json();
+        alert(data.message || "Failed to reset breaker");
+      }
+    } catch (err) {
+      console.error("[Client] Reset breaker error:", err);
+    }
+  }, [fetchState]);
+
+  const updateBreakerThreshold = useCallback(async (pct: number) => {
+    try {
+      console.log(`[Client] Updating circuit breaker threshold to: ${pct}%`);
+      const res = await fetch("/api/agent/breaker", {
+        method: "POST",
+        body: JSON.stringify({ action: "updateThreshold", thresholdPct: pct }),
+        headers: { "Content-Type": "application/json" },
+      });
+      if (res.ok) {
+        await fetchState();
+      } else {
+        const data = await res.json();
+        alert(data.message || "Failed to update threshold");
+      }
+    } catch (err) {
+      console.error("[Client] Update threshold error:", err);
     }
   }, [fetchState]);
 
@@ -143,5 +193,14 @@ export function useAgent() {
     return () => { clearInterval(id); console.log("[Client] Stopping polling"); };
   }, [state.status, fetchState]);
 
-  return { state, runCycle, setAgentStatus, refresh: fetchState, setShowHistory: (val: boolean) => setState(s => ({ ...s, showHistory: val })), setShowBacktest: (val: boolean) => setState(s => ({ ...s, showBacktest: val })) };
+  return {
+    state,
+    runCycle,
+    setAgentStatus,
+    resetBreaker,
+    updateBreakerThreshold,
+    refresh: fetchState,
+    setShowHistory: (val: boolean) => setState(s => ({ ...s, showHistory: val })),
+    setShowBacktest: (val: boolean) => setState(s => ({ ...s, showBacktest: val }))
+  };
 }

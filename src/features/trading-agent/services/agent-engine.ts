@@ -108,6 +108,9 @@ export function updatePositionUnrealizedPnL(symbol: string, currentPrice: number
         positions: savedPositions,
         totalTrades: state.portfolio.totalTrades,
         winRate: state.portfolio.winRate,
+        circuitBreakerTripped: state.circuitBreakerTripped,
+        circuitBreakerThresholdPct: state.circuitBreakerThresholdPct,
+        peakEquity: state.peakEquity,
       });
       return;
     }
@@ -129,6 +132,7 @@ export function updatePositionUnrealizedPnL(symbol: string, currentPrice: number
       positions: [...state.positions],
       totalPnL: realEquity - state.startEquity,
     };
+    checkCircuitBreaker();
   }
 }
 
@@ -169,6 +173,9 @@ function buildInitialState(): AgentState {
       totalPnL: realizedPnL,
     },
     startEquity: startEquity,
+    circuitBreakerTripped: saved?.circuitBreakerTripped ?? false,
+    circuitBreakerThresholdPct: saved?.circuitBreakerThresholdPct ?? 5.0,
+    peakEquity: saved?.peakEquity ?? startEquity,
   };
 }
 
@@ -213,7 +220,107 @@ export async function evaluateDecision(ticker: TickerData): Promise<{ decision: 
   };
 }
 
+export function checkCircuitBreaker(): void {
+  if (state.circuitBreakerTripped) return;
+
+  const currentEquity = state.portfolio.equity;
+  if (currentEquity > state.peakEquity) {
+    state.peakEquity = currentEquity;
+  }
+
+  const drawdownPct = state.peakEquity > 0 
+    ? ((state.peakEquity - currentEquity) / state.peakEquity) * 100 
+    : 0;
+
+  if (drawdownPct >= state.circuitBreakerThresholdPct) {
+    state.circuitBreakerTripped = true;
+    state.status = "stopped";
+    state.executionReason = `BREAKER TRIPPED: Drawdown of ${drawdownPct.toFixed(2)}% exceeded limit of ${state.circuitBreakerThresholdPct}%`;
+    console.warn(`[Agent] [CIRCUIT BREAKER] DRAWDOWN EXCEEDED LIMIT! Tripping circuit breaker and emergency flattening all positions.`);
+
+    // Emergency flatten positions
+    flattenPositions().then(({ closed, totalPnlRealized }) => {
+      console.log(`[Agent] [CIRCUIT BREAKER] Emergency flattening complete. Closed ${closed} positions, realized PnL of $${totalPnlRealized.toFixed(2)}.`);
+    }).catch(err => {
+      console.error(`[Agent] [CIRCUIT BREAKER] Failed emergency flattening:`, err);
+    });
+
+    const savedPositions = state.positions.map(p => ({
+      symbol: p.symbol,
+      side: p.side as "long" | "short",
+      size: p.size,
+      entryPrice: p.entryPrice
+    }));
+    saveBalanceState({
+      initialCash: config.initialCash,
+      startCash: state.startEquity,
+      cash: state.portfolio.cash,
+      accumulatedRealizedPnL: state.portfolio.totalPnL,
+      positions: savedPositions,
+      totalTrades: state.portfolio.totalTrades,
+      winRate: state.portfolio.winRate,
+      circuitBreakerTripped: true,
+      circuitBreakerThresholdPct: state.circuitBreakerThresholdPct,
+      peakEquity: state.peakEquity,
+    });
+  }
+}
+
+export function resetCircuitBreaker(): void {
+  state.circuitBreakerTripped = false;
+  state.peakEquity = state.portfolio.equity;
+  state.executionReason = "Circuit Breaker reset manually.";
+  console.log(`[Agent] Circuit Breaker reset. Peak equity set to $${state.peakEquity.toFixed(2)}.`);
+  
+  const savedPositions = state.positions.map(p => ({
+    symbol: p.symbol,
+    side: p.side as "long" | "short",
+    size: p.size,
+    entryPrice: p.entryPrice
+  }));
+  saveBalanceState({
+    initialCash: config.initialCash,
+    startCash: state.startEquity,
+    cash: state.portfolio.cash,
+    accumulatedRealizedPnL: state.portfolio.totalPnL,
+    positions: savedPositions,
+    totalTrades: state.portfolio.totalTrades,
+    winRate: state.portfolio.winRate,
+    circuitBreakerTripped: false,
+    circuitBreakerThresholdPct: state.circuitBreakerThresholdPct,
+    peakEquity: state.peakEquity,
+  });
+}
+
+export function updateCircuitBreakerThreshold(thresholdPct: number): void {
+  state.circuitBreakerThresholdPct = thresholdPct;
+  console.log(`[Agent] Circuit Breaker threshold updated to ${thresholdPct}%.`);
+  
+  const savedPositions = state.positions.map(p => ({
+    symbol: p.symbol,
+    side: p.side as "long" | "short",
+    size: p.size,
+    entryPrice: p.entryPrice
+  }));
+  saveBalanceState({
+    initialCash: config.initialCash,
+    startCash: state.startEquity,
+    cash: state.portfolio.cash,
+    accumulatedRealizedPnL: state.portfolio.totalPnL,
+    positions: savedPositions,
+    totalTrades: state.portfolio.totalTrades,
+    winRate: state.portfolio.winRate,
+    circuitBreakerTripped: state.circuitBreakerTripped,
+    circuitBreakerThresholdPct: thresholdPct,
+    peakEquity: state.peakEquity,
+  });
+}
+
 export async function runAgentCycle(): Promise<{ decision: TradingDecision; signals: Signal[]; tickerPrice: number }> {
+  if (state.circuitBreakerTripped) {
+    state.status = "stopped";
+    return { decision: { action: "hold", strength: 0, confidence: 0, reason: "Circuit Breaker Tripped" } as any, signals: [], tickerPrice: 0 };
+  }
   if (state.status !== "running") return { decision: null as any, signals: [], tickerPrice: 0 };
 
   const symbols = config.tradingSymbols;
@@ -291,6 +398,9 @@ export async function runAgentCycle(): Promise<{ decision: TradingDecision; sign
   // Execute using the helper function
   executeTrades(state, validatedDecisions, priceMap, displayTicker);
 
+  // Check circuit breaker status after execution
+  checkCircuitBreaker();
+
   return { decision: state.decision!, signals: state.signals, tickerPrice: displayTicker.lastPrice };
 }
 
@@ -300,6 +410,11 @@ export function getAgentState(): AgentState {
 
 export async function setAgentStatus(s: "running" | "stopped" | "paused"): Promise<{ closed?: number; realizedPnl?: number }> {
   console.log(`[Agent] Status changed to: ${s}`);
+  
+  if (s === "running" && state.circuitBreakerTripped) {
+    throw new Error("Circuit Breaker is TRIPPED. Reset the breaker before resuming trading.");
+  }
+  
   state.status = s;
 
   const result: Record<string, unknown> = {};

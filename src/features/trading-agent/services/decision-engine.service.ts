@@ -13,6 +13,7 @@ import {
 import { optionalFetch } from "./proxy-client";
 import { sentimentService } from "./sentiment.service";
 import { strategyService } from "./strategy.service";
+import { newsService } from "./news.service";
 
 const exec = promisify(execFile);
 const ANALYSIS_SCRIPT = path.join(
@@ -191,6 +192,12 @@ export async function evaluateMultiPair(
   // Step 2: Single LLM call with all symbols
   const prompt = buildMultiPrompt(symbolData, activePositions);
 
+  let userPrompt = prompt;
+  if (!priceStore.isBacktesting) {
+    const newsContext = await newsService.getNewsPromptContext(3);
+    userPrompt = `${prompt}\n\nRecent Market Headlines:\n${newsContext}\n\nFactor these macro news sentiments into your decisions where appropriate (e.g. if the news is highly bullish/bearish, it might affect volatility or direction bias).`;
+  }
+
   const strategy = strategyService.getStrategy();
   const systemPrompt = `You are an AI quantitative trading agent.
 Persona: ${strategy.persona}
@@ -202,7 +209,7 @@ Analyze the provided market data and generate concise, actionable decisions for 
     const response = await chatCompletion({
       messages: [
         { role: "system", content: systemPrompt },
-        { role: "user", content: prompt },
+        { role: "user", content: userPrompt },
       ],
       temperature: 0.3,
       maxTokens: 2048,
