@@ -22,6 +22,12 @@ export const config = {
   },
   tradingSymbols: (process.env.TRADING_SYMBOLS || "BTCUSDT").split(",").map(s => s.trim().toUpperCase()).filter(Boolean),
   maxActivePositions: Number(process.env.MAX_ACTIVE_POSITIONS) || 3,
+  get stopLossPct(): number {
+    return Number(process.env.SIM_STOP_LOSS_PCT) || 5; // default 5%
+  },
+  get takeProfitPct(): number {
+    return Number(process.env.SIM_TAKE_PROFIT_PCT) || 10; // default 10%
+  },
 };
 
 let tradeCounter = 0;

@@ -1,6 +1,7 @@
 import type { Signal, TickerData, TradingDecision, Position } from "../types";
 import {
   loadBalanceState,
+  saveBalanceState,
 } from "./balance-store";
 import { marketWS, type WSSubscription } from "./market-ws.service";
 import { priceStore } from "./price-store";
@@ -11,6 +12,8 @@ import {
   getLivePrice,
   flattenPositions as helperFlattenPositions,
   executeTrades,
+  getTradeCounter,
+  setTradeCounter,
 } from "./agent-helpers";
 
 export { config };
@@ -39,7 +42,74 @@ export function updatePositionUnrealizedPnL(symbol: string, currentPrice: number
     const unrealizedPnL = (currentPrice - pos.entryPrice) * pos.size;
     state.positions[idx] = { ...pos, unrealizedPnL };
 
-    // Recalculate total equity to reflect new unrealized PnL
+    // Check Stop Loss & Take Profit limits
+    const isStopLoss = currentPrice <= pos.entryPrice * (1 - config.stopLossPct / 100);
+    const isTakeProfit = currentPrice >= pos.entryPrice * (1 + config.takeProfitPct / 100);
+
+    if (isStopLoss || isTakeProfit) {
+      const reason = isStopLoss ? "Stop Loss Triggered" : "Take Profit Triggered";
+      console.log(`[Agent] [AUTONOMOUS BRACKET] ${symbol} exit triggered: ${reason} (Price: $${currentPrice.toLocaleString()} vs Entry: $${pos.entryPrice.toLocaleString()})`);
+      
+      const pnl = unrealizedPnL;
+      const tradeCounter = getTradeCounter() + 1;
+      setTradeCounter(tradeCounter);
+
+      // Add sell trade record
+      state.trades.push({
+        id: `T${tradeCounter}`,
+        timestamp: new Date(),
+        symbol,
+        side: "sell",
+        action: "exit",
+        size: pos.size,
+        price: currentPrice,
+        pnl,
+      });
+
+      // Update cash, total trades, and remove position
+      state.portfolio.cash += currentPrice * pos.size;
+      state.positions.splice(idx, 1);
+      state.portfolio.totalPnL += pnl;
+      state.portfolio.totalTrades++;
+
+      // Recalculate portfolio equity
+      let totalPosVal = 0;
+      for (const p of state.positions) {
+        const symTicker = priceStore.getCached(p.symbol);
+        const price = symTicker?.lastPrice ?? p.entryPrice;
+        totalPosVal += p.size * price;
+      }
+      const liquidBalance = state.portfolio.cash;
+      const realEquity = liquidBalance + totalPosVal;
+      state.portfolio = {
+        ...state.portfolio,
+        timestamp: new Date(),
+        cash: liquidBalance,
+        equity: realEquity,
+        positions: [...state.positions],
+        totalPnL: realEquity - state.startEquity,
+      };
+
+      // Save updated state to disk
+      const savedPositions = state.positions.map(p => ({
+        symbol: p.symbol,
+        side: p.side as "long" | "short",
+        size: p.size,
+        entryPrice: p.entryPrice
+      }));
+      saveBalanceState({
+        initialCash: config.initialCash,
+        startCash: state.startEquity,
+        cash: liquidBalance,
+        accumulatedRealizedPnL: state.portfolio.totalPnL,
+        positions: savedPositions,
+        totalTrades: state.portfolio.totalTrades,
+        winRate: state.portfolio.winRate,
+      });
+      return;
+    }
+
+    // Recalculate total equity to reflect new unrealized PnL (if no exit triggered)
     let totalPosVal = 0;
     for (const p of state.positions) {
       const symTicker = priceStore.getCached(p.symbol);

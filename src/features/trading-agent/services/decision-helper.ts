@@ -34,7 +34,7 @@ Respond with ONLY valid JSON:
 }
 
 export function buildMultiPrompt(
-  symbolData: Map<string, { ticker: TickerData; ta: TASingle }>,
+  symbolData: Map<string, { ticker: TickerData; ta5m: any; ta1h: any; ta1d: any }>,
   activePositions: Position[] = []
 ): string {
   const entries = Array.from(symbolData.entries());
@@ -42,9 +42,18 @@ export function buildMultiPrompt(
     .map(([symbol, data]) => {
       const changeLabel = data.ticker.change24hPercent >= 0 ? "positive" : "negative";
       const volatility = (((data.ticker.high24h - data.ticker.low24h) / data.ticker.lastPrice) * 100).toFixed(1);
-      return `- ${symbol}: $${data.ticker.lastPrice.toLocaleString()} | 24h ${data.ticker.change24hPercent > 0 ? "+" : ""}${data.ticker.change24hPercent}% (${changeLabel}) | RSI(14): ${data.ta.rsi.toFixed(1)} | MACD HIST: ${data.ta.macdHist > 0 ? "+" : ""}${data.ta.macdHist.toFixed(1)} | Volatility: ${volatility}%`;
+
+      const t5m = data.ta5m ? `[5m] Close: $${data.ta5m.close.toLocaleString()} | RSI: ${data.ta5m.rsi.toFixed(1)}` : `[5m] N/A`;
+      const t1h = data.ta1h ? `[1h] Close: $${data.ta1h.close.toLocaleString()} | RSI: ${data.ta1h.rsi.toFixed(1)} | MACD: Hist ${data.ta1h.macdHist > 0 ? "+" : ""}${data.ta1h.macdHist.toFixed(1)} | BOLL: [${data.ta1h.bollLower.toLocaleString()} - ${data.ta1h.bollUpper.toLocaleString()}] (Mid: ${data.ta1h.bollMiddle.toLocaleString()}) | ATR: ${data.ta1h.atr.toFixed(2)} | EMA20: ${data.ta1h.ema20.toLocaleString()}` : `[1h] N/A`;
+      const t1d = data.ta1d ? `[1d] Close: $${data.ta1d.close.toLocaleString()} | RSI: ${data.ta1d.rsi.toFixed(1)} | EMA20: ${data.ta1d.ema20.toLocaleString()}` : `[1d] N/A`;
+
+      return `- ${symbol}:
+  * 24h Summary: $${data.ticker.lastPrice.toLocaleString()} | 24h ${data.ticker.change24hPercent > 0 ? "+" : ""}${data.ticker.change24hPercent}% (${changeLabel}) | Volatility: ${volatility}%
+  * ${t5m}
+  * ${t1h}
+  * ${t1d}`;
     })
-    .join("\n");
+    .join("\n\n");
 
   const exampleFormat = entries
     .map(([symbol]) => `  "${symbol}": {"action":"buy|sell|hold","strength":-1..1,"confidence":0..1,"reason":"..."},`)
@@ -158,22 +167,36 @@ export function parseMultiResponse(
 }
 
 export function fallbackMultiAnalysis(
-  symbolData: Map<string, { ticker: TickerData; ta: TASingle }>
+  symbolData: Map<string, { ticker: TickerData; ta5m: any; ta1h: any; ta1d: any }>
 ): { decisions: Record<string, TradingDecision>; allSignals: Signal[] } {
   const decisions: Record<string, TradingDecision> = {};
   const allSignals: Signal[] = [];
 
-  for (const [symbol, { ticker, ta }] of symbolData) {
-    const range = ticker.high24h - ticker.low24h;
-    const pricePosition = range > 0 ? (ticker.lastPrice - ticker.low24h) / range : 0.5;
+  for (const [symbol, { ticker, ta5m, ta1h, ta1d }] of symbolData) {
+    const t5m = ta5m || { rsi: 50, close: ticker.lastPrice };
+    const t1h = ta1h || { rsi: 50, macdHist: 0, bollUpper: ticker.lastPrice * 1.05, bollMiddle: ticker.lastPrice, bollLower: ticker.lastPrice * 0.95, atr: 0, ema20: ticker.lastPrice, close: ticker.lastPrice };
+    const t1d = ta1d || { rsi: 50, close: ticker.lastPrice, ema20: ticker.lastPrice };
 
     let strength = 0;
-    if (ta.rsi > 70) strength -= 0.3;
-    else if (ta.rsi < 30) strength += 0.3;
-    if (ta.macdHist > 50) strength += 0.2;
-    else if (ta.macdHist < -50) strength -= 0.2;
-    if (pricePosition > 0.9) strength -= 0.1;
-    else if (pricePosition < 0.1) strength += 0.1;
+
+    // RSI oscillator checks
+    if (t1h.rsi < 30) strength += 0.25;
+    else if (t1h.rsi > 70) strength -= 0.25;
+
+    if (t5m.rsi < 30) strength += 0.15;
+    else if (t5m.rsi > 70) strength -= 0.15;
+
+    // Bollinger Band checks
+    if (t1h.close <= t1h.bollLower) strength += 0.25;
+    else if (t1h.close >= t1h.bollUpper) strength -= 0.25;
+
+    // MACD momentum
+    if (t1h.macdHist > 0) strength += 0.1;
+    else if (t1h.macdHist < 0) strength -= 0.1;
+
+    // Trend alignment (close vs EMA20 on daily)
+    if (t1d.close > t1d.ema20) strength += 0.05;
+    else if (t1d.close < t1d.ema20) strength -= 0.05;
 
     const action: "buy" | "sell" | "hold" =
       strength > 0.15 ? "buy" : strength < -0.15 ? "sell" : "hold";
@@ -182,7 +205,7 @@ export function fallbackMultiAnalysis(
       action,
       strength,
       confidence: Math.min(1, Math.abs(strength)),
-      reason: `RSI(${ta.rsi.toFixed(1)}) MACD(${ta.macdHist.toFixed(1)}) Range ${pricePosition > 0.7 ? "top" : pricePosition < 0.3 ? "bottom" : "mid"}: ${(strength > 0 ? "+" : "")}${strength.toFixed(2)}`,
+      reason: `Fallback Heuristic: RSI 1h(${t1h.rsi.toFixed(0)}) 5m(${t5m.rsi.toFixed(0)}) | BB ${t1h.close <= t1h.bollLower ? "below lower" : t1h.close >= t1h.bollUpper ? "above upper" : "within"} | MACD ${t1h.macdHist > 0 ? "bullish" : "bearish"}`,
     };
 
     allSignals.push({
