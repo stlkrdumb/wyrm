@@ -13,13 +13,13 @@ function TickerItem({ symbol, ticker }: { symbol: string; ticker: TickerData }) 
 
   useEffect(() => {
     if (ticker.lastPrice > prevPriceRef.current) {
-      setFlashClass("text-emerald-400 bg-emerald-500/10 shadow-[0_0_8px_rgba(16,185,129,0.2)] border-emerald-500/30");
-      const t = setTimeout(() => setFlashClass(""), 1000);
+      setFlashClass("animate-tick-up text-emerald-450");
+      const t = setTimeout(() => setFlashClass(""), 800);
       prevPriceRef.current = ticker.lastPrice;
       return () => clearTimeout(t);
     } else if (ticker.lastPrice < prevPriceRef.current) {
-      setFlashClass("text-rose-400 bg-rose-500/10 shadow-[0_0_8px_rgba(244,63,94,0.2)] border-rose-500/30");
-      const t = setTimeout(() => setFlashClass(""), 1000);
+      setFlashClass("animate-tick-down text-rose-450");
+      const t = setTimeout(() => setFlashClass(""), 800);
       prevPriceRef.current = ticker.lastPrice;
       return () => clearTimeout(t);
     }
@@ -28,7 +28,7 @@ function TickerItem({ symbol, ticker }: { symbol: string; ticker: TickerData }) 
   const isPos = ticker.change24hPercent >= 0;
 
   return (
-    <div className={`flex items-center gap-3 px-3 py-1.5 rounded border border-zinc-900 bg-zinc-950/40 transition-all duration-300 ${flashClass}`}>
+    <div className={`flex items-center gap-3 px-3 py-1.5 rounded border border-zinc-900 bg-zinc-950/40 transition-all duration-300 flex-shrink-0 ${flashClass}`}>
       <span className="font-mono font-bold text-xs text-zinc-100">{symbol}</span>
       <span className="font-mono text-xs font-semibold tabular-nums text-zinc-300">
         ${ticker.lastPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}

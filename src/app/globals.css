@@ -70,3 +70,42 @@ body {
   @apply bg-zinc-700;
 }
 
+/* Premium Ticker Glow Price Animations */
+@keyframes tick-up-glow {
+  0% { 
+    border-color: rgba(16, 185, 129, 0.4); 
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.15);
+    background-color: rgba(16, 185, 129, 0.05);
+    transform: scale(1.02);
+  }
+  100% { 
+    border-color: rgb(24, 24, 27); 
+    box-shadow: none; 
+    background-color: rgba(9, 10, 12, 0.4);
+    transform: scale(1);
+  }
+}
+
+@keyframes tick-down-glow {
+  0% { 
+    border-color: rgba(244, 63, 94, 0.4); 
+    box-shadow: 0 0 8px rgba(244, 63, 94, 0.15);
+    background-color: rgba(244, 63, 94, 0.05);
+    transform: scale(1.02);
+  }
+  100% { 
+    border-color: rgb(24, 24, 27); 
+    box-shadow: none; 
+    background-color: rgba(9, 10, 12, 0.4);
+    transform: scale(1);
+  }
+}
+
+.animate-tick-up {
+  animation: tick-up-glow 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-tick-down {
+  animation: tick-down-glow 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
