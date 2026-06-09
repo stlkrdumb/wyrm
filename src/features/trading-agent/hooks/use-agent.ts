@@ -38,7 +38,7 @@ interface AgentState {
   ticker: TickerData | null;          // Primary display ticker (BTCUSDT)
   tickers: MultiTickerState | null;   // All active symbols
   wsStatus: WSConnectionStatus;
-  wsConnection?: { type: "direct" | "fallback"; proxy: string | null } | null;
+  wsConnection?: { type: "direct" | "proxy" | "fallback"; proxy: string | null } | null;
   decision: DecisionData | null;
   executionReason: string;
   signals: SignalData[];

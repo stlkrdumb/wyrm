@@ -20,8 +20,22 @@ export const StatusHeader = memo(function StatusHeader({ agent }: Props) {
     }
   };
 
+  const connectionType = state.wsConnection?.type || "direct";
+  const proxyAddress = state.wsConnection?.proxy;
+
   const renderWSBadge = () => {
     if (state.wsStatus === "connected") {
+      if (connectionType === "proxy") {
+        return (
+          <span
+            title={proxyAddress || "Proxy Route"}
+            className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wide bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 cursor-help"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
+            Proxy WS
+          </span>
+        );
+      }
       return (
         <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wide bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />

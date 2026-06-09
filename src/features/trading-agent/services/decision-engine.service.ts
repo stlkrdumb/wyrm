@@ -10,6 +10,7 @@ import {
   parseMultiResponse,
   fallbackMultiAnalysis,
 } from "./decision-helper";
+import { optionalFetch } from "./proxy-client";
 
 const exec = promisify(execFile);
 const ANALYSIS_SCRIPT = path.join(
@@ -66,12 +67,9 @@ async function getTechnicalAnalysisForSymbol(symbol: string): Promise<TASingle> 
 
   // REST fallback: fetch candles + Python TA
   try {
-    const res = await fetch(
-      `https://api.bitget.com/api/v2/spot/market/candles?symbol=${symbol}&granularity=1h&limit=50`,
-      { signal: AbortSignal.timeout(10_000) }
+    const resp = await optionalFetch<{ code: string; data: string[][] }>(
+      `https://api.bitget.com/api/v2/spot/market/candles?symbol=${symbol}&granularity=1h&limit=50`
     );
-    if (!res.ok) throw new Error(`Fetch failed with ${res.status}`);
-    const resp = (await res.json()) as { code: string; data: string[][] };
     const ohlcvs = resp.data ?? [];
 
     if (!ohlcvs || ohlcvs.length === 0) {

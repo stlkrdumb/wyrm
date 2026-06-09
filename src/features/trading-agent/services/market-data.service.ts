@@ -1,13 +1,12 @@
 import type { TickerData, OrderBook, Candlestick } from "../types";
+import { optionalFetch } from "./proxy-client";
 
 const BITGET_API = "https://api.bitget.com/api/v2/spot/market";
 
-/** Fetch with Node.js native fetch (no proxy) */
+/** Fetch with optional proxy */
 async function bitgetDirect<T>(path: string): Promise<T> {
   try {
-    const res = await fetch(`${BITGET_API}${path}`, { signal: AbortSignal.timeout(10_000) });
-    if (!res.ok) throw new Error(`Bitget ${res.status} on ${path}`);
-    return (await res.json()) as T;
+    return await optionalFetch<T>(`${BITGET_API}${path}`);
   } catch (err) {
     throw new Error(`Bitget ${path} failed: ${err instanceof Error ? err.message : String(err)}`);
   }

@@ -4,6 +4,7 @@ import { type WSTickerRaw, parseTicker, parseCandle } from "./ws-helpers";
 import { priceStore, type PriceStore } from "./price-store";
 import { config } from "./agent-engine";
 import { WebSocket as WSClient } from "ws";
+import { optionalFetch, getProxyAgentForWS, PROXIES, mask } from "./proxy-client";
 
 interface WSCandleRaw {
   instType: "SPOT";
@@ -41,13 +42,15 @@ export class MarketWebSocketService {
   private reconnectAttempt = 0;
   private maxReconnectDelay = 30_000;
   private baseReconnectDelay = 1_000;
+  private proxyIndex = 0;
 
 
-  getConnectionInfo(): { type: "direct" | "fallback"; proxy: string | null } {
+  getConnectionInfo(): { type: "direct" | "proxy" | "fallback"; proxy: string | null } {
     if (this.ws && this.ws.readyState === WSClient.OPEN) {
+      const proxyUrl = PROXIES.length > 0 ? PROXIES[this.proxyIndex % PROXIES.length] : null;
       return {
-        type: "direct",
-        proxy: null,
+        type: proxyUrl ? "proxy" : "direct",
+        proxy: proxyUrl ? mask(proxyUrl) : null,
       };
     }
     return {
@@ -85,10 +88,23 @@ export class MarketWebSocketService {
 
     try {
       await new Promise<void>((resolve, reject) => {
-        const ws = new WSClient("wss://ws.bitget.com/v2/ws/public");
+        const agent = getProxyAgentForWS(this.proxyIndex);
+        const options = agent ? { agent } : {};
+
+        if (agent) {
+          const proxyUrl = PROXIES[this.proxyIndex % PROXIES.length];
+          console.log(`[WS] Routing through proxy: ${mask(proxyUrl)}`);
+        }
+
+        const ws = new WSClient("wss://ws.bitget.com/v2/ws/public", options);
 
         ws.on("open", () => {
-          console.log("[WS] Connected ✓ (direct)");
+          if (agent) {
+            const proxyUrl = PROXIES[this.proxyIndex % PROXIES.length];
+            console.log(`[WS] Connected ✓ (via ${mask(proxyUrl)})`);
+          } else {
+            console.log("[WS] Connected ✓ (direct)");
+          }
           this.reconnectAttempt = 0;
           this.ws = ws;
           if (this.subscriptions.length > 0) {
@@ -114,6 +130,9 @@ export class MarketWebSocketService {
           this.ws = null;
           this.clearPingTimer();
           if (code !== 1000) {
+            if (PROXIES.length > 0) {
+              this.proxyIndex = (this.proxyIndex + 1) % PROXIES.length;
+            }
             this.scheduleReconnect();
           }
           reject(new Error(`WebSocket closed code=${code} reason=${reason.toString()}`));
@@ -126,7 +145,12 @@ export class MarketWebSocketService {
         ws.once("open", () => clearTimeout(timeout));
       });
     } catch (err) {
-      console.warn(`[WS] Connection failed — trying REST fallback:`, err instanceof Error ? err.message : String(err));
+      if (PROXIES.length > 0) {
+        this.proxyIndex = (this.proxyIndex + 1) % PROXIES.length;
+        console.warn(`[WS] Connection failed (proxy) — trying next proxy/REST fallback:`, err instanceof Error ? err.message : String(err));
+      } else {
+        console.warn(`[WS] Connection failed — trying REST fallback:`, err instanceof Error ? err.message : String(err));
+      }
       await this.fallbackToRest();
     }
   }
@@ -137,13 +161,11 @@ export class MarketWebSocketService {
     const fetchAllTickers = async () => {
       try {
         for (const symbol of config.tradingSymbols) {
-          const res = await fetch(`https://api.bitget.com/api/v2/spot/market/tickers?symbol=${symbol}`, { signal: AbortSignal.timeout(10_000) });
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const resp = await res.json() as {
+          const resp = await optionalFetch<{
             code: string;
             msg: string;
             data: Array<Record<string, string>>;
-          };
+          }>(`https://api.bitget.com/api/v2/spot/market/tickers?symbol=${symbol}`);
 
           const ticker = resp.data.find((t) => t.symbol === symbol || t.instId === symbol);
           if (!ticker) continue;
