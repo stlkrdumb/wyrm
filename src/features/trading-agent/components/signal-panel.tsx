@@ -88,7 +88,7 @@ export const SignalPanel = memo(function SignalPanel({ signals, decision }: Prop
   };
 
   return (
-    <div className="flex flex-col gap-4 p-5 rounded border border-zinc-900 bg-zinc-950/40 backdrop-blur-md relative overflow-hidden min-h-[420px]">
+    <div className="flex flex-col gap-4 p-5 rounded border border-zinc-900 bg-zinc-950/40 backdrop-blur-md relative overflow-hidden min-h-[480px]">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-zinc-900/50 pb-3">
         <span className="text-[10px] tracking-widest text-zinc-500 font-bold uppercase">Decision Signals</span>

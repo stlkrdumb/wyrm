@@ -51,7 +51,7 @@ export const TradeLog = memo(function TradeLog({ trades, portfolio }: Props) {
       </div>
 
       {/* Logs list */}
-      <div className="flex-1 overflow-y-auto max-h-[300px] scrollbar-none pr-1 -mr-1">
+      <div className="flex-1 overflow-y-auto max-h-[180px] scrollbar-none pr-1 -mr-1">
         {hasTrades ? (
           <div className="flex flex-col gap-2 font-mono">
             {[...trades].reverse().map((t) => (
