@@ -44,6 +44,26 @@ export class PriceStore {
     return new Map(this.tickers);
   }
 
+  /** Returns a standardized ticker object for use across the application */
+  buildTickerObj(snapshot: PriceSnapshot | undefined): {
+    symbol: string;
+    lastPrice: number;
+    high24h: number;
+    low24h: number;
+    volume24h: number;
+    change24hPercent: number;
+  } | null {
+    if (!snapshot || !snapshot.lastPrice) return null;
+    return {
+      symbol: snapshot.symbol,
+      lastPrice: Math.round(snapshot.lastPrice),
+      high24h: Math.round(snapshot.high24h ?? snapshot.lastPrice),
+      low24h: Math.round(snapshot.low24h ?? snapshot.lastPrice),
+      volume24h: snapshot.quoteVolume ?? 0,
+      change24hPercent: snapshot.changePercent ?? 0,
+    };
+  }
+
   /** Check if a symbol's latest tick is older than threshold */
   isStale(symbol: string, thresholdMs = 60_000): boolean {
     const snapshot = this.tickers.get(symbol.toUpperCase());

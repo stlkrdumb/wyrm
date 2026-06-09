@@ -48,7 +48,9 @@ export function PositionsPanel({ positions, tickers }: Props) {
               const currentPrice = symTicker?.lastPrice ?? p.entryPrice;
               const currentValue = p.size * currentPrice;
 
-              const displayedPnl = p.unrealizedPnL !== undefined ? p.unrealizedPnL : currentValue - (p.size * p.entryPrice);
+              // Calculate PnL and round to 2 decimal places
+              const rawPnl = p.unrealizedPnL !== undefined ? p.unrealizedPnL : currentValue - (p.size * p.entryPrice);
+              const displayedPnl = Math.round(rawPnl * 100) / 100;
 
               return (
                 <tr key={p.symbol} className="border-b border-zinc-900/40 last:border-0 hover:bg-zinc-900/20 transition-all duration-150">
@@ -67,7 +69,7 @@ export function PositionsPanel({ positions, tickers }: Props) {
                     displayedPnl === 0 ? "text-zinc-500" :
                     displayedPnl > 0 ? "text-emerald-400" : "text-rose-400"
                   }`}>
-                    {displayedPnl === 0 ? "$0.00" : `${displayedPnl >= 0 ? "+" : ""}$${Math.abs(displayedPnl).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                    {displayedPnl === 0 ? "$0.00" : `${displayedPnl < 0 ? "-" : "+"}$${Math.abs(displayedPnl).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                   </td>
                 </tr>
               );

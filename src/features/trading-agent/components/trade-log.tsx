@@ -3,11 +3,6 @@
 import { memo } from "react";
 import type { TradeData, PortfolioData } from "../hooks/use-agent";
 
-interface Props {
-  trades: TradeData[];
-  portfolio: PortfolioData;
-}
-
 function formatRelative(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   if (diff < 60_000) return "just now";
@@ -104,7 +99,7 @@ function TradeRow({ trade }: { trade: TradeData }) {
 
         {pnlDisplay && (
           <span className={`font-bold tabular-nums ${pnlPositive ? "text-emerald-400" : "text-rose-400"}`}>
-            {pnlPositive ? "+" : ""}${trade.pnl!.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {trade.pnl === 0 ? "$0.00" : (trade.pnl > 0 ? "+" : "-") + "$" + Math.abs(trade.pnl!).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
         )}
       </div>
@@ -117,7 +112,7 @@ function Summary({ portfolio }: { portfolio: PortfolioData }) {
   const pnlPositive = pnl >= 0;
 
   return (
-    <div className="mt-2 pt-3 border-t border-zinc-900 grid grid-cols-3 gap-2 text-[10px] font-mono text-center">
+    <div className="mt-2 pt-3 border-t border-zinc-900 grid grid-cols-3 gap-2 text-[10px] font-mono">
       <div className="bg-zinc-950/40 py-1.5 rounded border border-zinc-900">
         <span className="text-zinc-500 text-[8px] uppercase tracking-wider block">Trades</span>
         <span className="font-bold text-zinc-200 tabular-nums">{portfolio.totalTrades}</span>
@@ -131,7 +126,7 @@ function Summary({ portfolio }: { portfolio: PortfolioData }) {
       <div className="bg-zinc-950/40 py-1.5 rounded border border-zinc-900">
         <span className="text-zinc-500 text-[8px] uppercase tracking-wider block">Realized PnL</span>
         <span className={`font-bold tabular-nums ${pnlPositive ? "text-emerald-450" : "text-rose-450"}`}>
-          {pnlPositive ? "+" : "-"}${Math.abs(pnl).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          {pnl === 0 ? "$0.00" : (pnl > 0 ? "+" : "-") + "$" + Math.abs(pnl).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </span>
       </div>
     </div>

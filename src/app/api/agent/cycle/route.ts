@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { runAgentCycle, getAgentState, setAgentStatus } from "@/features/trading-agent/services/agent-engine";
 import { priceStore } from "@/features/trading-agent/services/price-store";
 import { marketWS } from "@/features/trading-agent/services/market-ws.service";
+import { WS_STALENESS_THRESHOLD_MS } from "@/features/trading-agent/constants/config.constants";
 
 const INITIAL_CASH = Number(process.env.SIM_INITIAL_CASH) || 1000;
 
@@ -15,13 +16,14 @@ export async function POST() {
     console.log(`[API] LLM_MODEL=${process.env.LLM_MODEL}`);
     console.log(`[API] API_KEY=${process.env.OPENAI_API_KEY ? '***' + process.env.OPENAI_API_KEY.slice(-4) : 'MISSING'}`);
     console.log("[API] POST /api/agent/cycle — running agent cycle");
+    
     const result = await runAgentCycle();
 
     // Also return current tickers and WS status after the cycle completes
     const allSnapshots = priceStore.getAll();
-    const tickersMap: Record<string, ReturnType<typeof buildTickerObj>> = {};
+    const tickersMap: Record<string, any> = {};
     for (const [symbol, snapshot] of allSnapshots) {
-      const obj = buildTickerObj(snapshot);
+      const obj = priceStore.buildTickerObj(snapshot);
       if (obj) tickersMap[symbol] = obj;
     }
 
@@ -35,22 +37,15 @@ export async function POST() {
       wsStatus,
       wsConnection: marketWS.getConnectionInfo(),
     });
-  } catch (error) {
-    console.error("[API] POST error:", error);
-    return NextResponse.json({ status: "error", message: String(error) }, { status: 500 });
+  } catch (error: any) {
+    console.error("[API] CRITICAL ERROR in POST /api/agent/cycle:", error);
+    console.error("[API] Stack Trace:", error.stack);
+    return NextResponse.json({ 
+      status: "error", 
+      message: error.message || "Internal Server Error",
+      stack: process.env.NODE_ENV === "development" ? error.stack : undefined
+    }, { status: 500 });
   }
-}
-
-function buildTickerObj(snapshot: { lastPrice?: number; high24h?: number; low24h?: number; quoteVolume?: number; changePercent?: number; symbol: string; updatedAt?: Date } | undefined) {
-  if (!snapshot || !snapshot.lastPrice) return null;
-  return {
-    symbol: snapshot.symbol,
-    lastPrice: Math.round(snapshot.lastPrice),
-    high24h: Math.round(snapshot.high24h ?? snapshot.lastPrice),
-    low24h: Math.round(snapshot.low24h ?? snapshot.lastPrice),
-    volume24h: snapshot.quoteVolume ?? 0,
-    change24hPercent: snapshot.changePercent ?? 0,
-  };
 }
 
 export async function GET(request: NextRequest) {
@@ -58,9 +53,9 @@ export async function GET(request: NextRequest) {
 
   // Build multi-pair ticker map from PriceStore (WS-backed)
   const allSnapshots = priceStore.getAll();
-  const tickersMap: Record<string, ReturnType<typeof buildTickerObj>> = {};
+  const tickersMap: Record<string, any> = {};
   for (const [symbol, snapshot] of allSnapshots) {
-    const obj = buildTickerObj(snapshot);
+    const obj = priceStore.buildTickerObj(snapshot);
     if (obj) tickersMap[symbol] = obj;
   }
 
@@ -70,7 +65,7 @@ export async function GET(request: NextRequest) {
     wsStatus = currentState.lastCycleAt ? "reconnecting" : "connecting";
   } else {
     const isAnyStale = [...allSnapshots.values()].some(s =>
-      Date.now() - s.updatedAt.getTime() > 65_000
+      Date.now() - s.updatedAt.getTime() > WS_STALENESS_THRESHOLD_MS
     );
     if (isAnyStale) wsStatus = "reconnecting";
   }
@@ -102,7 +97,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     status: currentState.status,
     lastCycleAt: currentState.lastCycleAt?.toISOString() ?? null,
-    ticker: buildTickerObj(currentState.ticker ?? undefined),
+    ticker: priceStore.buildTickerObj(currentState.ticker ?? undefined),
     tickers: Object.keys(tickersMap).length > 0 ? tickersMap : null,
     wsStatus,
     wsConnection: marketWS.getConnectionInfo(),

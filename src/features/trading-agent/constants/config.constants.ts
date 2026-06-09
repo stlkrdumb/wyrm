@@ -1,0 +1,3 @@
+export const MAX_TRADES_IN_MEMORY = 50;
+export const WS_STALENESS_THRESHOLD_MS = 65_000;
+export const DEFAULT_INITIAL_CASH = 1000;
