@@ -32,7 +32,7 @@ export function Dashboard() {
           <PositionsPanel positions={agent.state.positions} tickers={agent.state.tickers} />
         </div>
 
-        {/* Column 2: Intelligence & Logs Console */}
+        {/* Column 2: Intelligence & Decision Log */}
         <div className="flex flex-col gap-6">
           <SignalPanel signals={agent.state.signals} decision={agent.state.decision} />
           {agent.state.decision && (agent.state.decision as any).riskStatus === "blocked" && (
@@ -41,6 +41,11 @@ export function Dashboard() {
             </div>
           )}
           <SentimentPanel />
+        </div>
+
+        {/* Column 3: Strategy Simulation Sandbox & History logs */}
+        <div className="flex flex-col gap-6">
+          <BacktestPanel />
           
           {/* Unified Logs Console Widget */}
           <div className="flex flex-col gap-4 p-5 rounded border border-zinc-900 bg-zinc-950/40 backdrop-blur-md relative overflow-hidden h-[450px]">
@@ -82,11 +87,6 @@ export function Dashboard() {
               )}
             </div>
           </div>
-        </div>
-
-        {/* Column 3: Strategy Simulation Sandbox */}
-        <div className="flex flex-col gap-6">
-          <BacktestPanel />
         </div>
       </main>
 
