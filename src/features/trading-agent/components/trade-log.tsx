@@ -131,7 +131,7 @@ function Summary({ portfolio }: { portfolio: PortfolioData }) {
       <div className="bg-zinc-950/40 py-1.5 rounded border border-zinc-900">
         <span className="text-zinc-500 text-[8px] uppercase tracking-wider block">Realized PnL</span>
         <span className={`font-bold tabular-nums ${pnlPositive ? "text-emerald-450" : "text-rose-450"}`}>
-          {pnlPositive ? "+" : ""}${Math.abs(pnl).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          {pnlPositive ? "+" : "-"}${Math.abs(pnl).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </span>
       </div>
     </div>
