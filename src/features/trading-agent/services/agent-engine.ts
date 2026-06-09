@@ -6,6 +6,7 @@ import {
 import { marketWS, type WSSubscription } from "./market-ws.service";
 import { priceStore } from "./price-store";
 import { evaluateMultiPair, type MultiPairResult } from "./decision-engine.service";
+import { riskManager } from "./risk-manager.service";
 import {
   type AgentState,
   config,
@@ -234,11 +235,32 @@ export async function runAgentCycle(): Promise<{ decision: TradingDecision; sign
   }
 
   const multiResult: MultiPairResult = await evaluateMultiPair(priceMap, state.positions);
-  state.decision = Object.values(multiResult.decisions).sort((a, b) => Math.abs(b.strength) - Math.abs(a.strength))[0] ?? { action: "hold", strength: 0, confidence: 0, reason: "" };
+  
+  const validatedDecisions: Record<string, TradingDecision> = {};
+  let bestDecision: TradingDecision | null = null;
+
+  for (const [symbol, decision] of Object.entries(multiResult.decisions)) {
+    const ticker = priceMap.get(symbol);
+    const validation = riskManager.validateDecision(decision, state.portfolio, ticker);
+
+    if (validation.isAllowed) {
+      const finalDecision = validation.adjustedDecision ?? decision;
+      validatedDecisions[symbol] = finalDecision;
+      
+      if (!bestDecision || Math.abs(finalDecision.strength) > Math.abs(bestDecision.strength)) {
+        bestDecision = finalDecision;
+      }
+    } else {
+      console.log(`[Agent] [RISK_BLOCK] ${symbol}: ${validation.reason}`);
+      state.executionReason = `Blocked (${symbol}): ${validation.reason}`;
+    }
+  }
+
+  state.decision = bestDecision ?? { action: "hold", strength: 0, confidence: 0, reason: "" };
   state.signals = multiResult.allSignals;
 
   // Execute using the helper function
-  executeTrades(state, multiResult.decisions, priceMap, displayTicker);
+  executeTrades(state, validatedDecisions, priceMap, displayTicker);
 
   return { decision: state.decision!, signals: state.signals, tickerPrice: displayTicker.lastPrice };
 }

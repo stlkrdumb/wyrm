@@ -50,4 +50,5 @@ export interface TradingDecision {
   strength: number;       // -1 (strong sell) to +1 (strong buy)
   confidence: number;     // 0-1
   reason: string;
+  riskStatus?: "approved" | "blocked" | "adjusted";
 }

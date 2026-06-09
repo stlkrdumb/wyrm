@@ -106,6 +106,7 @@ export async function GET(request: NextRequest) {
       strength: currentState.decision.strength,
       confidence: currentState.decision.confidence,
       reason: currentState.decision.reason,
+      riskStatus: currentState.decision.riskStatus || "approved",
     } : null,
     executionReason: currentState.executionReason,
     signals: currentState.signals.map((s) => ({

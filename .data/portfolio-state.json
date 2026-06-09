@@ -1,22 +1,9 @@
 {
   "initialCash": 1000,
   "startCash": 1000,
-  "cash": 948.720207340563,
-  "accumulatedRealizedPnL": -0.5463280420067349,
-  "positions": [
-    {
-      "symbol": "ETHUSDT",
-      "side": "long",
-      "size": 0.01823231726332146,
-      "entryPrice": 1667.0150305174636
-    },
-    {
-      "symbol": "BNBUSDT",
-      "side": "long",
-      "size": 0.033220735482232686,
-      "entryPrice": 601.7
-    }
-  ],
-  "totalTrades": 83,
-  "winRate": 28.57142857142857
+  "cash": 999.0318756168382,
+  "accumulatedRealizedPnL": -0.9681243831618076,
+  "positions": [],
+  "totalTrades": 99,
+  "winRate": 33.33333333333333
 }
