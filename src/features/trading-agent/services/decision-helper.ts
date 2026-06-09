@@ -34,7 +34,7 @@ Respond with ONLY valid JSON:
 }
 
 export function buildMultiPrompt(
-  symbolData: Map<string, { ticker: TickerData; ta5m: any; ta1h: any; ta1d: any }>,
+  symbolData: Map<string, { ticker: TickerData; ta5m: any; ta1h: any; ta1d: any; sentiment?: any }>,
   activePositions: Position[] = []
 ): string {
   const entries = Array.from(symbolData.entries());
@@ -46,12 +46,16 @@ export function buildMultiPrompt(
       const t5m = data.ta5m ? `[5m] Close: $${data.ta5m.close.toLocaleString()} | RSI: ${data.ta5m.rsi.toFixed(1)}` : `[5m] N/A`;
       const t1h = data.ta1h ? `[1h] Close: $${data.ta1h.close.toLocaleString()} | RSI: ${data.ta1h.rsi.toFixed(1)} | MACD: Hist ${data.ta1h.macdHist > 0 ? "+" : ""}${data.ta1h.macdHist.toFixed(1)} | BOLL: [${data.ta1h.bollLower.toLocaleString()} - ${data.ta1h.bollUpper.toLocaleString()}] (Mid: ${data.ta1h.bollMiddle.toLocaleString()}) | ATR: ${data.ta1h.atr.toFixed(2)} | EMA20: ${data.ta1h.ema20.toLocaleString()}` : `[1h] N/A`;
       const t1d = data.ta1d ? `[1d] Close: $${data.ta1d.close.toLocaleString()} | RSI: ${data.ta1d.rsi.toFixed(1)} | EMA20: ${data.ta1d.ema20.toLocaleString()}` : `[1d] N/A`;
+      
+      const sentimentStr = data.sentiment 
+        ? `\n  * Sentiment: Fear & Greed: ${data.sentiment.fearAndGreedValue} (${data.sentiment.fearAndGreedClassification}) | Long/Short Ratio: ${data.sentiment.longShortRatio.toFixed(2)} (Long: ${(data.sentiment.longRatio * 100).toFixed(1)}%, Short: ${(data.sentiment.shortRatio * 100).toFixed(1)}%) | Funding Rate: ${(data.sentiment.fundingRate * 100).toFixed(4)}% | Open Interest: ${data.sentiment.openInterest.toLocaleString()}`
+        : "";
 
       return `- ${symbol}:
   * 24h Summary: $${data.ticker.lastPrice.toLocaleString()} | 24h ${data.ticker.change24hPercent > 0 ? "+" : ""}${data.ticker.change24hPercent}% (${changeLabel}) | Volatility: ${volatility}%
   * ${t5m}
   * ${t1h}
-  * ${t1d}`;
+  * ${t1d}${sentimentStr}`;
     })
     .join("\n\n");
 
@@ -72,7 +76,7 @@ export function buildMultiPrompt(
   }
 
   return `You are a professional quantitative trader. Analyze the following cryptocurrencies and provide a decision for EACH one.
-
+ 
 Analyze ONLY these symbols and return a JSON object with keys matching each symbol:
 ${lines}
 ${positionsSection}
@@ -83,7 +87,7 @@ Rules:
 - If we hold a position and you wish to add more (average down), output "action": "buy".
 - Strength: -1 (strong sell) to +1 (strong buy)
 - Confidence: 0-1
-- Keep reason under 40 words with specific indicator values
+- Keep reason under 40 words with specific indicator values and sentiment/funding conditions if they influence your decision
 - Only trade if conviction is meaningful — "hold" is the default
 
 Respond with ONLY valid JSON in this exact format:

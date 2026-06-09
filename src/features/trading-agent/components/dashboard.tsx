@@ -3,6 +3,7 @@
 import { useAgent } from "@/features/trading-agent/hooks/use-agent";
 import { StatusHeader } from "./status-header";
 import { SignalPanel } from "./signal-panel";
+import { SentimentPanel } from "./sentiment-panel";
 import { EquityChart } from "./equity-chart";
 import { PositionsPanel } from "./positions-panel";
 import { TradeLog } from "./trade-log";
@@ -30,6 +31,7 @@ export function Dashboard() {
 
             <div className="flex flex-col gap-6">
               <SignalPanel signals={agent.state.signals} decision={agent.state.decision} />
+              <SentimentPanel />
               {agent.state.decision && (agent.state.decision as any).riskStatus === "blocked" && (
                 <div className="bg-rose-500/10 border border-rose-500/50 p-3 rounded text-[11px] text-rose-400 font-mono animate-pulse">
                   <span className="font-bold mr-2">⚠️ RISK ALERT:</span> {agent.state.decision.reason}

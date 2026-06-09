@@ -11,6 +11,7 @@ import {
   fallbackMultiAnalysis,
 } from "./decision-helper";
 import { optionalFetch } from "./proxy-client";
+import { sentimentService } from "./sentiment.service";
 
 const exec = promisify(execFile);
 const ANALYSIS_SCRIPT = path.join(
@@ -161,15 +162,16 @@ export async function evaluateMultiPair(
     return { decisions: {}, allSignals: [] };
   }
 
-  console.log(`[DecisionEngine] Running multi-timeframe TA on ${symbols.length} symbol(s):`, symbols.join(", "));
+  console.log(`[DecisionEngine] Running multi-timeframe TA + sentiment on ${symbols.length} symbol(s):`, symbols.join(", "));
   const taResults = await Promise.all(
     symbols.map(async (symbol) => {
-      const [ta5m, ta1h, ta1d] = await Promise.all([
+      const [ta5m, ta1h, ta1d, sentiment] = await Promise.all([
         runTAForTimeframe(symbol, "5m"),
         runTAForTimeframe(symbol, "1h"),
         runTAForTimeframe(symbol, "1d"),
+        sentimentService.getSentiment(symbol),
       ]);
-      return { symbol, ta5m, ta1h, ta1d };
+      return { symbol, ta5m, ta1h, ta1d, sentiment };
     })
   );
 
@@ -180,9 +182,9 @@ export async function evaluateMultiPair(
   }
 
   // Build symbol data map for prompt
-  const symbolData = new Map<string, { ticker: TickerData; ta5m: any; ta1h: any; ta1d: any }>();
-  for (const { symbol, ta5m, ta1h, ta1d } of taResults) {
-    symbolData.set(symbol, { ticker: priceMap.get(symbol)!, ta5m, ta1h, ta1d });
+  const symbolData = new Map<string, { ticker: TickerData; ta5m: any; ta1h: any; ta1d: any; sentiment: any }>();
+  for (const { symbol, ta5m, ta1h, ta1d, sentiment } of taResults) {
+    symbolData.set(symbol, { ticker: priceMap.get(symbol)!, ta5m, ta1h, ta1d, sentiment });
   }
 
   // Step 2: Single LLM call with all symbols
@@ -191,7 +193,7 @@ export async function evaluateMultiPair(
   try {
     const response = await chatCompletion({
       messages: [
-        { role: "system", content: "You are a professional quantitative trader. Analyze market data and provide concise, actionable decisions for each cryptocurrency based on RSI, MACD, and price action. Never use markdown formatting in your response." },
+        { role: "system", content: "You are a professional quantitative trader. Analyze market data and provide concise, actionable decisions for each cryptocurrency based on RSI, MACD, price action, and sentiment metrics (Fear & Greed index, Long/Short ratio, funding rates, open interest). Never use markdown formatting in your response." },
         { role: "user", content: prompt },
       ],
       temperature: 0.3,
