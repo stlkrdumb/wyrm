@@ -10,6 +10,7 @@ interface Props {
 }
 
 export function BacktestPanel({ onBack }: Props) {
+  const [isCollapsed, setIsCollapsed] = useState(true);
   const [result, setResult] = useState<BacktestResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,12 +42,19 @@ export function BacktestPanel({ onBack }: Props) {
   const isProfit = result ? result.totalReturn >= 0 : false;
 
   return (
-    <div className="flex flex-col gap-5 p-5 rounded border border-zinc-900 bg-zinc-950/40 backdrop-blur-md relative overflow-hidden">
+    <div className={`flex flex-col rounded border border-zinc-900 bg-zinc-950/40 backdrop-blur-md relative overflow-hidden transition-all duration-200 ${
+      isCollapsed ? "p-4 gap-0" : "p-5 gap-5"
+    }`}>
       {/* Background Decorative Mesh */}
       <div className="absolute top-0 right-0 w-48 h-48 bg-zinc-900/5 rounded-full blur-3xl pointer-events-none" />
 
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-zinc-900/50 pb-3 flex-shrink-0">
+      <div 
+        onClick={() => setIsCollapsed(!isCollapsed)}
+        className={`flex items-center justify-between flex-shrink-0 cursor-pointer group select-none ${
+          isCollapsed ? "" : "border-b border-zinc-900/50 pb-3"
+        }`}
+      >
         {onBack ? (
           <button 
             onClick={onBack}
@@ -56,9 +64,12 @@ export function BacktestPanel({ onBack }: Props) {
           </button>
         ) : (
           <div className="flex items-center gap-2">
-            <Activity className="w-3.5 h-3.5 text-zinc-500" />
-            <span className="text-[10px] tracking-widest text-zinc-500 font-bold uppercase">
+            <Activity className="w-3.5 h-3.5 text-zinc-500 group-hover:text-zinc-350 transition-colors" />
+            <span className="text-[10px] tracking-widest text-zinc-550 group-hover:text-zinc-350 font-bold uppercase transition-colors">
               Simulation Sandbox
+            </span>
+            <span className="text-[8px] font-mono text-zinc-600 ml-1.5 uppercase font-bold tracking-widest bg-zinc-950/60 border border-zinc-900 px-1 py-0.2 rounded group-hover:text-zinc-400 group-hover:border-zinc-800 transition-all">
+              {isCollapsed ? "[EXPAND]" : "[COLLAPSE]"}
             </span>
           </div>
         )}
@@ -67,7 +78,9 @@ export function BacktestPanel({ onBack }: Props) {
         </span>
       </div>
 
-      {!result ? (
+      {!isCollapsed && (
+        <>
+          {!result ? (
         <div className="flex flex-col gap-5">
           {/* Setup Description */}
           <div className="space-y-1.5 font-mono text-[11px] text-zinc-400">
@@ -270,6 +283,8 @@ export function BacktestPanel({ onBack }: Props) {
             </div>
           </div>
         </div>
+      )}
+      </>
       )}
     </div>
   );
