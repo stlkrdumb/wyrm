@@ -1,4 +1,4 @@
-import type { TickerData, TradingDecision, Signal } from "../types";
+import type { TickerData, TradingDecision, Signal, Position } from "../types";
 
 export interface TASingle {
   rsi: number;
@@ -33,7 +33,10 @@ Respond with ONLY valid JSON:
 }`;
 }
 
-export function buildMultiPrompt(symbolData: Map<string, { ticker: TickerData; ta: TASingle }>): string {
+export function buildMultiPrompt(
+  symbolData: Map<string, { ticker: TickerData; ta: TASingle }>,
+  activePositions: Position[] = []
+): string {
   const entries = Array.from(symbolData.entries());
   const lines = entries
     .map(([symbol, data]) => {
@@ -47,13 +50,28 @@ export function buildMultiPrompt(symbolData: Map<string, { ticker: TickerData; t
     .map(([symbol]) => `  "${symbol}": {"action":"buy|sell|hold","strength":-1..1,"confidence":0..1,"reason":"..."},`)
     .join("\n");
 
+  let positionsSection = "";
+  if (activePositions.length > 0) {
+    positionsSection = "\nActive Positions we currently hold:\n" + activePositions
+      .map(p => {
+        const pnlPct = p.entryPrice > 0 ? (((p.unrealizedPnL) / (p.entryPrice * p.size)) * 100).toFixed(2) : "0.00";
+        return `- ${p.symbol}: Size ${p.size.toFixed(4)} | Avg Entry Price $${p.entryPrice.toLocaleString()} | Unrealized PnL: $${p.unrealizedPnL.toFixed(2)} (${pnlPct}%)`;
+      })
+      .join("\n") + "\n";
+  } else {
+    positionsSection = "\nNo active positions currently held.\n";
+  }
+
   return `You are a professional quantitative trader. Analyze the following cryptocurrencies and provide a decision for EACH one.
 
 Analyze ONLY these symbols and return a JSON object with keys matching each symbol:
 ${lines}
-
+${positionsSection}
 Rules:
 - For EACH symbol, decide: buy, sell, or hold
+- If we hold a position for a symbol and you want to take profit, stop loss, or close it, output "action": "sell".
+- If we hold a position and you wish to keep it, output "action": "hold".
+- If we hold a position and you wish to add more (average down), output "action": "buy".
 - Strength: -1 (strong sell) to +1 (strong buy)
 - Confidence: 0-1
 - Keep reason under 40 words with specific indicator values

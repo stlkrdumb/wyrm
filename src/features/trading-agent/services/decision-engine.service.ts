@@ -127,7 +127,10 @@ export async function evaluateSignals(ticker: TickerData): Promise<{ decision: T
  * Evaluate signals for MULTIPLE symbols simultaneously.
  * One LLM call for all pairs → per-symbol decisions.
  */
-export async function evaluateMultiPair(priceMap: Map<string, TickerData>): Promise<MultiPairResult> {
+export async function evaluateMultiPair(
+  priceMap: Map<string, TickerData>,
+  activePositions: import("../types").Position[] = []
+): Promise<MultiPairResult> {
   const symbols = Array.from(priceMap.keys());
   if (symbols.length === 0) {
     return { decisions: {}, allSignals: [] };
@@ -150,7 +153,7 @@ export async function evaluateMultiPair(priceMap: Map<string, TickerData>): Prom
   }
 
   // Step 2: Single LLM call with all symbols
-  const prompt = buildMultiPrompt(symbolData);
+  const prompt = buildMultiPrompt(symbolData, activePositions);
 
   try {
     const response = await chatCompletion({

@@ -163,7 +163,7 @@ export async function runAgentCycle(): Promise<{ decision: TradingDecision; sign
     console.log(`[Agent] ${symbol}: $${ticker.lastPrice.toLocaleString()} (${ticker.change24hPercent > 0 ? "+" : ""}${ticker.change24hPercent}% 24h)`);
   }
 
-  const multiResult: MultiPairResult = await evaluateMultiPair(priceMap);
+  const multiResult: MultiPairResult = await evaluateMultiPair(priceMap, state.positions);
   state.decision = Object.values(multiResult.decisions).sort((a, b) => Math.abs(b.strength) - Math.abs(a.strength))[0] ?? { action: "hold", strength: 0, confidence: 0, reason: "" };
   state.signals = multiResult.allSignals;
 
