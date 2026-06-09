@@ -126,22 +126,10 @@ export function useAgent() {
     }
   }, [fetchState]);
 
-  // Load initialCash from server config on mount (fixes hardcoded default)
+  // Fetch initial state on mount to sync with persisted portfolio-state.json
   useEffect(() => {
-    if (lastKnownState?.portfolio?.initialCash) return;
-    fetch("/api/agent/config")
-      .then((r) => r.json())
-      .then((cfg) => {
-        if (cfg.initialCash) {
-          setState((prev) => {
-            const next = { ...prev, portfolio: { ...prev.portfolio, initialCash: cfg.initialCash, cash: cfg.initialCash, equity: cfg.initialCash } };
-            lastKnownState = next;
-            return next;
-          });
-        }
-      })
-      .catch(() => {});
-  }, []);
+    fetchState();
+  }, [fetchState]);
 
   // Polling effect — starts when running, stops otherwise
   useEffect(() => {
