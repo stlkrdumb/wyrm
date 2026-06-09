@@ -109,3 +109,19 @@ body {
   animation: tick-down-glow 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+/* Financial Marquee ticker animation */
+@keyframes marquee {
+  0% { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(-50%, 0, 0); }
+}
+
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee 25s linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
