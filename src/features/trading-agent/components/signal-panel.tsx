@@ -103,7 +103,7 @@ export const SignalPanel = memo(function SignalPanel({ signals, decision }: Prop
             <div key={i} className="flex items-start justify-between py-1.5 border-b border-zinc-900/20 last:border-0 font-mono gap-3">
               <div className="flex items-start gap-2.5 min-w-0 flex-1">
                 <span className="mt-0.5 flex-shrink-0">{directionIcon(signal.direction)}</span>
-                <span className="text-[11px] text-zinc-300 break-words">{tickerFromSignalName(signal.name)}</span>
+                <span className="text-[11px] text-zinc-300 whitespace-nowrap">{tickerFromSignalName(signal.name)}</span>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
                 {directionBadge(signal.direction)}
