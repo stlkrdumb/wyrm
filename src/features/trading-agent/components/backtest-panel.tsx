@@ -5,7 +5,7 @@ import { EquityChart } from "./equity-chart";
 import type { BacktestResult } from "@/features/trading-agent/types/backtest.types";
 
 interface Props {
-  onBack: () => void;
+  onBack?: () => void;
 }
 
 export function BacktestPanel({ onBack }: Props) {
@@ -39,15 +39,21 @@ export function BacktestPanel({ onBack }: Props) {
 
   return (
     <div className="flex flex-col gap-6 p-5 rounded border border-zinc-900 bg-zinc-950/40 backdrop-blur-md relative overflow-hidden">
-      <div className="flex items-center justify-between border-b border-zinc-900/50 pb-3">
-        <button 
-          onClick={onBack}
-          className="text-[10px] font-bold tracking-widest text-zinc-500 hover:text-zinc-200 transition-colors"
-        >
-          ← BACK TO DASHBOARD
-        </button>
-        <span className="text-[10px] tracking-widest text-zinc-500 font-bold uppercase">
-          Backtesting Engine
+      <div className="flex items-center justify-between border-b border-zinc-900/50 pb-3 flex-shrink-0">
+        {onBack ? (
+          <button 
+            onClick={onBack}
+            className="text-[10px] font-bold tracking-widest text-zinc-500 hover:text-zinc-200 transition-colors"
+          >
+            ← BACK TO DASHBOARD
+          </button>
+        ) : (
+          <span className="text-[10px] tracking-widest text-zinc-500 font-bold uppercase">
+            Simulation Sandbox
+          </span>
+        )}
+        <span className="text-[10px] tracking-widest text-zinc-550 font-mono">
+          BACKTEST
         </span>
       </div>
 
