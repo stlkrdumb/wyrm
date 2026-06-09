@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect } from "react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
-import type { PortfolioData, MultiTickerState, TickerData } from "../hooks/use-agent";
+import type { PortfolioData, MultiTickerState, TickerData } from "@/features/trading-agent/hooks/use-agent";
 
 // Default initial cash — must match SIM_INITIAL_CASH in .env.local
 const DEFAULT_INITIAL_CASH = 1000;
@@ -11,9 +11,10 @@ interface Props {
   portfolio: PortfolioData;
   ticker: TickerData | null;
   tickers?: MultiTickerState | null;
+  equityCurve?: { timestamp: Date | string; equity: number }[];
 }
 
-export function EquityChart({ portfolio, ticker }: Props) {
+export function EquityChart({ portfolio, ticker, equityCurve }: Props) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     setMounted(true);
@@ -26,6 +27,16 @@ export function EquityChart({ portfolio, ticker }: Props) {
 
   // Generate chart data from trade history or initial state
   const chartData = useMemo(() => {
+    if (equityCurve && equityCurve.length > 0) {
+      return equityCurve.map((e) => {
+        const date = new Date(e.timestamp);
+        return {
+          time: `${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`,
+          equity: e.equity,
+        };
+      });
+    }
+
     if (portfolio.totalTrades === 0) {
       return Array.from({ length: 48 }, (_, i) => ({
         time: `${(i % 24).toString().padStart(2, "0")}:00`,
@@ -40,7 +51,7 @@ export function EquityChart({ portfolio, ticker }: Props) {
         equity: initialCash + change * progress + (Math.random() - 0.5) * Math.abs(change) * 0.15,
       };
     });
-  }, [portfolio.totalTrades, portfolio.cash, change, initialCash]);
+  }, [portfolio.totalTrades, portfolio.cash, change, initialCash, equityCurve]);
 
   const displayEquity = ticker ? currentEquity : chartData[chartData.length - 1]?.equity ?? initialCash;
   const isProfit = change >= 0;

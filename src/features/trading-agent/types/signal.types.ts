@@ -51,4 +51,5 @@ export interface TradingDecision {
   confidence: number;     // 0-1
   reason: string;
   riskStatus?: "approved" | "blocked" | "adjusted";
+  size?: number;           // Added size property
 }

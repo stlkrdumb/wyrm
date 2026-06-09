@@ -1,4 +1,4 @@
-import type { TickerData, TradingDecision, Signal, Position, Trade, PortfolioSnapshot } from "../types";
+import type { TickerData, TradingDecision, Signal, Position, Trade, PortfolioSnapshot } from "@/features/trading-agent/types";
 import { marketWS } from "./market-ws.service";
 import { getTickerPrice } from "./market-data.service";
 import { saveBalanceState } from "./balance-store";

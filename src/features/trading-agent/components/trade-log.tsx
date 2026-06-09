@@ -1,7 +1,7 @@
 "use client";
 
 import { memo } from "react";
-import type { TradeData, PortfolioData } from "../hooks/use-agent";
+import type { TradeData, PortfolioData } from "@/features/trading-agent/hooks/use-agent";
 
 function formatRelative(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -32,7 +32,7 @@ function ActionBadge({ action }: { action: string }) {
   );
 }
 
-export const TradeLog = memo(function TradeLog({ trades, portfolio }: Props) {
+export const TradeLog = memo(function TradeLog({ trades, portfolio }: { trades: TradeData[]; portfolio: PortfolioData }) {
   const hasTrades = trades.length > 0;
 
   return (
@@ -76,7 +76,8 @@ export const TradeLog = memo(function TradeLog({ trades, portfolio }: Props) {
 
 function TradeRow({ trade }: { trade: TradeData }) {
   const pnlDisplay = trade.pnl !== null;
-  const pnlPositive = trade.pnl !== null && trade.pnl >= 0;
+  const pnl = trade.pnl ?? 0;
+  const pnlPositive = pnl > 0;
 
   const quoteCurrency = trade.symbol.replace(/[A-Z]{4}$/, "") || "USD";
 
@@ -92,14 +93,14 @@ function TradeRow({ trade }: { trade: TradeData }) {
 
       <div className="flex items-center justify-between text-[10px]">
         <div className="flex items-center gap-1.5 tabular-nums text-zinc-400">
-          <span>Qty: {trade.size.toFixed(4)} {quoteCurrency}</span>
+          <span className="text-[9px] font-bold uppercase">Qty</span>
           <span className="text-zinc-650">@</span>
           <span className="text-zinc-200">${trade.price.toLocaleString()}</span>
         </div>
 
         {pnlDisplay && (
-          <span className={`font-bold tabular-nums ${pnlPositive ? "text-emerald-400" : "text-rose-400"}`}>
-            {trade.pnl === 0 ? "$0.00" : (trade.pnl > 0 ? "+" : "-") + "$" + Math.abs(trade.pnl!).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          <span className={`font-bold tabular-nums ${pnlPositive ? "text-emerald-400" : pnl < 0 ? "text-rose-400" : "text-zinc-400"}`}>
+            {pnl === 0 ? "$0.00" : (pnl > 0 ? "+" : "-") + "$" + Math.abs(pnl).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
         )}
       </div>
@@ -109,7 +110,7 @@ function TradeRow({ trade }: { trade: TradeData }) {
 
 function Summary({ portfolio }: { portfolio: PortfolioData }) {
   const pnl = portfolio.totalPnL;
-  const pnlPositive = pnl >= 0;
+  const pnlPositive = pnl > 0;
 
   return (
     <div className="mt-2 pt-3 border-t border-zinc-900 grid grid-cols-3 gap-2 text-[10px] font-mono">
@@ -125,7 +126,7 @@ function Summary({ portfolio }: { portfolio: PortfolioData }) {
       </div>
       <div className="bg-zinc-950/40 py-1.5 rounded border border-zinc-900">
         <span className="text-zinc-500 text-[8px] uppercase tracking-wider block">Realized PnL</span>
-        <span className={`font-bold tabular-nums ${pnlPositive ? "text-emerald-450" : "text-rose-450"}`}>
+        <span className={`font-bold tabular-nums ${pnlPositive ? "text-emerald-450" : pnl < 0 ? "text-rose-450" : "text-zinc-450"}`}>
           {pnl === 0 ? "$0.00" : (pnl > 0 ? "+" : "-") + "$" + Math.abs(pnl).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </span>
       </div>

@@ -1,4 +1,4 @@
-import type { Signal, TickerData, TradingDecision, Position } from "../types";
+import type { Signal, TickerData, TradingDecision, Position } from "@/features/trading-agent/types";
 import {
   loadBalanceState,
   saveBalanceState,
@@ -7,6 +7,8 @@ import { marketWS, type WSSubscription } from "./market-ws.service";
 import { priceStore } from "./price-store";
 import { evaluateMultiPair, type MultiPairResult } from "./decision-engine.service";
 import { riskManager } from "./risk-manager.service";
+import { historyService } from "./history-service";
+import type { DecisionRecord } from "@/features/trading-agent/types/history.types";
 import {
   type AgentState,
   config,
@@ -243,6 +245,21 @@ export async function runAgentCycle(): Promise<{ decision: TradingDecision; sign
     const ticker = priceMap.get(symbol);
     const validation = riskManager.validateDecision(decision, state.portfolio, ticker);
 
+    let record: DecisionRecord = {
+      id: `DEC-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      timestamp: new Date(),
+      symbol,
+      decision: decision,
+      riskStatus: validation.isAllowed ? (validation.adjustedDecision ? "adjusted" : "approved") : "blocked",
+      riskReason: validation.reason,
+      originalSize: decision.size ?? 0,
+      adjustedSize: validation.adjustedDecision?.size ?? 0,
+      marketContext: ticker ? {
+        lastPrice: ticker.lastPrice,
+        change24hPercent: ticker.change24hPercent
+      } : undefined,
+    };
+
     if (validation.isAllowed) {
       const finalDecision = validation.adjustedDecision ?? decision;
       validatedDecisions[symbol] = finalDecision;
@@ -251,9 +268,11 @@ export async function runAgentCycle(): Promise<{ decision: TradingDecision; sign
         bestDecision = finalDecision;
       }
     } else {
-      console.log(`[Agent] [RISK_BLOCK] ${symbol}: ${validation.reason}`);
       state.executionReason = `Blocked (${symbol}): ${validation.reason}`;
     }
+
+    // Persist the decision record
+    await historyService.saveDecision(record);
   }
 
   state.decision = bestDecision ?? { action: "hold", strength: 0, confidence: 0, reason: "" };

@@ -1,5 +1,5 @@
 import type { PriceSnapshot } from "./price-store";
-import type { Candlestick } from "../types";
+import type { Candlestick } from "@/features/trading-agent/types";
 
 export interface WSTickerRaw {
   instId?: string;

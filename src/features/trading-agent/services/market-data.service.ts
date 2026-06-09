@@ -1,4 +1,4 @@
-import type { TickerData, OrderBook, Candlestick } from "../types";
+import type { TickerData, OrderBook, Candlestick } from "@/features/trading-agent/types";
 import { optionalFetch } from "./proxy-client";
 
 const BITGET_API = "https://api.bitget.com/api/v2/spot/market";

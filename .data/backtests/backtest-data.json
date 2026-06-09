@@ -1,0 +1,42 @@
+[
+  {
+    "timestamp": "2026-06-01T00:00:00Z",
+    "tickers": {
+      "BTCUSDT": { "lastPrice": 65000, "change24hPercent": 1.2 },
+      "ETHUSDT": { "lastPrice": 3500, "change24hPercent": 0.8 },
+      "SOLUSDT": { "lastPrice": 140, "change24hPercent": 2.5 }
+    }
+  },
+  {
+    "timestamp": "2026-06-01T01:00:00Z",
+    "tickers": {
+      "BTCUSDT": { "lastPrice": 65200, "change24hPercent": 1.5 },
+      "ETHUSDT": { "lastPrice": 3510, "change24hPercent": 0.9 },
+      "SOLUSDT": { "lastPrice": 142, "change24hPercent": 2.8 }
+    }
+  },
+  {
+    "timestamp": "2026-06-01T02:00:00Z",
+    "tickers": {
+      "BTCUSDT": { "lastPrice": 65100, "change24hPercent": 1.1 },
+      "ETHUSDT": { "lastPrice": 3505, "change24hPercent": 0.7 },
+      "SOLUSDT": { "lastPrice": 141, "change24hPercent": 2.6 }
+    }
+  },
+  {
+    "timestamp": "2026-06-01T03:00:00Z",
+    "tickers": {
+      "BTCUSDT": { "lastPrice": 65400, "change24hPercent": 1.8 },
+      "ETHUSDT": { "lastPrice": 3520, "change24hPercent": 1.1 },
+      "SOLUSDT": { "lastPrice": 145, "change24hPercent": 3.2 }
+    }
+  },
+  {
+    "timestamp": "2026-06-01T04:00:00Z",
+    "tickers": {
+      "BTCUSDT": { "lastPrice": 65800, "change24hPercent": 2.1 },
+      "ETHUSDT": { "lastPrice": 3540, "change24hPercent": 1.4 },
+      "SOLUSDT": { "lastPrice": 148, "change24hPercent": 3.8 }
+    }
+  }
+]

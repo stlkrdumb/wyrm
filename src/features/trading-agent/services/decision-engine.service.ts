@@ -3,7 +3,7 @@ import { promisify } from "node:util";
 import path from "node:path";
 import { chatCompletion } from "./llm.service";
 import { priceStore } from "./price-store";
-import type { TickerData, TradingDecision, Signal } from "../types";
+import type { TickerData, TradingDecision, Signal } from "@/features/trading-agent/types";
 import {
   type TASingle,
   buildMultiPrompt,
@@ -147,7 +147,7 @@ export async function evaluateDecision(ticker: TickerData): Promise<{ decision: 
  */
 export async function evaluateMultiPair(
   priceMap: Map<string, TickerData>,
-  activePositions: import("../types").Position[] = []
+  activePositions: import("@/features/trading-agent/types").Position[] = []
 ): Promise<MultiPairResult> {
   const symbols = Array.from(priceMap.keys());
   if (symbols.length === 0) {

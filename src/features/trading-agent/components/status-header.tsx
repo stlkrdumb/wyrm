@@ -2,7 +2,7 @@
 
 import { memo } from "react";
 import { Badge } from "@/shared/ui";
-import type { useAgent } from "../hooks/use-agent";
+import type { useAgent } from "@/features/trading-agent/hooks/use-agent";
 
 interface Props {
   agent: ReturnType<typeof useAgent>;

@@ -1,6 +1,6 @@
 "use client";
 
-import type { PositionData, MultiTickerState } from "../hooks/use-agent";
+import type { PositionData, MultiTickerState } from "@/features/trading-agent/hooks/use-agent";
 
 interface Props {
   positions: PositionData[];

@@ -1,4 +1,4 @@
-import type { TickerData, TradingDecision, Signal, Position } from "../types";
+import type { TickerData, TradingDecision, Signal, Position } from "@/features/trading-agent/types";
 
 export interface TASingle {
   rsi: number;

@@ -94,10 +94,25 @@ export async function GET(request: NextRequest) {
     };
   });
 
+  // Fix the ticker mapping to handle TickerData vs PriceSnapshot correctly
+  let tickerObj = null;
+  if (currentState.ticker) {
+    tickerObj = priceStore.buildTickerObj({
+      symbol: currentState.ticker.symbol,
+      lastPrice: currentState.ticker.lastPrice,
+      high24h: currentState.ticker.high24h,
+      low24h: currentState.ticker.low24h,
+      baseVolume: 0,
+      quoteVolume: 0,
+      changePercent: currentState.ticker.change24hPercent ?? 0,
+      updatedAt: new Date(),
+    });
+  }
+
   return NextResponse.json({
     status: currentState.status,
     lastCycleAt: currentState.lastCycleAt?.toISOString() ?? null,
-    ticker: priceStore.buildTickerObj(currentState.ticker ?? undefined),
+    ticker: tickerObj,
     tickers: Object.keys(tickersMap).length > 0 ? tickersMap : null,
     wsStatus,
     wsConnection: marketWS.getConnectionInfo(),
@@ -108,7 +123,6 @@ export async function GET(request: NextRequest) {
       reason: currentState.decision.reason,
       riskStatus: currentState.decision.riskStatus || "approved",
     } : null,
-    executionReason: currentState.executionReason,
     signals: currentState.signals.map((s) => ({
       name: s.name, source: s.source, direction: s.direction, strength: s.strength,
     })),

@@ -2,7 +2,7 @@
 
 import { memo } from "react";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
-import type { SignalData, DecisionData } from "../hooks/use-agent";
+import type { SignalData, DecisionData } from "@/features/trading-agent/hooks/use-agent";
 
 function tickerFromSignalName(name: string): string {
   const raw = name.replace(/^(LLM|Heuristic)\s*/, "").trim();

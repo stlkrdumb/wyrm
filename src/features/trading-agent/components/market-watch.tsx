@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { TickerData } from "../hooks/use-agent";
+import type { TickerData } from "@/features/trading-agent/hooks/use-agent";
 
 interface Props {
   tickers: Record<string, TickerData | null> | null;

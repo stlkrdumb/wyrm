@@ -1,4 +1,4 @@
-import type { Candlestick } from "../types";
+import type { Candlestick } from "@/features/trading-agent/types";
 
 /** Latest known price snapshot for a single symbol */
 export interface PriceSnapshot {

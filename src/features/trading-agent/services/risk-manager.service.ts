@@ -1,5 +1,5 @@
-import { RISK_CONFIG } from "../constants/risk.constants";
-import { PositionData, TradingDecision, PortfolioData, TickerData } from "../types";
+import { RISK_CONFIG } from "@/features/trading-agent/constants/risk.constants";
+import { Position, TradingDecision, PortfolioSnapshot, TickerData } from "@/features/trading-agent/types";
 
 export interface RiskValidationResult {
   isAllowed: boolean;
@@ -21,11 +21,18 @@ export class RiskManager {
    */
   public validateDecision(
     decision: TradingDecision,
-    portfolio: PortfolioData,
+    portfolio: PortfolioSnapshot,
     tickerData?: TickerData
   ): RiskValidationResult {
     if (!decision || decision.action === "hold") {
       return { isAllowed: true };
+    }
+
+    if (decision.size === undefined || decision.size <= 0) {
+      return {
+        isAllowed: false,
+        reason: `Invalid trade size (${decision.size}) for active action (${decision.action})`,
+      };
     }
 
     // 1. Check Conviction Threshold

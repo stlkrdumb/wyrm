@@ -7,7 +7,7 @@ import type {
   EquitySnapshot,
   Signal,
   BacktestReport,
-} from "../types";
+} from "@/features/trading-agent/types";
 
 interface SimEngineConfig {
   initialCash: number;

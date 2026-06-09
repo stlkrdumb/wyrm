@@ -45,6 +45,8 @@ interface AgentState {
   portfolio: PortfolioData;
   positions: PositionData[];
   trades: TradeData[];
+  showHistory: boolean;
+  showBacktest: boolean;
 }
 
 let lastKnownState: AgentState | null = null;
@@ -55,6 +57,8 @@ export function useAgent() {
     status: "stopped", lastCycleAt: null, ticker: null, tickers: null, wsStatus: "connecting",
     wsConnection: null, decision: null, executionReason: "",
     signals: [], portfolio: { cash: 1000, equity: 1000, initialCash: 1000, totalTrades: 0, winRate: 0, totalPnL: 0 }, positions: [], trades: [],
+    showHistory: false,
+    showBacktest: false,
   });
 
   // Stable fetch function — only recreates if URL changes
@@ -80,6 +84,8 @@ export function useAgent() {
         portfolio: data.portfolio || { cash: 1000, equity: 1000, initialCash: 1000, totalTrades: 0, winRate: 0, totalPnL: 0 },
         positions: data.positions || [],
         trades: data.trades || [],
+        showHistory: state.showHistory,
+        showBacktest: state.showBacktest,
       };
 
       lastKnownState = normalized;
@@ -87,7 +93,7 @@ export function useAgent() {
     } catch (err) {
       console.error("[Client] Fetch error:", err);
     }
-  }, [state.status]); // re-create when status changes so it picks up new value
+  }, [state.status]);
 
   const runCycle = useCallback(async () => {
     try {
@@ -122,15 +128,16 @@ export function useAgent() {
 
   // Load initialCash from server config on mount (fixes hardcoded default)
   useEffect(() => {
-    if (lastKnownState?.portfolio?.initialCash) return; // already have it
+    if (lastKnownState?.portfolio?.initialCash) return;
     fetch("/api/agent/config")
       .then((r) => r.json())
       .then((cfg) => {
         if (cfg.initialCash) {
-          setState((prev) => ({
-            ...prev,
-            portfolio: { ...prev.portfolio, initialCash: cfg.initialCash, cash: cfg.initialCash, equity: cfg.initialCash },
-          }));
+          setState((prev) => {
+            const next = { ...prev, portfolio: { ...prev.portfolio, initialCash: cfg.initialCash, cash: cfg.initialCash, equity: cfg.initialCash } };
+            lastKnownState = next;
+            return next;
+          });
         }
       })
       .catch(() => {});
@@ -148,5 +155,5 @@ export function useAgent() {
     return () => { clearInterval(id); console.log("[Client] Stopping polling"); };
   }, [state.status, fetchState]);
 
-  return { state, runCycle, setAgentStatus, refresh: fetchState };
+  return { state, runCycle, setAgentStatus, refresh: fetchState, setShowHistory: (val: boolean) => setState(s => ({ ...s, showHistory: val })), setShowBacktest: (val: boolean) => setState(s => ({ ...s, showBacktest: val })) };
 }
