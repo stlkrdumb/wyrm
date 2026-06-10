@@ -162,6 +162,7 @@ export async function GET(request: NextRequest) {
     circuitBreakerTripped: currentState.circuitBreakerTripped,
     circuitBreakerThresholdPct: currentState.circuitBreakerThresholdPct,
     peakEquity: currentState.peakEquity,
+    modelName: currentState.modelName,
     watchlist: currentState.watchlist || [],
     logs: (currentState.logs || []).map(l => ({
       timestamp: l.timestamp instanceof Date ? l.timestamp.toISOString() : l.timestamp,

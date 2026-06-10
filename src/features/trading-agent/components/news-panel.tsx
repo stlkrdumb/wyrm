@@ -57,7 +57,10 @@ export const NewsPanel = memo(function NewsPanel() {
   };
 
   const timeAgo = (ts: number) => {
-    const diff = Date.now() - ts;
+    // publishedOn is in seconds, Date.now() is in ms
+    const tsMs = ts < 1e12 ? ts * 1000 : ts;
+    const diff = Date.now() - tsMs;
+    if (diff < 60_000) return "just now";
     if (diff < 3600_000) return `${Math.floor(diff / 60_000)}m`;
     if (diff < 86400_000) return `${Math.floor(diff / 3600_000)}h`;
     return `${Math.floor(diff / 86400_000)}d`;

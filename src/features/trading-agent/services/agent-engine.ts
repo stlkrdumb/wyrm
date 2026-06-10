@@ -8,6 +8,7 @@ import { flattenPositions, executeTrades } from "./order-executor.service";
 import { priceStore } from "./price-store";
 import { evaluateMultiPair, type MultiPairResult } from "./decision-engine.service";
 import { runScreening } from "./screening.service";
+import { getActiveModel } from "./llm.service";
 import { riskManager } from "./risk-manager.service";
 import { historyService } from "./history-service";
 import { loadBalanceState, saveBalanceState } from "./balance-store";
@@ -243,6 +244,9 @@ export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ ticker
   recalcEquity(st);
   st.equityHistory.push({ timestamp: new Date(), equity: st.portfolio.equity });
   if (st.equityHistory.length > 500) st.equityHistory.splice(0, st.equityHistory.length - 500);
+
+  // Sync model name with what LLM is actually using
+  st.modelName = getActiveModel();
 
   return { tickerPrice: displayTicker.lastPrice, tickers: Object.fromEntries(prices) };
 }

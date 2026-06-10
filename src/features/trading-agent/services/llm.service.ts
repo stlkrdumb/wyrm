@@ -17,6 +17,11 @@ const FALLBACK_TO_CLOUD = process.env.LLM_FALLBACK === "true";
 // Track whether we've detected slow responses on local hardware — if so, permanently switch to fast model
 let _modelPreference: "plus" | "fast" = "plus";
 
+/** Returns the model name currently being used */
+export function getActiveModel(): string {
+  return _modelPreference === "plus" ? MODEL_PLUS : MODEL_FAST;
+}
+
 // OpenAI-compatible provider (works with Ollama or any compatible API)
 function getProvider(baseUrl: string, apiKey: string) {
   return createOpenAICompatible({
