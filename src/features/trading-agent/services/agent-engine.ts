@@ -90,7 +90,7 @@ function buildInitialState(): AgentState {
     circuitBreakerThresholdPct: saved?.circuitBreakerThresholdPct ?? 5.0,
     peakEquity: peakEq,
     modelName: process.env.LLM_MODEL || "qwen3.6-plus",
-    watchlist: [],
+    watchlist: positions.map(p => p.symbol),
     equityHistory: [],
     logs: [],
   };
@@ -134,6 +134,7 @@ export function updatePositionUnrealizedPnL(symbol: string, currentPrice: number
     st.trades.push({ id: `T${tc}`, timestamp: new Date(), symbol, side: "sell", action: "exit", size: pos.size, price: currentPrice, pnl });
     st.portfolio.cash += currentPrice * pos.size - (currentPrice * pos.size) * config.feePct;
     st.positions.splice(idx, 1);
+    st.watchlist = st.watchlist.filter(s => s !== symbol);
     st.portfolio.totalPnL += pnl;
     st.portfolio.totalTrades++;
 
@@ -244,6 +245,10 @@ export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ ticker
   // Sync watchlist: keep position symbols + add freshly screened picks
   const posSyms = new Set(st.positions.map(p => p.symbol));
   const kept = st.watchlist.filter(s => posSyms.has(s));
+  // Ensure all position symbols are present even if added this cycle
+  for (const sym of posSyms) {
+    if (!kept.includes(sym)) kept.push(sym);
+  }
   for (const s of screenSelected) {
     if (!posSyms.has(s) && !kept.includes(s)) kept.push(s);
   }
