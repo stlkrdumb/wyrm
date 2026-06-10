@@ -235,7 +235,8 @@ export function parseScreeningResponse(response: string, validSymbols: Set<strin
   let cleaned = response.replace(/```(?:json)?\s*/gi, "").replace(/\s*```/g, "").trim();
   const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
-    console.error(`[Screening] No JSON in response:\n${response.slice(0, 1500)}`);
+    const preview = response.length > 0 ? response.slice(0, 200) : "(empty)";
+    console.error(`[Screening] No JSON in response (len=${response.length}): ${preview}`);
     return { selected: [], reason: "Parse failure" };
   }
 

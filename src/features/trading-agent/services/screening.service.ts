@@ -13,7 +13,7 @@ interface RawTicker {
   change24hPercent: number;
 }
 
-const MAX_SCREEN_POOL = 30;
+const MAX_SCREEN_POOL = 20;
 
 function isRealCrypto(symbol: string): boolean {
   // Exclude Bitget stock tokens (R-prefixed: RSOXLUSDT, RMUUSDT, etc.)
@@ -79,6 +79,29 @@ export async function runScreening(
       temperature: 0.3,
       maxTokens: 512,
     });
+
+    if (!response || response.trim().length === 0) {
+      console.warn("[Screening] LLM returned empty response — retrying with fewer coins");
+      // Retry with top 15 only — smaller prompt for local models
+      const shorterTickers = tickers.slice(0, 15);
+      const retryPrompt = buildScreeningPrompt(shorterTickers, activePositions, strategy.persona, strategy.customInstructions);
+      const retryResponse = await chatCompletion({
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: retryPrompt },
+        ],
+        temperature: 0.3,
+        maxTokens: 512,
+      });
+      if (retryResponse && retryResponse.trim().length > 0) {
+        const validSymbols = new Set(shorterTickers.map(t => t.symbol));
+        const retryResult = parseScreeningResponse(retryResponse, validSymbols);
+        if (retryResult.selected.length > 0) {
+          console.log(`[Screening] Retry selected: ${retryResult.selected.join(", ")} — ${retryResult.reason}`);
+          return retryResult;
+        }
+      }
+    }
 
     const validSymbols = new Set(tickers.map(t => t.symbol));
     const result = parseScreeningResponse(response, validSymbols);
