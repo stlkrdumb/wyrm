@@ -196,16 +196,11 @@ export function useAgent() {
     fetchState();
   }, [fetchState]);
 
-  // Polling effect — starts when running, stops otherwise
+  // Polling — always on, faster when running
   useEffect(() => {
-    if (state.status !== "running") {
-      console.log("[Client] Status is not running, no polling");
-      return;
-    }
-    console.log("[Client] Starting polling every", POLL_MS, "ms");
-    const id = setInterval(fetchState, POLL_MS);
-    fetchState(); // immediate poll
-    return () => { clearInterval(id); console.log("[Client] Stopping polling"); };
+    const interval = state.status === "running" ? POLL_MS : 10_000;
+    const id = setInterval(fetchState, interval);
+    return () => { clearInterval(id); };
   }, [state.status, fetchState]);
 
   return {
