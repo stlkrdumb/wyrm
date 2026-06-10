@@ -18,51 +18,98 @@ export interface WSTickerRaw {
   ts?: string;
 }
 
+export interface WSCandleRaw {
+  instType: "SPOT";
+  channel: string;
+  instId: string;
+  data?: string[][];
+}
+
+/** Parse raw ticker JSON into a PriceSnapshot */
 export function parseTicker(raw: WSTickerRaw): PriceSnapshot | null {
   const instId = raw.instId ?? "";
   const lastPrice = Number(raw.lastPrice ?? raw.lastPr ?? "0");
   if (lastPrice <= 0) return null;
 
-  const high24h = Number(raw.high24h ?? "0");
-  const low24h = Number(raw.low24h ?? "0");
-  const baseVol = Number(raw.baseVol ?? raw.vol24h ?? "0");
-  const quoteVol = Number(raw.volValue24h ?? raw.quoteVol ?? "0");
-
-  let changePct = 0;
-  if (raw.priceRate) {
-    changePct = Number(raw.priceRate) * 100;
-  } else if (raw.changeUtc24h) {
-    changePct = Number(raw.changeUtc24h) * 100;
-  } else if (raw.cap24hSwing) {
-    changePct = Number(raw.cap24hSwing) * 100;
-  }
+  const changePct = (() => {
+    let p: number;
+    if (raw.priceRate) p = Number(raw.priceRate) * 100;
+    else if (raw.changeUtc24h) p = Number(raw.changeUtc24h) * 100;
+    else if (raw.cap24hSwing) p = Number(raw.cap24hSwing) * 100;
+    else return 0;
+    return Math.round(p);
+  })();
 
   let ts = Date.now();
-  if (raw.ts) {
-    const parsed = Number(raw.ts);
-    ts = parsed > 1e12 ? parsed : parsed * 1000;
-  }
+  if (raw.ts) { const n = Number(raw.ts); ts = n > 1e12 ? n : n * 1000; }
 
   return {
-    symbol: instId,
-    lastPrice,
-    high24h,
-    low24h,
-    baseVolume: baseVol,
-    quoteVolume: quoteVol,
-    changePercent: changePct,
-    updatedAt: new Date(ts),
+    symbol: instId, lastPrice, high24h: Number(raw.high24h ?? "0"), low24h: Number(raw.low24h ?? "0"),
+    baseVolume: Number(raw.baseVol ?? raw.vol24h ?? "0"), quoteVolume: Number(raw.volValue24h ?? raw.quoteVol ?? "0"),
+    changePercent: changePct, updatedAt: new Date(ts),
   };
 }
 
+/** Parse a candle row into a Candlestick */
 export function parseCandle(row: string[]): Candlestick | null {
   if (row.length < 6) return null;
-  return {
-    timestamp: Number(row[0]),
-    open: Number(row[1]),
-    high: Number(row[2]),
-    low: Number(row[3]),
-    close: Number(row[4]),
-    volume: Number(row[5]),
-  };
+  return { timestamp: Number(row[0]), open: Number(row[1]), high: Number(row[2]), low: Number(row[3]), close: Number(row[4]), volume: Number(row[5]) };
+}
+
+/** Dispatcher — called on *every* raw WS text message.
+ *  Returns "ping"/"pong"/null for special frames */
+type ProcessTickersFn = (snapshots: PriceSnapshot[]) => void;
+type ProcessCandleFn = (msg: Record<string, unknown>) => void;
+type SubAckFn = (channel: string, instId?: string) => void;
+type ErrorCb = (code: number | undefined, msg: string) => void;
+
+export function dispatchWsMessage(
+  rawStr: string,
+  onTickers: ProcessTickersFn,
+  onCandle: ProcessCandleFn,
+  onSubAck: SubAckFn,
+  onError: ErrorCb,
+): "ping" | "pong" | null {
+  if (rawStr === "ping") return "ping";
+  if (rawStr === "pong") return "pong";
+
+  let msg: Record<string, unknown>;
+  try { msg = JSON.parse(rawStr); } catch { console.warn("[WS] Invalid JSON:", rawStr.slice(0, 200)); return null; }
+
+  const eventVal = msg.event as string | undefined;
+  if (eventVal === "error" || ("code" in msg && msg.code !== undefined)) {
+    onError(msg.code as number | undefined, String((msg.msg ?? "")));
+    return null;
+  }
+  if (eventVal === "subscribe") {
+    const arg = msg.arg as { channel?: string; instId?: string };
+    onSubAck(arg?.channel ?? "", arg?.instId);
+    return null;
+  }
+
+  const typed = msg as Record<string, unknown>;
+  let dataArr: unknown[] | undefined;
+  if (typed.action !== undefined && "data" in typed && "arg" in typed) {
+    dataArr = typed.data as unknown[]; // has action+data+arg
+  } else if ("event" in typed || ("arg" in typed && "data" in typed)) {
+    dataArr = typed.data as unknown[]; // fallback path
+  }
+
+  if (!dataArr) return null;
+  if (!Array.isArray(dataArr)) return null;
+
+  const arg = typed.arg as { channel?: string; instId?: string } | undefined;
+  const snapshots: PriceSnapshot[] = [];
+
+  if (arg?.channel === "ticker") {
+    for (const entry of dataArr) {
+      const snap = parseTicker(entry as WSTickerRaw);
+      if (snap) snapshots.push(snap); else console.error("[WS] Ticker parse failed", (entry as any)?.instId ?? "?");
+    }
+    if (snapshots.length > 0) onTickers(snapshots);
+  } else if (arg?.channel?.startsWith("candle")) {
+    onCandle(typed);
+  }
+
+  return null;
 }

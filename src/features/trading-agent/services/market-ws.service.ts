@@ -1,30 +1,10 @@
 import type { PriceSnapshot } from "./price-store";
 import { updatePositionUnrealizedPnL } from "./agent-engine";
-import { type WSTickerRaw, parseTicker, parseCandle } from "./ws-helpers";
 import { priceStore, type PriceStore } from "./price-store";
 import { config } from "./agent-engine";
 import { WebSocket as WSClient } from "ws";
 import { optionalFetch, getProxyAgentForWS, PROXIES, mask } from "./proxy-client";
-
-interface WSCandleRaw {
-  instType: "SPOT";
-  channel: string;
-  instId: string;
-  data?: string[][];
-}
-
-interface WSMsgSubscribeAck {
-  event: "subscribe";
-  arg: { instType?: string; channel: string; instId?: string };
-}
-
-interface WSMsgError {
-  event?: "error";
-  code?: number;
-  msg: string;
-}
-
-type WSMessage = WSMsgSubscribeAck | WSMsgError | Record<string, unknown>;
+import { dispatchWsMessage } from "./ws-helpers";
 
 export interface WSSubscription {
   instType: "SPOT";
@@ -115,11 +95,7 @@ export class MarketWebSocketService {
         });
 
         ws.on("message", (data) => {
-          try {
-            this.handleMessage(data.toString("utf-8"));
-          } catch (err) {
-            console.error("[WS] Message parse error:", err);
-          }
+          try { this.processWsMsg(data.toString("utf-8")); } catch (err) { console.error("[WS] Msg parse error:", err); }
         });
 
         ws.on("error", (err) => {
@@ -232,101 +208,26 @@ export class MarketWebSocketService {
     console.log("[WS] Subscribe:", channels.map(c => `${c.channel}/${c.instId}`).join(", "));
   }
 
-  private handleMessage(data: string): void {
-    if (data === "ping") {
-      this.sendPong();
-      return;
-    }
-    if (data === "pong") {
-      console.log("[WS] Server pong ✓");
-      this.reconnectAttempt = 0;
-      return;
-    }
-
-    let msg: WSMessage;
-    try {
-      msg = JSON.parse(data) as WSMessage;
-    } catch {
-      console.warn("[WS] Invalid JSON:", data.slice(0, 200));
-      return;
-    }
-
-    if ("pong" in msg) {
-      console.log("[WS] Pong received ✓");
-      this.reconnectAttempt = 0;
-      return;
-    }
-
-    if (("event" in msg && msg.event === "error") || "code" in msg) {
-      const err = msg as WSMsgError;
-      console.warn(`[WS] Server error: code=${err.code}, msg="${err.msg}"`);
-      return;
-    }
-
-    if ("event" in msg && msg.event === "subscribe") {
-      const ack = msg as WSMsgSubscribeAck;
-      console.log("[WS] Subscribed:", `${ack.arg.channel}/${ack.arg.instId ?? "*"}`);
-      return;
-    }
-
-    if ("action" in msg && "data" in msg && "arg" in msg) {
-      const typed = msg as Record<string, unknown>;
-      const arg = typed.arg as { channel?: string; instId?: string };
-      const dataArr = typed.data as WSTickerRaw[] | undefined;
-
-      if (dataArr && Array.isArray(dataArr) && arg?.channel === "ticker") {
-        for (const raw of dataArr) {
-          this.handleTicker(raw);
+  private processWsMsg(data: string): void {
+    dispatchWsMessage(
+      data,
+      (snapshots) => { for (const s of snapshots) { priceStore.updateTicker(s); updatePositionUnrealizedPnL(s.symbol, s.lastPrice); } },
+      (msg: Record<string, unknown>) => {
+        const arg = msg.arg! as { channel?: string; instId?: string };
+        const dataArr = msg.data as string[][] | undefined;
+        if (!arg?.channel || !dataArr) return;
+        const interval = arg.channel.replace(/^candle/, "");
+        for (const row of dataArr) {
+          if (row.length < 6) continue;
+          priceStore.updateCandle(arg.instId ?? "UNKNOWN", interval, { timestamp: Number(row[0]), open: Number(row[1]), high: Number(row[2]), low: Number(row[3]), close: Number(row[4]), volume: Number(row[5]) });
         }
-      } else if (arg?.channel?.startsWith("candle")) {
-        this.handleCandle(typed);
-      }
-      return;
-    }
+      },
+      (channel, instId) => console.log("[WS] Subscribed:", `${channel}/${instId ?? "*"}`),
+      (code, msg) => console.warn(`[WS] Server error: code=${code}, msg="${msg}"`),
+    );
 
-    if (("event" in msg && msg.event === "subscribe") || ("arg" in msg && "data" in msg)) {
-      const typed = msg as Record<string, unknown>;
-      const arg = typed.arg as { channel?: string; instId?: string };
-      const dataArr = typed.data as WSTickerRaw[] | undefined;
-
-      if (dataArr && Array.isArray(dataArr) && arg?.channel === "ticker") {
-        for (const raw of dataArr) {
-          this.handleTicker(raw);
-        }
-      } else if (arg?.channel?.startsWith("candle")) {
-        this.handleCandle(typed);
-      }
-    }
-  }
-
-  private handleTicker(raw: WSTickerRaw): void {
-    try {
-      const parsed = parseTicker(raw);
-      if (parsed) {
-        priceStore.updateTicker(parsed);
-        updatePositionUnrealizedPnL(parsed.symbol, parsed.lastPrice);
-      }
-    } catch (err) {
-      const instId = raw.instId ?? "unknown";
-      console.error(`[WS] Ticker parse error for ${instId}:`, err);
-    }
-  }
-
-  private handleCandle(msg: Record<string, unknown>): void {
-    const arg = msg.arg as { instType?: string; channel: string; instId?: string };
-    const dataArr = msg.data as WSCandleRaw["data"];
-
-    if (!arg?.channel || !dataArr || dataArr.length === 0) return;
-
-    const symbol = arg.instId ?? "UNKNOWN";
-    const interval = arg.channel.replace(/^candle/, "");
-
-    for (const row of dataArr) {
-      const candle = parseCandle(row);
-      if (candle) {
-        priceStore.updateCandle(symbol, interval, candle);
-      }
-    }
+    if (data === "ping") { this.sendPong(); return; }
+    if (data === "pong") { console.log("[WS] Server pong ✓"); this.reconnectAttempt = 0; }
   }
 
   private startPingTimer(): void {
