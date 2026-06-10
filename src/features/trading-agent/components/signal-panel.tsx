@@ -5,6 +5,12 @@ import { Card, CardHeader, CardTitle, CardContent, Badge } from "@/shared/ui";
 import { DecisionPipeline } from "./decision-pipeline";
 import type { SignalData, DecisionData } from "@/features/trading-agent/hooks/use-agent";
 
+function tickerFromSignalName(name: string): string {
+  const raw = name.replace(/^(LLM|Heuristic)\s*/, "").trim();
+  if (/^[A-Z0-9]{2,10}USDT$/.test(raw)) return `${raw.slice(0, -4)}/USDT`;
+  return raw;
+}
+
 interface Props {
   signals: SignalData[];
   decision: DecisionData | null;
@@ -54,11 +60,22 @@ export const SignalPanel = memo(function SignalPanel({ signals, decision }: Prop
           };
           const rsiMatch = activeDecision.reason.match(/RSI\s*\?(\d+(?:\.\d+)?)\)?/i);
           const rsi = rsiMatch ? parseFloat(rsiMatch[1]) : null;
+          const topSignal = signals.reduce((best, s) =>
+            Math.abs(s.strength) > Math.abs(best.strength) ? s : best, signals[0] ?? null
+          );
+          const decisionTicker = topSignal ? tickerFromSignalName(topSignal.name) : null;
 
           return (
             <div className="mt-3 pt-3 border-t border-obsidian-border space-y-3 font-mono text-[12px]">
               <div className="flex items-center justify-between">
-                <span className="text-zinc-500 uppercase text-[11px]">Decision Strength</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-zinc-500 uppercase text-[11px]">Decision Strength</span>
+                  {decisionTicker && (
+                    <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-obsidian-lighter text-zinc-400 border border-obsidian-border">
+                      {decisionTicker}
+                    </span>
+                  )}
+                </div>
                 <span className={`font-bold ${activeDecision.strength > 0 ? "text-emerald-400" : activeDecision.strength < 0 ? "text-rose-400" : "text-zinc-500"}`}>
                   {activeDecision.strength > 0 ? "+" : ""}{(activeDecision.strength * 100).toFixed(0)}%
                 </span>
