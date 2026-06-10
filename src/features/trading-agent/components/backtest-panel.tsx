@@ -58,7 +58,7 @@ export function BacktestPanel({ onBack }: { onBack?: () => void }) {
                 </p>
               </div>
 
-              <div className="p-4 bg-zinc-900/10 rounded border border-zinc-800 space-y-4 font-mono text-[11px]">
+              <div className="p-3 bg-zinc-900/10 rounded border border-zinc-800 space-y-4 font-mono text-[11px]">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-1">
                     <DollarSign className="w-3 h-3 text-zinc-500" />
@@ -127,52 +127,52 @@ export function BacktestPanel({ onBack }: { onBack?: () => void }) {
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 font-mono text-[11px]">
-                <div className={`p-3 bg-zinc-900/20 rounded border border-zinc-800/60 flex flex-col gap-1 ${isProfit ? "border-l-2 border-l-emerald-500" : "border-l-2 border-l-rose-500"}`}>
+              <div className="grid grid-cols-2 gap-2 font-mono text-[11px]">
+                <div className={`p-2 bg-zinc-900/20 rounded border border-zinc-800/60 flex flex-col gap-0.5 ${isProfit ? "border-l-2 border-l-emerald-500" : "border-l-2 border-l-rose-500"}`}>
                   <span className="text-zinc-500 text-[8px] font-bold uppercase">Total Return</span>
-                  <span className={`text-[16px] font-black tracking-tight ${isProfit ? "text-emerald-400" : "text-rose-400"}`}>
+                  <span className={`text-[14px] font-black tracking-tight ${isProfit ? "text-emerald-400" : "text-rose-400"}`}>
                     {isProfit ? "+" : ""}{result.totalReturn.toFixed(2)}%
                   </span>
                 </div>
-                <div className="p-3 bg-zinc-900/20 rounded border border-zinc-800/60 flex flex-col gap-1 border-l-2 border-l-rose-500">
+                <div className="p-2 bg-zinc-900/20 rounded border border-zinc-800/60 flex flex-col gap-0.5 border-l-2 border-l-rose-500">
                   <span className="text-zinc-500 text-[8px] font-bold uppercase">Max Drawdown</span>
-                  <span className="text-[16px] font-black text-rose-400 tracking-tight">-{result.maxDrawdown.toFixed(2)}%</span>
+                  <span className="text-[14px] font-black text-rose-400 tracking-tight">-{result.maxDrawdown.toFixed(2)}%</span>
                 </div>
-                <div className="p-3 bg-zinc-900/20 rounded border border-zinc-800/60 flex flex-col gap-1">
+                <div className="p-2 bg-zinc-900/20 rounded border border-zinc-800/60 flex flex-col gap-0.5">
                   <span className="text-zinc-500 text-[8px] font-bold uppercase">Sharpe Ratio</span>
-                  <span className={`text-[16px] font-black tracking-tight ${result.sharpeRatio > 1 ? "text-emerald-400" : result.sharpeRatio > 0 ? "text-white" : "text-rose-400"}`}>
+                  <span className={`text-[14px] font-black tracking-tight ${result.sharpeRatio > 1 ? "text-emerald-400" : result.sharpeRatio > 0 ? "text-white" : "text-rose-400"}`}>
                     {result.sharpeRatio.toFixed(2)}
                   </span>
                 </div>
-                <div className="p-3 bg-zinc-900/20 rounded border border-zinc-800/60 flex flex-col gap-1">
+                <div className="p-2 bg-zinc-900/20 rounded border border-zinc-800/60 flex flex-col gap-0.5">
                   <span className="text-zinc-500 text-[8px] font-bold uppercase">Win Rate</span>
-                  <span className="text-[16px] font-black text-zinc-300 tracking-tight">{result.winRate.toFixed(1)}%</span>
+                  <span className="text-[14px] font-black text-zinc-300 tracking-tight">{result.winRate.toFixed(1)}%</span>
                 </div>
-                <div className="p-3 bg-zinc-900/20 rounded border border-zinc-800/60 flex flex-col gap-1">
+                <div className="p-2 bg-zinc-900/20 rounded border border-zinc-800/60 flex flex-col gap-0.5">
                   <span className="text-zinc-500 text-[8px] font-bold uppercase">Win / Loss</span>
-                  <span className="text-[16px] font-black text-zinc-300 tracking-tight">
+                  <span className="text-[14px] font-black text-zinc-300 tracking-tight">
                     <span className="text-emerald-400">{result.wins}</span>
                     <span className="text-zinc-600 mx-1">/</span>
                     <span className="text-rose-400">{result.losses}</span>
                   </span>
                 </div>
-                <div className="p-3 bg-zinc-900/20 rounded border border-zinc-800/60 flex flex-col gap-1">
+                <div className="p-2 bg-zinc-900/20 rounded border border-zinc-800/60 flex flex-col gap-0.5">
                   <span className="text-zinc-500 text-[8px] font-bold uppercase">Avg Win / Avg Loss</span>
-                  <span className="text-[12px] font-black tracking-tight">
+                  <span className="text-[11px] font-black tracking-tight">
                     <span className="text-emerald-400">${result.avgWin.toFixed(2)}</span>
                     <span className="text-zinc-600 mx-1">/</span>
                     <span className="text-rose-400">${result.avgLoss.toFixed(2)}</span>
                   </span>
                 </div>
-                <div className="p-3 bg-zinc-900/20 rounded border border-zinc-800/60 flex flex-col gap-1">
+                <div className="p-2 bg-zinc-900/20 rounded border border-zinc-800/60 flex flex-col gap-0.5">
                   <span className="text-zinc-500 text-[8px] font-bold uppercase">Max Consec. Losses</span>
-                  <span className={`text-[16px] font-black tracking-tight ${result.maxConsecutiveLosses > 3 ? "text-rose-400" : "text-zinc-300"}`}>
+                  <span className={`text-[14px] font-black tracking-tight ${result.maxConsecutiveLosses > 3 ? "text-rose-400" : "text-zinc-300"}`}>
                     {result.maxConsecutiveLosses}
                   </span>
                 </div>
-                <div className="p-3 bg-zinc-900/20 rounded border border-zinc-800/60 flex flex-col gap-1">
+                <div className="p-2 bg-zinc-900/20 rounded border border-zinc-800/60 flex flex-col gap-0.5">
                   <span className="text-zinc-500 text-[8px] font-bold uppercase">Trades Executed</span>
-                  <span className="text-[16px] font-black text-zinc-300 tracking-tight">{result.totalTrades}</span>
+                  <span className="text-[14px] font-black text-zinc-300 tracking-tight">{result.totalTrades}</span>
                 </div>
               </div>
 
@@ -196,7 +196,7 @@ export function BacktestPanel({ onBack }: { onBack?: () => void }) {
 
               <div className="space-y-2 flex-grow">
                 <span className="block text-[9px] font-mono text-zinc-500 font-bold uppercase tracking-wider">Trade Ledger</span>
-                <div className="w-full max-h-[180px] overflow-y-auto border border-zinc-800 bg-zinc-950/20 rounded scrollbar-none">
+                <div className="w-full max-h-[120px] overflow-y-auto border border-zinc-800 bg-zinc-950/20 rounded scrollbar-none">
                   <table className="w-full text-[10px] font-mono text-left">
                     <thead className="bg-zinc-900/50 text-zinc-500 border-b border-zinc-800 sticky top-0 backdrop-blur-md">
                       <tr>

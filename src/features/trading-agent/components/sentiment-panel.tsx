@@ -49,7 +49,7 @@ export const SentimentPanel = memo(function SentimentPanel() {
 
   if (isLoading && Object.keys(sentimentMap).length === 0) {
     return (
-      <Card className="h-[380px] flex items-center justify-center">
+      <Card className="flex items-center justify-center py-16">
         <div className="flex flex-col items-center gap-2">
           <Loader2 className="w-6 h-6 text-zinc-500 animate-spin" />
           <span className="text-[10px] font-mono text-zinc-500 tracking-widest uppercase mt-2">
@@ -61,7 +61,7 @@ export const SentimentPanel = memo(function SentimentPanel() {
   }
 
   return (
-    <Card className="min-h-[380px]">
+    <Card>
       <CardHeader>
         <CardTitle>Market Intelligence</CardTitle>
         <div className="flex items-center gap-1.5 border border-zinc-800 rounded p-0.5 bg-zinc-950/80">
@@ -82,41 +82,34 @@ export const SentimentPanel = memo(function SentimentPanel() {
       </CardHeader>
       <CardContent>
         {activeData ? (
-          <div className="flex flex-col gap-5 font-mono">
-            {/* F&G Header */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Brain className="w-4 h-4 text-zinc-400" />
-                <span className="text-[11px] text-zinc-300 font-semibold">{activeSymbol}</span>
+          <div className="flex flex-col gap-3 font-mono">
+            {/* F&G Header + Spectrum Bar — merged */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <Brain className="w-3.5 h-3.5 text-zinc-400" />
+                  <span className="text-[10px] text-zinc-300 font-semibold">{activeSymbol}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`text-base font-black ${getFngColorClass(activeData.fearAndGreedValue)}`}>
+                    {activeData.fearAndGreedValue}
+                  </span>
+                  <Badge variant={activeData.fearAndGreedValue >= 55 ? "success" : activeData.fearAndGreedValue <= 45 ? "danger" : "warning"}>
+                    {activeData.fearAndGreedClassification}
+                  </Badge>
+                </div>
               </div>
-              <div className="flex items-center gap-2.5">
-                <span className={`text-lg font-black ${getFngColorClass(activeData.fearAndGreedValue)}`}>
-                  {activeData.fearAndGreedValue}
-                </span>
-                <Badge variant={activeData.fearAndGreedValue >= 55 ? "success" : activeData.fearAndGreedValue <= 45 ? "danger" : "warning"}>
-                  {activeData.fearAndGreedClassification}
-                </Badge>
-              </div>
-            </div>
-
-            {/* F&G Spectrum Bar */}
-            <div className="flex flex-col gap-2">
-              <div className="relative h-3 rounded-full overflow-hidden bg-zinc-800">
-                {/* Gradient spectrum */}
+              <div className="relative h-2.5 rounded-full overflow-hidden bg-zinc-800">
                 <div
                   className="absolute inset-0"
-                  style={{
-                    background: "linear-gradient(to right, #ef4444, #f97316, #eab308, #22c55e, #10b981)",
-                  }}
+                  style={{ background: "linear-gradient(to right, #ef4444, #f97316, #eab308, #22c55e, #10b981)" }}
                 />
-                {/* Marker */}
                 <div
                   className="absolute top-0 bottom-0 w-1 bg-white rounded-full shadow-[0_0_8px_rgba(255,255,255,0.8)] transition-all duration-500"
                   style={{ left: `${activeData.fearAndGreedValue}%` }}
                 />
               </div>
-              {/* Labels */}
-              <div className="flex justify-between text-[8px] font-bold tracking-wider uppercase text-zinc-600">
+              <div className="flex justify-between text-[7px] font-bold tracking-wider uppercase text-zinc-600">
                 <span>Extreme Fear</span>
                 <span>Fear</span>
                 <span>Neutral</span>
@@ -126,64 +119,54 @@ export const SentimentPanel = memo(function SentimentPanel() {
             </div>
 
             {/* Metrics Grid */}
-            <div className="grid grid-cols-3 gap-2">
-              {/* Long/Short Ratio */}
-              <div className="p-2.5 rounded bg-zinc-900/20 border border-zinc-800/40 space-y-1">
-                <div className="flex items-center gap-1.5 text-zinc-500">
-                  <Layers className="w-3 h-3" />
-                  <span className="text-[8px] uppercase tracking-widest font-bold">Long/Short</span>
+            <div className="grid grid-cols-3 gap-1.5">
+              <div className="p-2 rounded bg-zinc-900/20 border border-zinc-800/40 space-y-0.5">
+                <div className="flex items-center gap-1 text-zinc-500">
+                  <Layers className="w-2.5 h-2.5" />
+                  <span className="text-[7px] uppercase tracking-widest font-bold">Long/Short</span>
                 </div>
-                <div className="flex flex-col gap-0.5">
-                  <div className="relative w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                    <div
-                      className="absolute top-0 left-0 h-full bg-emerald-500/60 rounded-full"
-                      style={{ width: `${(activeData.longRatio * 100).toFixed(0)}%` }}
-                    />
-                  </div>
-                  <div className="flex justify-between text-[9px] text-zinc-400">
-                    <span>L {activeData.longShortRatio.toFixed(2)}</span>
-                    <span>S {(1 - activeData.longShortRatio).toFixed(2)}</span>
-                  </div>
+                <div className="relative w-full h-1 bg-zinc-800 rounded-full overflow-hidden">
+                  <div
+                    className="absolute top-0 left-0 h-full bg-emerald-500/60 rounded-full"
+                    style={{ width: `${(activeData.longRatio * 100).toFixed(0)}%` }}
+                  />
+                </div>
+                <div className="flex justify-between text-[8px] text-zinc-400">
+                  <span>L {activeData.longShortRatio.toFixed(2)}</span>
+                  <span>S {(1 - activeData.longShortRatio).toFixed(2)}</span>
                 </div>
               </div>
 
-              {/* Funding Rate */}
-              <div className="p-2.5 rounded bg-zinc-900/20 border border-zinc-800/40 space-y-1.5">
-                <div className="flex items-center gap-1.5 text-zinc-500">
-                  <Percent className="w-3 h-3" />
-                  <span className="text-[8px] uppercase tracking-widest font-bold">Funding</span>
+              <div className="p-2 rounded bg-zinc-900/20 border border-zinc-800/40 space-y-0.5">
+                <div className="flex items-center gap-1 text-zinc-500">
+                  <Percent className="w-2.5 h-2.5" />
+                  <span className="text-[7px] uppercase tracking-widest font-bold">Funding</span>
                 </div>
-                <div className="flex flex-col">
-                  <div className="flex items-center gap-1">
-                    {activeData.fundingRate > 0 ? (
-                      <TrendingUp className="w-3 h-3 text-emerald-400" />
-                    ) : activeData.fundingRate < 0 ? (
-                      <TrendingDown className="w-3 h-3 text-rose-400" />
-                    ) : null}
-                    <span className={`text-sm font-bold ${activeData.fundingRate > 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                      {(activeData.fundingRate * 100).toFixed(4)}%
-                    </span>
-                  </div>
-                  <span className="text-[8px] text-zinc-500 mt-0.5">
-                    {activeData.fundingRate > 0 ? "LONG BIAS" : activeData.fundingRate < 0 ? "SHORT BIAS" : "NEUTRAL"}
+                <div className="flex items-center gap-1">
+                  {activeData.fundingRate > 0 ? (
+                    <TrendingUp className="w-2.5 h-2.5 text-emerald-400" />
+                  ) : activeData.fundingRate < 0 ? (
+                    <TrendingDown className="w-2.5 h-2.5 text-rose-400" />
+                  ) : null}
+                  <span className={`text-xs font-bold ${activeData.fundingRate > 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                    {(activeData.fundingRate * 100).toFixed(4)}%
                   </span>
                 </div>
               </div>
 
-              {/* Open Interest */}
-              <div className="p-2.5 rounded bg-zinc-900/20 border border-zinc-800/40 space-y-1">
-                <div className="flex items-center gap-1.5 text-zinc-500">
-                  <Activity className="w-3 h-3" />
-                  <span className="text-[8px] uppercase tracking-widest font-bold">Open Int.</span>
+              <div className="p-2 rounded bg-zinc-900/20 border border-zinc-800/40 space-y-0.5">
+                <div className="flex items-center gap-1 text-zinc-500">
+                  <Activity className="w-2.5 h-2.5" />
+                  <span className="text-[7px] uppercase tracking-widest font-bold">Open Int.</span>
                 </div>
-                <span className="text-sm font-bold text-zinc-300">
+                <span className="text-xs font-bold text-zinc-300">
                   {activeData.openInterest.toLocaleString()}
                 </span>
               </div>
             </div>
           </div>
         ) : (
-          <div className="flex items-center justify-center h-[280px] text-[11px] font-mono text-zinc-500 tracking-wide uppercase">
+          <div className="flex items-center justify-center py-10 text-[10px] font-mono text-zinc-500 tracking-wide uppercase">
             No data available
           </div>
         )}

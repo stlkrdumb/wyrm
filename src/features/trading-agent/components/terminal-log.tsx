@@ -46,7 +46,7 @@ export function TerminalLog({ logs }: Props) {
   }, [logs]);
 
   return (
-    <Card className="h-[300px]">
+    <Card className="h-[200px]">
       <CardHeader>
         <CardTitle>Agent Console</CardTitle>
         <span className="text-[9px] tracking-widest text-zinc-500 font-mono flex items-center gap-1.5">
@@ -57,7 +57,7 @@ export function TerminalLog({ logs }: Props) {
       <CardContent>
         <div
           ref={scrollRef}
-          className="h-[220px] overflow-y-auto scrollbar-none font-mono text-[10px] leading-relaxed"
+          className="h-[120px] overflow-y-auto scrollbar-none font-mono text-[10px] leading-relaxed"
         >
           {logs.length === 0 ? (
             <div className="text-zinc-600 py-8 text-center tracking-wider uppercase">

@@ -11,22 +11,15 @@ interface Props {
 export function PositionsPanel({ positions, tickers }: Props) {
   if (positions.length === 0) {
     return (
-      <Card className="h-[300px]">
+      <Card>
         <CardHeader>
           <CardTitle>Spot Holdings (0)</CardTitle>
           <span className="text-[10px] tracking-widest text-zinc-500 font-mono">PORTFOLIO ASSETS</span>
         </CardHeader>
         <CardContent>
-          <div className="relative flex items-center justify-center h-full overflow-hidden">
-            <div className="absolute inset-0 opacity-20" style={{
-              backgroundImage: 'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
-              backgroundSize: '20px 20px'
-            }} />
-            <div className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent animate-scan-line" />
-            <div className="relative z-10 flex flex-col items-center gap-2 text-[11px] font-mono text-zinc-500 tracking-wide uppercase">
-              <div className="w-2 h-2 rounded-full bg-white/30 animate-empty-pulse" />
-              <span>No holdings active • awaiting entry signals</span>
-            </div>
+          <div className="flex items-center justify-center py-8 text-[10px] font-mono text-zinc-500 tracking-wide uppercase">
+            <div className="w-1.5 h-1.5 rounded-full bg-white/30 animate-empty-pulse mr-2" />
+            No holdings active — awaiting entry signals
           </div>
         </CardContent>
       </Card>
@@ -34,13 +27,13 @@ export function PositionsPanel({ positions, tickers }: Props) {
   }
 
   return (
-    <Card className="h-[300px]">
+    <Card>
       <CardHeader>
         <CardTitle>Spot Positions ({positions.length})</CardTitle>
         <span className="text-[10px] tracking-widest text-zinc-500 font-mono">PORTFOLIO ASSETS</span>
       </CardHeader>
       <CardContent>
-        <div className="h-full overflow-y-auto scrollbar-none">
+        <div className="overflow-y-auto scrollbar-none max-h-[240px]">
           <table className="data-table">
             <thead>
               <tr>

@@ -33,16 +33,9 @@ export const SignalPanel = memo(function SignalPanel({ signals, decision }: Prop
           <CardTitle>Decision Signals</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="relative flex items-center justify-center py-12 overflow-hidden">
-            <div className="absolute inset-0 opacity-20" style={{
-              backgroundImage: 'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
-              backgroundSize: '20px 20px'
-            }} />
-            <div className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent animate-scan-line" />
-            <div className="relative z-10 flex flex-col items-center gap-2 text-[11px] font-mono text-zinc-500 tracking-wide uppercase">
-              <div className="w-2 h-2 rounded-full bg-white/30 animate-empty-pulse" />
-              <span>Waiting for agent cycle initialization...</span>
-            </div>
+          <div className="flex items-center justify-center py-8 text-[10px] font-mono text-zinc-500 tracking-wide uppercase">
+            <div className="w-1.5 h-1.5 rounded-full bg-white/30 animate-empty-pulse mr-2" />
+            Waiting for agent cycle initialization...
           </div>
         </CardContent>
       </Card>
@@ -65,7 +58,7 @@ export const SignalPanel = memo(function SignalPanel({ signals, decision }: Prop
   };
 
   return (
-    <Card className="min-h-[480px]">
+    <Card>
       <CardHeader>
         <CardTitle>Decision Signals</CardTitle>
         <div className="flex items-center gap-2 font-mono">{actionBadge()}</div>
@@ -77,18 +70,18 @@ export const SignalPanel = memo(function SignalPanel({ signals, decision }: Prop
           riskStatus={decision ? (decision as any).riskStatus : undefined}
         />
         {signals.length > 0 ? (
-          <div className="flex flex-col gap-2 max-h-[140px] overflow-y-auto scrollbar-none pr-1 -mr-1 flex-shrink-0">
+          <div className="flex flex-col gap-1.5 max-h-[120px] overflow-y-auto scrollbar-none pr-1 -mr-1 flex-shrink-0">
             {signals.map((signal, i) => (
-              <div key={i} className="flex items-start justify-between py-1.5 border-b border-obsidian-border/50 last:border-0 font-mono gap-3">
-                <div className="flex items-start gap-2.5 min-w-[85px] flex-1">
+              <div key={i} className="flex items-start justify-between py-1 border-b border-obsidian-border/50 last:border-0 font-mono gap-3">
+                <div className="flex items-start gap-2 min-w-[85px] flex-1">
                   <span className="mt-0.5 flex-shrink-0">{directionIcon(signal.direction)}</span>
-                  <span className="text-[11px] text-zinc-300 whitespace-nowrap">{tickerFromSignalName(signal.name)}</span>
+                  <span className="text-[10px] text-zinc-300 whitespace-nowrap">{tickerFromSignalName(signal.name)}</span>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <Badge variant={signalBadgeVariant(signal.direction)}>
                     {signal.direction === "bullish" ? "BULL" : signal.direction === "bearish" ? "BEAR" : "FLAT"}
                   </Badge>
-                  <span className="text-[10px] text-zinc-400 tabular-nums min-w-[2.5rem] text-right">
+                  <span className="text-[9px] text-zinc-400 tabular-nums min-w-[2.5rem] text-right">
                     {(signal.strength * 100).toFixed(0)}%
                   </span>
                 </div>
@@ -96,7 +89,7 @@ export const SignalPanel = memo(function SignalPanel({ signals, decision }: Prop
             ))}
           </div>
         ) : (
-          <div className="text-[11px] font-mono text-zinc-500 py-4 text-center">No active signals</div>
+          <div className="text-[10px] font-mono text-zinc-500 py-3 text-center">No active signals</div>
         )}
 
         {(() => {
@@ -112,12 +105,12 @@ export const SignalPanel = memo(function SignalPanel({ signals, decision }: Prop
           const rsi = rsiMatch ? parseFloat(rsiMatch[1]) : null;
 
           return (
-            <div className="mt-2 pt-4 border-t border-obsidian-border space-y-4 font-mono text-[11px]">
+            <div className="mt-3 pt-3 border-t border-obsidian-border space-y-3 font-mono text-[10px]">
               <div className="flex items-center justify-between">
-                <span className="text-zinc-500 uppercase text-[10px]">Decision Strength</span>
+                <span className="text-zinc-500 uppercase text-[9px]">Decision Strength</span>
                 <div className="flex items-center gap-2">
                   {topSignal && (
-                    <span className="px-1.5 py-0.2 rounded text-[8px] font-bold bg-obsidian-lighter text-zinc-400 border border-obsidian-border">
+                    <span className="px-1.5 py-0.2 rounded text-[7px] font-bold bg-obsidian-lighter text-zinc-400 border border-obsidian-border">
                       {decisionTicker}
                     </span>
                   )}
@@ -142,29 +135,26 @@ export const SignalPanel = memo(function SignalPanel({ signals, decision }: Prop
               </div>
 
               {rsi !== null && (
-                <div className="space-y-1.5 py-2.5 px-3 bg-obsidian-light/30 rounded border border-obsidian-border/60">
-                  <div className="flex justify-between text-[10px] text-zinc-500 font-bold">
-                    <span>COMPUTED RSI(14)</span>
+                <div className="space-y-1 py-2 px-2.5 bg-obsidian-light/30 rounded border border-obsidian-border/60">
+                  <div className="flex justify-between text-[9px] text-zinc-500 font-bold">
+                    <span>RSI(14)</span>
                     <span className={rsi >= 70 ? "text-rose-400" : rsi <= 30 ? "text-emerald-400" : "text-zinc-300"}>
                       {rsi.toFixed(1)}
                     </span>
                   </div>
                   <div className="relative w-full h-1 bg-obsidian-lighter rounded-full overflow-hidden">
-                    <div className="absolute left-0 top-0 h-full w-[30%] bg-emerald-500/5" />
-                    <div className="absolute left-[30%] top-0 h-full w-[40%] bg-obsidian-border/10" />
-                    <div className="absolute left-[70%] top-0 h-full w-[30%] bg-rose-500/5" />
                     <div className={`absolute top-0 w-1.5 h-full rounded-full transition-all duration-500 ${
                       rsi >= 70 ? "bg-rose-400" : rsi <= 30 ? "bg-emerald-400" : "bg-zinc-400"
                     }`} style={{ left: `calc(${rsi}% - 3px)` }} />
                   </div>
-                  <div className="flex justify-between text-[8px] text-zinc-600 font-bold">
-                    <span>OVERSOLD (30)</span>
-                    <span>OVERBOUGHT (70)</span>
+                  <div className="flex justify-between text-[7px] text-zinc-600 font-bold">
+                    <span>30</span>
+                    <span>70</span>
                   </div>
                 </div>
               )}
 
-              <p className="text-[11px] text-zinc-400 leading-relaxed italic border-l border-obsidian-border pl-3 bg-obsidian-light/20 py-2 rounded-r font-sans">
+              <p className="text-[10px] text-zinc-400 leading-relaxed italic border-l border-obsidian-border pl-2.5 ml-0.5 font-sans">
                 {activeDecision.reason}
               </p>
             </div>

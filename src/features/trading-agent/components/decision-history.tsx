@@ -102,7 +102,7 @@ export function DecisionHistory({ onBack, isTabMode }: Props) {
             ))}
           </div>
         ) : (
-          <div className="text-[11px] font-mono text-zinc-500 py-12 text-center tracking-wide uppercase">
+          <div className="text-[11px] font-mono text-zinc-500 py-6 text-center tracking-wide uppercase">
             {filter ? "No matching records" : "No decision history yet"}
           </div>
         )}

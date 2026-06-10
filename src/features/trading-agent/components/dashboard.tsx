@@ -71,7 +71,7 @@ export function Dashboard() {
           )}
 
           {/* Logs Console */}
-          <div className="glass-panel flex flex-col gap-3 p-4 flex-grow min-h-[500px]">
+          <div className="glass-panel flex flex-col gap-3 p-4 flex-grow min-h-[300px]">
             <Tabs
               tabs={[
                 { key: "execution", label: "Execution" },
