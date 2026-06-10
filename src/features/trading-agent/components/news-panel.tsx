@@ -3,6 +3,7 @@
 import { useEffect, useState, memo, useCallback } from "react";
 import { Newspaper, TrendingUp, TrendingDown, Minus, ExternalLink, Loader2 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent, Badge } from "@/shared/ui";
+import { apiFetch } from "@/shared/utils/api-fetch";
 
 interface NewsArticle {
   id: string;
@@ -21,7 +22,7 @@ export const NewsPanel = memo(function NewsPanel() {
 
   const fetchNews = useCallback(async () => {
     try {
-      const res = await fetch("/api/agent/news?limit=10");
+      const res = await apiFetch("/api/agent/news?limit=10");
       if (!res.ok) throw new Error("Failed to fetch news");
       const json = await res.json();
       if (json.status === "success" && Array.isArray(json.data)) {

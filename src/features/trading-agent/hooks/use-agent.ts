@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { apiFetch } from "@/shared/utils/api-fetch";
 
 export interface TickerData {
   symbol: string;
@@ -80,7 +81,7 @@ export function useAgent() {
   const fetchState = useCallback(async () => {
     try {
       console.log(`[Client] Fetching state... (current local status: ${state.status})`);
-      const res = await fetch("/api/agent/cycle");
+      const res = await apiFetch("/api/agent/cycle");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       console.log(`[Client] Got state — status=${data.status} tickers=${Object.keys(data.tickers || {}).join(",") || "(none)"}`);
@@ -121,7 +122,7 @@ export function useAgent() {
   const runCycle = useCallback(async () => {
     try {
       console.log(`[Client] Running agent cycle...`);
-      await fetch("/api/agent/cycle", { method: "POST" });
+      await apiFetch("/api/agent/cycle", { method: "POST" });
       await fetchState(); // immediately get updated state
     } catch (err) { console.error("[Client] Run cycle error:", err); }
   }, [fetchState]);
@@ -130,7 +131,7 @@ export function useAgent() {
     console.log(`[Client] Setting agent status to: ${status}`);
     // Persist to server first
     try {
-      const res = await fetch(`/api/agent/cycle?status=${status}`, { method: "PUT" });
+      const res = await apiFetch(`/api/agent/cycle?status=${status}`, { method: "PUT" });
       if (res.ok && status === "stopped") {
         const data = await res.json();
         console.log(`[Client] Agent stopped — positions closed: ${data.closed}, realized PnL: ${data.realizedPnl}`);
@@ -155,7 +156,7 @@ export function useAgent() {
   const resetBreaker = useCallback(async () => {
     try {
       console.log(`[Client] Resetting circuit breaker...`);
-      const res = await fetch("/api/agent/breaker", {
+      const res = await apiFetch("/api/agent/breaker", {
         method: "POST",
         body: JSON.stringify({ action: "reset" }),
         headers: { "Content-Type": "application/json" },
@@ -174,7 +175,7 @@ export function useAgent() {
   const updateBreakerThreshold = useCallback(async (pct: number) => {
     try {
       console.log(`[Client] Updating circuit breaker threshold to: ${pct}%`);
-      const res = await fetch("/api/agent/breaker", {
+      const res = await apiFetch("/api/agent/breaker", {
         method: "POST",
         body: JSON.stringify({ action: "updateThreshold", thresholdPct: pct }),
         headers: { "Content-Type": "application/json" },

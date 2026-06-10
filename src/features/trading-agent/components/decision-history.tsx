@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Badge } from "@/shared/ui";
 import type { DecisionRecord } from "@/features/trading-agent/types/history.types";
+import { apiFetch } from "@/shared/utils/api-fetch";
 
 interface Props {
   onBack?: () => void;
@@ -18,7 +19,7 @@ export function DecisionHistory({ onBack, isTabMode }: Props) {
   useEffect(() => {
     const fetchHistory = async () => {
       try {
-        const res = await fetch("/api/agent/history");
+        const res = await apiFetch("/api/agent/history");
         if (!res.ok) throw new Error("Failed to fetch history");
         const data = await res.json();
         setHistory(data);

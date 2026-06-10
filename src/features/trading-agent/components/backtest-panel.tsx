@@ -5,6 +5,7 @@ import { Play, RotateCcw, DollarSign, Activity, Award } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from "@/shared/ui";
 import { EquityChart } from "./equity-chart";
 import type { BacktestResult } from "@/features/trading-agent/types/backtest.types";
+import { apiFetch } from "@/shared/utils/api-fetch";
 
 export function BacktestPanel({ onBack }: { onBack?: () => void }) {
   const [isCollapsed, setIsCollapsed] = useState(true);
@@ -18,7 +19,7 @@ export function BacktestPanel({ onBack }: { onBack?: () => void }) {
     setError(null);
     setResult(null);
     try {
-      const res = await fetch("/api/agent/backtest", {
+      const res = await apiFetch("/api/agent/backtest", {
         method: "POST",
         body: JSON.stringify({ initialEquity }),
         headers: { "Content-Type": "application/json" }

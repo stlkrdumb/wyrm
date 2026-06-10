@@ -5,6 +5,7 @@ import { Brain, Layers, Percent, Activity, Loader2, TrendingUp, TrendingDown } f
 import { Card, CardHeader, CardTitle, CardContent, Badge } from "@/shared/ui";
 import { DEFAULT_SYMBOLS } from "@/features/trading-agent/constants/symbols.constants";
 import type { SentimentSnapshot } from "@/features/trading-agent/index";
+import { apiFetch } from "@/shared/utils/api-fetch";
 
 export const SentimentPanel = memo(function SentimentPanel() {
   const [sentimentMap, setSentimentMap] = useState<Record<string, SentimentSnapshot>>({});
@@ -13,7 +14,7 @@ export const SentimentPanel = memo(function SentimentPanel() {
 
   const fetchSentiment = useCallback(async () => {
     try {
-      const res = await fetch("/api/agent/sentiment");
+      const res = await apiFetch("/api/agent/sentiment");
       if (!res.ok) throw new Error("Failed to fetch sentiment");
       const json = await res.json();
       if (json.status === "success" && Array.isArray(json.data)) {

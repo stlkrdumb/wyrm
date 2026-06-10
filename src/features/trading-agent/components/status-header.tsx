@@ -1,8 +1,6 @@
 "use client";
 
-import { memo, useState, useCallback } from "react";
-import { Button } from "@/shared/ui";
-import { Play, Square, Loader2 } from "lucide-react";
+import { memo } from "react";
 import type { useAgent } from "@/features/trading-agent/hooks/use-agent";
 
 interface Props {
@@ -10,19 +8,8 @@ interface Props {
 }
 
 export const StatusHeader = memo(function StatusHeader({ agent }: Props) {
-  const { state, setAgentStatus } = agent;
+  const { state } = agent;
   const { status } = state;
-  const [isPending, setIsPending] = useState(false);
-
-  const handleToggle = useCallback(async () => {
-    if (isPending) return;
-    setIsPending(true);
-    try {
-      await setAgentStatus(status === "running" ? "stopped" : "running");
-    } finally {
-      setIsPending(false);
-    }
-  }, [isPending, status, setAgentStatus]);
 
   return (
     <header className="relative z-20 flex items-center justify-between px-6 py-4 border-b border-obsidian-border bg-obsidian-light/80 backdrop-blur-xl">
@@ -52,38 +39,12 @@ export const StatusHeader = memo(function StatusHeader({ agent }: Props) {
             {state.modelName || "IDLE"}
           </span>
         </div>
-
-        <Button
-          onClick={handleToggle}
-          disabled={isPending || (status !== "running" && state.circuitBreakerTripped)}
-          variant={status === "running" ? "danger" : "emerald"}
-          size="sm"
-          className="font-mono text-[10px] tracking-widest uppercase"
-        >
-          {isPending ? (
-            <>
-              <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />
-              {status === "running" ? "STOPPING" : "STARTING"}
-            </>
-          ) : status === "running" ? (
-            <>
-              <Square className="w-3 h-3 mr-1.5 fill-current" />
-              STOP
-            </>
-          ) : (
-            <>
-              <Play className="w-3 h-3 mr-1.5 fill-current" />
-              START
-            </>
-          )}
-        </Button>
       </div>
     </header>
   );
 }, (prev, next) => {
   return (
     prev.agent.state.status === next.agent.state.status &&
-    prev.agent.state.circuitBreakerTripped === next.agent.state.circuitBreakerTripped &&
     prev.agent.state.modelName === next.agent.state.modelName
   );
 });

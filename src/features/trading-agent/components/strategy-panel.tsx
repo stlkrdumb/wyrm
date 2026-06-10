@@ -3,6 +3,7 @@
 import { useEffect, useState, memo } from "react";
 import { Sliders, Save, CheckCircle, Loader2 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from "@/shared/ui";
+import { apiFetch } from "@/shared/utils/api-fetch";
 
 const STRATEGY_PRESETS = [
   {
@@ -37,7 +38,7 @@ export const StrategyPanel = memo(function StrategyPanel() {
   useEffect(() => {
     const fetchStrategy = async () => {
       try {
-        const res = await fetch("/api/agent/strategy");
+        const res = await apiFetch("/api/agent/strategy");
         if (!res.ok) throw new Error("Failed to fetch strategy");
         const data = await res.json();
         setPersona(data.persona || "");
@@ -56,7 +57,7 @@ export const StrategyPanel = memo(function StrategyPanel() {
     setSaving(true);
     setStatusMsg(null);
     try {
-      const res = await fetch("/api/agent/strategy", {
+      const res = await apiFetch("/api/agent/strategy", {
         method: "POST",
         body: JSON.stringify({ persona, customInstructions: instructions, circuitBreakerThresholdPct: threshold }),
         headers: { "Content-Type": "application/json" },
