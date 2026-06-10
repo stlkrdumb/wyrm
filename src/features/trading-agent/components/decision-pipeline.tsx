@@ -71,7 +71,7 @@ export const DecisionPipeline = memo(function DecisionPipeline({ decision, signa
                 : "bg-zinc-900/20 border-zinc-800/40 text-zinc-600"
             }`}>
               <Icon className="w-3 h-3" />
-              <span className="text-[7px] font-bold tracking-widest font-mono">{stage.label}</span>
+              <span className="text-[9px] font-bold tracking-widest font-mono">{stage.label}</span>
             </div>
             {!isLast && (
               <div className={`w-3 h-px transition-all duration-500 ${

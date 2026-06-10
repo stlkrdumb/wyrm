@@ -51,9 +51,9 @@ export const NewsPanel = memo(function NewsPanel() {
 
   const sentimentBadge = (sentiment: NewsArticle["sentiment"]) => {
     switch (sentiment) {
-      case "BULLISH": return <Badge variant="success" className="text-[8px]">BULLISH</Badge>;
-      case "BEARISH": return <Badge variant="danger" className="text-[8px]">BEARISH</Badge>;
-      default: return <Badge variant="neutral" className="text-[8px]">NEUTRAL</Badge>;
+      case "BULLISH": return <Badge variant="success" className="text-[10px]">BULLISH</Badge>;
+      case "BEARISH": return <Badge variant="danger" className="text-[10px]">BEARISH</Badge>;
+      default: return <Badge variant="neutral" className="text-[10px]">NEUTRAL</Badge>;
     }
   };
 
@@ -71,7 +71,7 @@ export const NewsPanel = memo(function NewsPanel() {
     <Card>
       <CardHeader>
         <CardTitle>Macro News</CardTitle>
-        <span className="text-[9px] font-mono text-zinc-500">
+        <span className="text-[11px] font-mono text-zinc-500">
           {articles.length > 0 ? `${articles.length} headlines` : ""}
         </span>
       </CardHeader>
@@ -100,9 +100,9 @@ export const NewsPanel = memo(function NewsPanel() {
                       {a.title}
                     </p>
                     <div className="flex items-center gap-2 mt-1.5">
-                      <span className="text-[8px] font-mono text-zinc-600 uppercase tracking-wider">{a.source}</span>
-                      <span className="text-[8px] font-mono text-zinc-700">•</span>
-                      <span className="text-[8px] font-mono text-zinc-600">{timeAgo(a.publishedOn)} ago</span>
+                      <span className="text-[10px] font-mono text-zinc-600 uppercase tracking-wider">{a.source}</span>
+                      <span className="text-[10px] font-mono text-zinc-700">•</span>
+                      <span className="text-[10px] font-mono text-zinc-600">{timeAgo(a.publishedOn)} ago</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 flex-shrink-0">

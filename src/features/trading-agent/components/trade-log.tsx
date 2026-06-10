@@ -40,7 +40,7 @@ export const TradeLog = memo(function TradeLog({ trades, portfolio, isTabMode }:
           </div>
         ) : (
           <div className="relative flex items-center justify-center py-6 overflow-hidden">
-            <div className="relative z-10 flex flex-col items-center gap-1.5 text-[10px] font-mono text-zinc-500 tracking-wide uppercase">
+            <div className="relative z-10 flex flex-col items-center gap-1.5 text-[12px] font-mono text-zinc-500 tracking-wide uppercase">
               <div className="w-1.5 h-1.5 rounded-full bg-white/30 animate-empty-pulse" />
               <span>Awaiting execution logs • system idle</span>
             </div>
@@ -49,13 +49,13 @@ export const TradeLog = memo(function TradeLog({ trades, portfolio, isTabMode }:
       </div>
 
       <div className="flex items-center justify-between pt-2.5 border-t border-zinc-800/60 mt-1 flex-shrink-0 font-mono">
-        <div className="flex gap-3 text-[10px] text-zinc-500">
+        <div className="flex gap-3 text-[12px] text-zinc-500">
           <span>TOTAL: <strong className="text-zinc-300">{portfolio.totalTrades}</strong></span>
           <span>WIN RATE: <strong className={portfolio.winRate >= 50 ? "text-emerald-400" : "text-rose-400"}>
             {portfolio.winRate.toFixed(1)}%
           </strong></span>
         </div>
-        <span className={`text-[10px] font-bold tabular-nums ${portfolio.totalPnL >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+        <span className={`text-[12px] font-bold tabular-nums ${portfolio.totalPnL >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
           {portfolio.totalPnL >= 0 ? "+" : ""}${portfolio.totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2 })}
         </span>
       </div>
@@ -67,7 +67,7 @@ export const TradeLog = memo(function TradeLog({ trades, portfolio, isTabMode }:
   return (
     <div className="flex flex-col gap-4 p-5 rounded border border-zinc-900 bg-zinc-950/40 backdrop-blur-md relative overflow-hidden">
       <div className="flex items-center justify-between border-b border-zinc-900/50 pb-3">
-        <span className="text-[10px] tracking-widest text-zinc-500 font-bold uppercase">Execution Log</span>
+        <span className="text-[12px] tracking-widest text-zinc-500 font-bold uppercase">Execution Log</span>
       </div>
       {content}
     </div>
@@ -79,12 +79,12 @@ function TradeRow({ trade }: { trade: TradeData }) {
   return (
     <div className="flex items-center justify-between py-1.5 border-b border-zinc-800/30 last:border-0">
       <div className="flex items-center gap-2.5 min-w-0">
-        <Badge variant={actionBadgeVariant(trade.action)} className="text-[8px] px-1.5">
+        <Badge variant={actionBadgeVariant(trade.action)} className="text-[10px] px-1.5">
           {actionLabel[trade.action] ?? trade.action}
         </Badge>
         <span className="text-[11px] text-zinc-200 font-semibold font-mono">{trade.symbol}</span>
       </div>
-      <div className="flex items-center gap-3 text-[10px] font-mono tabular-nums flex-shrink-0">
+      <div className="flex items-center gap-3 text-[12px] font-mono tabular-nums flex-shrink-0">
         <span className="text-zinc-500">{trade.size.toFixed(4)}</span>
         <span className="text-zinc-400">${trade.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
         {pnlDisplay && (

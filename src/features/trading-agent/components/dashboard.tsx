@@ -99,7 +99,7 @@ export function Dashboard() {
           <div className="glass-panel p-1 flex gap-1">
             <button
               onClick={() => setActiveSidebarTab("intel")}
-              className={`flex-1 py-2 px-3 text-[10px] font-bold tracking-widest uppercase rounded transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+              className={`flex-1 py-2 px-3 text-[12px] font-bold tracking-widest uppercase rounded transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                 activeSidebarTab === "intel"
                   ? "bg-white/10 text-white border border-white/20"
                   : "text-zinc-500 hover:text-zinc-300 border border-transparent"
@@ -110,7 +110,7 @@ export function Dashboard() {
             </button>
             <button
               onClick={() => setActiveSidebarTab("config")}
-              className={`flex-1 py-2 px-3 text-[10px] font-bold tracking-widest uppercase rounded transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+              className={`flex-1 py-2 px-3 text-[12px] font-bold tracking-widest uppercase rounded transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                 activeSidebarTab === "config"
                   ? "bg-white/10 text-white border border-white/20"
                   : "text-zinc-500 hover:text-zinc-300 border border-transparent"

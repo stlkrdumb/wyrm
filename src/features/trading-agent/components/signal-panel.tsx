@@ -33,7 +33,7 @@ export const SignalPanel = memo(function SignalPanel({ signals, decision }: Prop
           <CardTitle>Decision Signals</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-center py-8 text-[10px] font-mono text-zinc-500 tracking-wide uppercase">
+          <div className="flex items-center justify-center py-8 text-[12px] font-mono text-zinc-500 tracking-wide uppercase">
             <div className="w-1.5 h-1.5 rounded-full bg-white/30 animate-empty-pulse mr-2" />
             Waiting for agent cycle initialization...
           </div>
@@ -75,13 +75,13 @@ export const SignalPanel = memo(function SignalPanel({ signals, decision }: Prop
               <div key={i} className="flex items-start justify-between py-1 border-b border-obsidian-border/50 last:border-0 font-mono gap-3">
                 <div className="flex items-start gap-2 min-w-[85px] flex-1">
                   <span className="mt-0.5 flex-shrink-0">{directionIcon(signal.direction)}</span>
-                  <span className="text-[10px] text-zinc-300 whitespace-nowrap">{tickerFromSignalName(signal.name)}</span>
+                  <span className="text-[12px] text-zinc-300 whitespace-nowrap">{tickerFromSignalName(signal.name)}</span>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <Badge variant={signalBadgeVariant(signal.direction)}>
                     {signal.direction === "bullish" ? "BULL" : signal.direction === "bearish" ? "BEAR" : "FLAT"}
                   </Badge>
-                  <span className="text-[9px] text-zinc-400 tabular-nums min-w-[2.5rem] text-right">
+                  <span className="text-[11px] text-zinc-400 tabular-nums min-w-[2.5rem] text-right">
                     {(signal.strength * 100).toFixed(0)}%
                   </span>
                 </div>
@@ -89,7 +89,7 @@ export const SignalPanel = memo(function SignalPanel({ signals, decision }: Prop
             ))}
           </div>
         ) : (
-          <div className="text-[10px] font-mono text-zinc-500 py-3 text-center">No active signals</div>
+          <div className="text-[12px] font-mono text-zinc-500 py-3 text-center">No active signals</div>
         )}
 
         {(() => {
@@ -105,12 +105,12 @@ export const SignalPanel = memo(function SignalPanel({ signals, decision }: Prop
           const rsi = rsiMatch ? parseFloat(rsiMatch[1]) : null;
 
           return (
-            <div className="mt-3 pt-3 border-t border-obsidian-border space-y-3 font-mono text-[10px]">
+            <div className="mt-3 pt-3 border-t border-obsidian-border space-y-3 font-mono text-[12px]">
               <div className="flex items-center justify-between">
-                <span className="text-zinc-500 uppercase text-[9px]">Decision Strength</span>
+                <span className="text-zinc-500 uppercase text-[11px]">Decision Strength</span>
                 <div className="flex items-center gap-2">
                   {topSignal && (
-                    <span className="px-1.5 py-0.2 rounded text-[7px] font-bold bg-obsidian-lighter text-zinc-400 border border-obsidian-border">
+                    <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-obsidian-lighter text-zinc-400 border border-obsidian-border">
                       {decisionTicker}
                     </span>
                   )}
@@ -136,7 +136,7 @@ export const SignalPanel = memo(function SignalPanel({ signals, decision }: Prop
 
               {rsi !== null && (
                 <div className="space-y-1 py-2 px-2.5 bg-obsidian-light/30 rounded border border-obsidian-border/60">
-                  <div className="flex justify-between text-[9px] text-zinc-500 font-bold">
+                  <div className="flex justify-between text-[11px] text-zinc-500 font-bold">
                     <span>RSI(14)</span>
                     <span className={rsi >= 70 ? "text-rose-400" : rsi <= 30 ? "text-emerald-400" : "text-zinc-300"}>
                       {rsi.toFixed(1)}
@@ -147,14 +147,14 @@ export const SignalPanel = memo(function SignalPanel({ signals, decision }: Prop
                       rsi >= 70 ? "bg-rose-400" : rsi <= 30 ? "bg-emerald-400" : "bg-zinc-400"
                     }`} style={{ left: `calc(${rsi}% - 3px)` }} />
                   </div>
-                  <div className="flex justify-between text-[7px] text-zinc-600 font-bold">
+                  <div className="flex justify-between text-[9px] text-zinc-600 font-bold">
                     <span>30</span>
                     <span>70</span>
                   </div>
                 </div>
               )}
 
-              <p className="text-[10px] text-zinc-400 leading-relaxed italic border-l border-obsidian-border pl-2.5 ml-0.5 font-sans">
+              <p className="text-[12px] text-zinc-400 leading-relaxed italic border-l border-obsidian-border pl-2.5 ml-0.5 font-sans">
                 {activeDecision.reason}
               </p>
             </div>

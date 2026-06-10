@@ -37,7 +37,7 @@ function TickerItem({ symbol, ticker }: { symbol: string; ticker: TickerData }) 
       {!imgError ? (
         <img src={logoUrl} alt={coin} onError={() => setImgError(true)} className="w-4 h-4 rounded-full flex-shrink-0" />
       ) : (
-        <span className="w-4 h-4 rounded-full bg-obsidian-lighter border border-obsidian-border text-[8px] font-bold text-zinc-500 flex items-center justify-center flex-shrink-0 font-sans">
+        <span className="w-4 h-4 rounded-full bg-obsidian-lighter border border-obsidian-border text-[10px] font-bold text-zinc-500 flex items-center justify-center flex-shrink-0 font-sans">
           {coin.slice(0, 2)}
         </span>
       )}
@@ -45,7 +45,7 @@ function TickerItem({ symbol, ticker }: { symbol: string; ticker: TickerData }) 
       <span className="font-mono text-xs font-semibold tabular-nums text-zinc-300">
         ${ticker.lastPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}
       </span>
-      <Badge variant={isPos ? "success" : "danger"} className="text-[9px] px-1.5">
+      <Badge variant={isPos ? "success" : "danger"} className="text-[11px] px-1.5">
         {isPos ? "+" : ""}{ticker.change24hPercent.toFixed(2)}%
       </Badge>
     </div>
@@ -57,7 +57,7 @@ export function Watchlist({ tickers, watchlist }: Props) {
     return (
       <div className="flex flex-col gap-1.5 overflow-hidden">
         <div className="flex items-center justify-between px-2 flex-shrink-0">
-          <span className="text-[10px] tracking-widest text-zinc-500 font-bold uppercase font-display">Watchlist</span>
+          <span className="text-[12px] tracking-widest text-zinc-500 font-bold uppercase font-display">Watchlist</span>
         </div>
         <div className="flex items-center justify-center py-6 rounded border border-obsidian-border bg-obsidian-light/40">
           <span className="text-xs font-mono text-zinc-600 tracking-wider text-center px-4">
@@ -75,8 +75,8 @@ export function Watchlist({ tickers, watchlist }: Props) {
   return (
     <div className="flex flex-col gap-1.5 overflow-hidden">
       <div className="flex items-center justify-between px-2 flex-shrink-0">
-        <span className="text-[10px] tracking-widest text-zinc-500 font-bold uppercase font-display">Watchlist</span>
-        <span className="text-[9px] tracking-wider text-emerald-500 font-bold uppercase flex items-center gap-1.5">
+        <span className="text-[12px] tracking-widest text-zinc-500 font-bold uppercase font-display">Watchlist</span>
+        <span className="text-[11px] tracking-wider text-emerald-500 font-bold uppercase flex items-center gap-1.5">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
           Live WebSocket
         </span>

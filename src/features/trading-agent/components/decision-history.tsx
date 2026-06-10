@@ -55,15 +55,15 @@ export function DecisionHistory({ onBack, isTabMode }: Props) {
 
   const riskBadge = (status: string) => {
     const v = status.toLowerCase();
-    if (v === "approved") return <Badge variant="success" className="text-[8px]">APPROVED</Badge>;
-    if (v === "blocked") return <Badge variant="danger" className="text-[8px]">BLOCKED</Badge>;
-    return <Badge variant="warning" className="text-[8px]">REVIEW</Badge>;
+    if (v === "approved") return <Badge variant="success" className="text-[10px]">APPROVED</Badge>;
+    if (v === "blocked") return <Badge variant="danger" className="text-[10px]">BLOCKED</Badge>;
+    return <Badge variant="warning" className="text-[10px]">REVIEW</Badge>;
   };
 
   const actionBadge = (action: string) => {
-    if (action === "buy") return <Badge variant="success" className="text-[8px]">BUY</Badge>;
-    if (action === "sell") return <Badge variant="danger" className="text-[8px]">SELL</Badge>;
-    return <Badge variant="neutral" className="text-[8px]">HOLD</Badge>;
+    if (action === "buy") return <Badge variant="success" className="text-[10px]">BUY</Badge>;
+    if (action === "sell") return <Badge variant="danger" className="text-[10px]">SELL</Badge>;
+    return <Badge variant="neutral" className="text-[10px]">HOLD</Badge>;
   };
 
   const content = (
@@ -74,7 +74,7 @@ export function DecisionHistory({ onBack, isTabMode }: Props) {
           placeholder="Filter by symbol or status..."
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          className="w-full bg-zinc-900/60 border border-zinc-800 rounded px-2.5 py-1.5 text-[10px] font-mono text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-white/40 transition-colors"
+          className="w-full bg-zinc-900/60 border border-zinc-800 rounded px-2.5 py-1.5 text-[12px] font-mono text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-white/40 transition-colors"
         />
       </div>
 
@@ -86,13 +86,13 @@ export function DecisionHistory({ onBack, isTabMode }: Props) {
                 <div className="flex items-center gap-2.5 min-w-0">
                   {riskBadge(record.riskStatus)}
                   {actionBadge(record.decision?.action ?? "")}
-                  <span className="text-[10px] text-zinc-300 font-semibold">{record.symbol}</span>
+                  <span className="text-[12px] text-zinc-300 font-semibold">{record.symbol}</span>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  <span className="text-[9px] text-zinc-500">
+                  <span className="text-[11px] text-zinc-500">
                     {new Date(record.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                   </span>
-                  <span className={`text-[9px] font-bold tabular-nums ${
+                  <span className={`text-[11px] font-bold tabular-nums ${
                     (record.decision?.strength ?? 0) > 0 ? "text-emerald-400" :
                     (record.decision?.strength ?? 0) < 0 ? "text-rose-400" : "text-zinc-500"
                   }`}>
@@ -115,7 +115,7 @@ export function DecisionHistory({ onBack, isTabMode }: Props) {
     <div className={`flex flex-col gap-4 ${isTabMode ? "flex-grow" : "p-5 rounded border border-zinc-900 bg-zinc-950/40 backdrop-blur-md h-[450px]"}`}>
       {!isTabMode && (
         <div className="flex items-center justify-between border-b border-zinc-900/50 pb-3">
-          <span className="text-[10px] tracking-widest text-zinc-500 font-bold uppercase">Decision History</span>
+          <span className="text-[12px] tracking-widest text-zinc-500 font-bold uppercase">Decision History</span>
         </div>
       )}
       {content}

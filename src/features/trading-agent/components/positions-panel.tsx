@@ -14,10 +14,10 @@ export function PositionsPanel({ positions, tickers }: Props) {
       <Card>
         <CardHeader>
           <CardTitle>Spot Holdings (0)</CardTitle>
-          <span className="text-[10px] tracking-widest text-zinc-500 font-mono">PORTFOLIO ASSETS</span>
+          <span className="text-[12px] tracking-widest text-zinc-500 font-mono">PORTFOLIO ASSETS</span>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-center py-8 text-[10px] font-mono text-zinc-500 tracking-wide uppercase">
+          <div className="flex items-center justify-center py-8 text-[12px] font-mono text-zinc-500 tracking-wide uppercase">
             <div className="w-1.5 h-1.5 rounded-full bg-white/30 animate-empty-pulse mr-2" />
             No holdings active — awaiting entry signals
           </div>
@@ -30,7 +30,7 @@ export function PositionsPanel({ positions, tickers }: Props) {
     <Card>
       <CardHeader>
         <CardTitle>Spot Positions ({positions.length})</CardTitle>
-        <span className="text-[10px] tracking-widest text-zinc-500 font-mono">PORTFOLIO ASSETS</span>
+        <span className="text-[12px] tracking-widest text-zinc-500 font-mono">PORTFOLIO ASSETS</span>
       </CardHeader>
       <CardContent>
         <div className="overflow-y-auto scrollbar-none max-h-[240px]">
@@ -60,7 +60,7 @@ export function PositionsPanel({ positions, tickers }: Props) {
                     <td className="font-bold text-zinc-100">
                       <div className="flex items-center gap-2">
                         <span>{p.symbol}</span>
-                        <Badge variant="neutral" className="text-[8px]">SPOT</Badge>
+                        <Badge variant="neutral" className="text-[10px]">SPOT</Badge>
                       </div>
                     </td>
                     <td className="text-right tabular-nums text-zinc-300">{p.size.toFixed(4)}</td>

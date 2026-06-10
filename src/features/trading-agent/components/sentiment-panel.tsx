@@ -51,7 +51,7 @@ export const SentimentPanel = memo(function SentimentPanel() {
       <Card className="flex items-center justify-center py-16">
         <div className="flex flex-col items-center gap-2">
           <Loader2 className="w-6 h-6 text-zinc-500 animate-spin" />
-          <span className="text-[10px] font-mono text-zinc-500 tracking-widest uppercase mt-2">
+          <span className="text-[12px] font-mono text-zinc-500 tracking-widest uppercase mt-2">
             Syncing Market Intelligence...
           </span>
         </div>
@@ -68,7 +68,7 @@ export const SentimentPanel = memo(function SentimentPanel() {
             <button
               key={sym}
               onClick={() => setActiveSymbol(sym)}
-              className={`px-2 py-0.5 text-[9px] font-bold tracking-widest uppercase rounded transition-all cursor-pointer ${
+              className={`px-2 py-0.5 text-[11px] font-bold tracking-widest uppercase rounded transition-all cursor-pointer ${
                 activeSymbol === sym
                   ? "bg-white/15 text-white border border-white/25"
                   : "text-zinc-500 hover:text-zinc-300 border border-transparent"
@@ -84,7 +84,7 @@ export const SentimentPanel = memo(function SentimentPanel() {
           <div className="flex flex-col gap-3 font-mono">
             {/* Symbol + F&G compact row */}
             <div className="flex items-center justify-between py-1">
-              <span className="text-[10px] text-zinc-300 font-semibold">{activeSymbol}</span>
+              <span className="text-[12px] text-zinc-300 font-semibold">{activeSymbol}</span>
               <Badge variant={activeData.fearAndGreedValue >= 55 ? "success" : activeData.fearAndGreedValue <= 45 ? "danger" : "warning"}>
                 {activeData.fearAndGreedClassification} ({activeData.fearAndGreedValue})
               </Badge>
@@ -96,7 +96,7 @@ export const SentimentPanel = memo(function SentimentPanel() {
               <div className="p-2.5 rounded bg-zinc-900/20 border border-zinc-800/40 space-y-1.5">
                 <div className="flex items-center gap-1.5 text-zinc-500">
                   <Layers className="w-3 h-3" />
-                  <span className="text-[7px] uppercase tracking-widest font-bold">Long/Short</span>
+                  <span className="text-[9px] uppercase tracking-widest font-bold">Long/Short</span>
                 </div>
                 <div className="relative w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
                   <div
@@ -104,7 +104,7 @@ export const SentimentPanel = memo(function SentimentPanel() {
                     style={{ width: `${(activeData.longRatio * 100).toFixed(0)}%` }}
                   />
                 </div>
-                <div className="flex justify-between text-[9px] text-zinc-400">
+                <div className="flex justify-between text-[11px] text-zinc-400">
                   <span>L {activeData.longShortRatio.toFixed(2)}</span>
                   <span>S {(1 - activeData.longShortRatio).toFixed(2)}</span>
                 </div>
@@ -114,7 +114,7 @@ export const SentimentPanel = memo(function SentimentPanel() {
               <div className="p-2.5 rounded bg-zinc-900/20 border border-zinc-800/40 space-y-1.5">
                 <div className="flex items-center gap-1.5 text-zinc-500">
                   <Percent className="w-3 h-3" />
-                  <span className="text-[7px] uppercase tracking-widest font-bold">Funding</span>
+                  <span className="text-[9px] uppercase tracking-widest font-bold">Funding</span>
                 </div>
                 <div className="flex items-center gap-1">
                   {activeData.fundingRate > 0 ? (
@@ -126,7 +126,7 @@ export const SentimentPanel = memo(function SentimentPanel() {
                     {(activeData.fundingRate * 100).toFixed(4)}%
                   </span>
                 </div>
-                <span className="text-[8px] text-zinc-500 block">
+                <span className="text-[10px] text-zinc-500 block">
                   {activeData.fundingRate > 0 ? "LONG BIAS" : activeData.fundingRate < 0 ? "SHORT BIAS" : "NEUTRAL"}
                 </span>
               </div>
@@ -135,17 +135,17 @@ export const SentimentPanel = memo(function SentimentPanel() {
               <div className="p-2.5 rounded bg-zinc-900/20 border border-zinc-800/40 space-y-1.5">
                 <div className="flex items-center gap-1.5 text-zinc-500">
                   <Activity className="w-3 h-3" />
-                  <span className="text-[7px] uppercase tracking-widest font-bold">Open Int.</span>
+                  <span className="text-[9px] uppercase tracking-widest font-bold">Open Int.</span>
                 </div>
                 <span className="text-xs font-bold text-zinc-300">
                   ${formatNumber(activeData.openInterest)}
                 </span>
-                <span className="text-[8px] text-zinc-600 block">USDT</span>
+                <span className="text-[10px] text-zinc-600 block">USDT</span>
               </div>
             </div>
           </div>
         ) : (
-          <div className="flex items-center justify-center py-10 text-[10px] font-mono text-zinc-500 tracking-wide uppercase">
+          <div className="flex items-center justify-center py-10 text-[12px] font-mono text-zinc-500 tracking-wide uppercase">
             No data available
           </div>
         )}

@@ -19,7 +19,7 @@ export const StatusHeader = memo(function StatusHeader({ agent }: Props) {
           <h1 className="text-sm font-bold tracking-[0.2em] text-zinc-100 uppercase font-mono">
             WYRM
           </h1>
-          <span className="text-[10px] font-mono tracking-widest text-zinc-500 uppercase">
+          <span className="text-[12px] font-mono tracking-widest text-zinc-500 uppercase">
             Autonomous Trading Terminal
           </span>
         </div>
@@ -35,7 +35,7 @@ export const StatusHeader = memo(function StatusHeader({ agent }: Props) {
               ? "bg-yellow-400" 
               : "bg-zinc-500"
           }`} />
-          <span className="text-[10px] font-mono font-bold tracking-widest uppercase text-zinc-400">
+          <span className="text-[12px] font-mono font-bold tracking-widest uppercase text-zinc-400">
             {state.modelName || "IDLE"}
           </span>
         </div>

@@ -92,7 +92,7 @@ export const KpiStrip = memo(function KpiStrip({ portfolio, positions, peakEquit
         >
           <div className="relative flex items-start justify-between">
             <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-1.5 text-[9px] font-bold font-mono tracking-widest uppercase text-zinc-500">
+              <div className="flex items-center gap-1.5 text-[11px] font-bold font-mono tracking-widest uppercase text-zinc-500">
                 <span className="opacity-60">{kpi.icon}</span>
                 {kpi.label}
               </div>

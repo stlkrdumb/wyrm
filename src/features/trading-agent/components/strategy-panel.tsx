@@ -92,7 +92,7 @@ export const StrategyPanel = memo(function StrategyPanel() {
           </div>
         </CardHeader>
         <CardContent>
-          <span className="text-[10px] font-mono text-zinc-500 tracking-widest uppercase">Loading Cognitive Core...</span>
+          <span className="text-[12px] font-mono text-zinc-500 tracking-widest uppercase">Loading Cognitive Core...</span>
         </CardContent>
       </Card>
     );
@@ -110,10 +110,10 @@ export const StrategyPanel = memo(function StrategyPanel() {
             <Badge variant={bias === "AGGRESSIVE" ? "warning" : bias === "CONSERVATIVE" ? "success" : "neutral"}>
               {bias}
             </Badge>
-            <span className="text-[8px] font-mono text-zinc-600 border border-zinc-800 px-1.5 py-0.2 rounded tracking-wider">
+            <span className="text-[10px] font-mono text-zinc-600 border border-zinc-800 px-1.5 py-0.2 rounded tracking-wider">
               DD {threshold}%
             </span>
-            <span className="text-[8px] font-mono text-zinc-600 uppercase tracking-widest">
+            <span className="text-[10px] font-mono text-zinc-600 uppercase tracking-widest">
               {isCollapsed ? "[EXPAND]" : "[COLLAPSE]"}
             </span>
           </div>
@@ -124,7 +124,7 @@ export const StrategyPanel = memo(function StrategyPanel() {
         <CardContent>
           <div className="flex flex-col gap-4 font-mono text-[11px]">
             <div className="flex flex-col gap-1.5">
-              <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">
+              <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">
                 Cognitive Core Presets
               </label>
               <div className="grid grid-cols-3 gap-2">
@@ -132,7 +132,7 @@ export const StrategyPanel = memo(function StrategyPanel() {
                   <button
                     key={preset.name}
                     onClick={() => { setPersona(preset.persona); setInstructions(preset.instructions); setThreshold(preset.threshold); }}
-                    className="py-1.5 px-2.5 rounded border border-zinc-800 bg-zinc-950/60 text-[9px] hover:bg-zinc-900 hover:text-zinc-200 hover:border-zinc-700 transition-all cursor-pointer font-bold tracking-wider uppercase text-zinc-400 text-center"
+                    className="py-1.5 px-2.5 rounded border border-zinc-800 bg-zinc-950/60 text-[11px] hover:bg-zinc-900 hover:text-zinc-200 hover:border-zinc-700 transition-all cursor-pointer font-bold tracking-wider uppercase text-zinc-400 text-center"
                   >
                     {preset.name}
                   </button>
@@ -141,7 +141,7 @@ export const StrategyPanel = memo(function StrategyPanel() {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider">
+              <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
                 Agent Trading Persona
               </label>
               <textarea
@@ -154,7 +154,7 @@ export const StrategyPanel = memo(function StrategyPanel() {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider">
+              <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
                 Custom Strategy Instructions
               </label>
               <textarea
@@ -167,7 +167,7 @@ export const StrategyPanel = memo(function StrategyPanel() {
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">
+              <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">
                 Emergency Drawdown Limit
               </label>
               <div className="grid grid-cols-4 gap-1.5">
@@ -175,7 +175,7 @@ export const StrategyPanel = memo(function StrategyPanel() {
                   <button
                     key={pct}
                     onClick={() => setThreshold(pct)}
-                    className={`py-1.5 text-[10px] rounded border transition-all uppercase cursor-pointer ${
+                    className={`py-1.5 text-[12px] rounded border transition-all uppercase cursor-pointer ${
                       threshold === pct
                         ? "bg-zinc-800 text-zinc-100 border-zinc-600 font-bold"
                         : "text-zinc-500 border-zinc-800 hover:border-zinc-700 hover:text-zinc-300"
@@ -186,13 +186,13 @@ export const StrategyPanel = memo(function StrategyPanel() {
                 ))}
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-[9px] text-zinc-600 uppercase tracking-wider">Custom:</span>
+                <span className="text-[11px] text-zinc-600 uppercase tracking-wider">Custom:</span>
                 <input
                   type="number" min={1} max={50} value={threshold}
                   onChange={(e) => setThreshold(Math.min(50, Math.max(1, parseInt(e.target.value) || 1)))}
                   className="w-20 bg-zinc-950 border border-zinc-800 rounded p-1.5 text-zinc-200 focus:outline-none focus:border-zinc-700 transition-all text-[11px] text-center"
                 />
-                <span className="text-[9px] text-zinc-600">%</span>
+                <span className="text-[11px] text-zinc-600">%</span>
               </div>
             </div>
 
@@ -207,7 +207,7 @@ export const StrategyPanel = memo(function StrategyPanel() {
             </div>
 
             {statusMsg && (
-              <div className={`p-2.5 rounded text-[9px] font-mono font-bold tracking-wider text-center border ${
+              <div className={`p-2.5 rounded text-[11px] font-mono font-bold tracking-wider text-center border ${
                 statusMsg.type === "success"
                   ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
                   : "bg-rose-500/10 border-rose-500/20 text-rose-400"

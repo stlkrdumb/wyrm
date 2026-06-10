@@ -112,7 +112,7 @@ export function EquityChart({ portfolio, ticker, equityCurve, equityHistory, tra
     <Card>
       <CardHeader>
         <CardTitle>Portfolio</CardTitle>
-        <span className="text-[10px] tracking-widest text-zinc-500 font-mono">
+        <span className="text-[12px] tracking-widest text-zinc-500 font-mono">
           START: ${initialCash.toLocaleString()}
         </span>
       </CardHeader>
@@ -127,25 +127,25 @@ export function EquityChart({ portfolio, ticker, equityCurve, equityHistory, tra
         {/* Inline Stats Row */}
         <div className="grid grid-cols-4 gap-2 mt-3">
           <div className="flex flex-col gap-0.5">
-            <span className="text-[8px] font-mono font-bold tracking-widest uppercase text-zinc-500">Total PnL</span>
+            <span className="text-[10px] font-mono font-bold tracking-widest uppercase text-zinc-500">Total PnL</span>
             <span className={`text-[13px] font-black font-mono tabular-nums ${isProfitTotal ? "text-emerald-400" : "text-rose-400"}`}>
               {isProfitTotal ? "+" : ""}${portfolio.totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2 })}
             </span>
           </div>
           <div className="flex flex-col gap-0.5">
-            <span className="text-[8px] font-mono font-bold tracking-widest uppercase text-zinc-500">Win Rate</span>
+            <span className="text-[10px] font-mono font-bold tracking-widest uppercase text-zinc-500">Win Rate</span>
             <span className={`text-[13px] font-black font-mono tabular-nums ${portfolio.winRate >= 50 ? "text-emerald-400" : "text-zinc-300"}`}>
               {portfolio.winRate.toFixed(1)}%
             </span>
           </div>
           <div className="flex flex-col gap-0.5">
-            <span className="text-[8px] font-mono font-bold tracking-widest uppercase text-zinc-500">Trades</span>
+            <span className="text-[10px] font-mono font-bold tracking-widest uppercase text-zinc-500">Trades</span>
             <span className="text-[13px] font-black font-mono tabular-nums text-zinc-300">
               {portfolio.totalTrades}
             </span>
           </div>
           <div className="flex flex-col gap-0.5">
-            <span className="text-[8px] font-mono font-bold tracking-widest uppercase text-zinc-500">Cash</span>
+            <span className="text-[10px] font-mono font-bold tracking-widest uppercase text-zinc-500">Cash</span>
             <span className="text-[13px] font-black font-mono tabular-nums text-zinc-300">
               ${portfolio.cash.toLocaleString(undefined, { minimumFractionDigits: 2 })}
             </span>
@@ -158,7 +158,7 @@ export function EquityChart({ portfolio, ticker, equityCurve, equityHistory, tra
             <button
               key={tf.key}
               onClick={() => setTimeframe(tf.key)}
-              className={`px-2 py-0.5 text-[9px] font-bold tracking-widest uppercase rounded transition-all cursor-pointer ${
+              className={`px-2 py-0.5 text-[11px] font-bold tracking-widest uppercase rounded transition-all cursor-pointer ${
                 timeframe === tf.key
                   ? "bg-white/10 text-white border border-white/20"
                   : "text-zinc-500 hover:text-zinc-300 border border-transparent"
@@ -198,7 +198,7 @@ export function EquityChart({ portfolio, ticker, equityCurve, equityHistory, tra
                     if (active && payload && payload.length) {
                       const val = payload[0].value as number;
                       return (
-                        <div className="bg-obsidian-light/90 border border-obsidian-border rounded px-3 py-2 backdrop-blur-md text-[10px] font-mono shadow-2xl">
+                        <div className="bg-obsidian-light/90 border border-obsidian-border rounded px-3 py-2 backdrop-blur-md text-[12px] font-mono shadow-2xl">
                           <span className="text-zinc-500 block mb-1">{label}</span>
                           <span className="text-zinc-100 font-bold text-sm">${val.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                         </div>
@@ -229,7 +229,7 @@ export function EquityChart({ portfolio, ticker, equityCurve, equityHistory, tra
               </AreaChart>
             </ResponsiveContainer>
           ) : (
-            <div className="flex items-center justify-center h-full text-[10px] font-mono text-zinc-600 uppercase tracking-widest animate-pulse">
+            <div className="flex items-center justify-center h-full text-[12px] font-mono text-zinc-600 uppercase tracking-widest animate-pulse">
               Plotting market curve...
             </div>
           )}

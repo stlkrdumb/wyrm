@@ -96,7 +96,7 @@ export const RadialGauge = memo(function RadialGauge({ value, size = 120, stroke
       </svg>
       {/* Value label */}
       <div className="absolute bottom-0 flex flex-col items-center">
-        <span className="text-[10px] font-mono font-bold text-zinc-500 tracking-widest uppercase">F&G</span>
+        <span className="text-[12px] font-mono font-bold text-zinc-500 tracking-widest uppercase">F&G</span>
       </div>
     </div>
   );

@@ -63,13 +63,13 @@ export function TradeToast({ trades }: Props) {
           <div className="flex items-center gap-3">
             <Badge
               variant={toast.side === "buy" ? "success" : "danger"}
-              className="text-[9px] px-2"
+              className="text-[11px] px-2"
             >
               {actionLabel[toast.action] ?? toast.action}
             </Badge>
             <span className="text-[13px] font-mono font-bold text-zinc-100">{toast.symbol}</span>
           </div>
-          <div className="flex items-center gap-3 mt-1.5 text-[10px] font-mono text-zinc-400">
+          <div className="flex items-center gap-3 mt-1.5 text-[12px] font-mono text-zinc-400">
             <span>{toast.size.toFixed(4)} @ ${toast.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
           </div>
         </div>
