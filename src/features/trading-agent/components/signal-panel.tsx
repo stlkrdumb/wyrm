@@ -1,29 +1,14 @@
 "use client";
 
 import { memo } from "react";
-import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent, Badge } from "@/shared/ui";
 import { DecisionPipeline } from "./decision-pipeline";
 import type { SignalData, DecisionData } from "@/features/trading-agent/hooks/use-agent";
-
-function tickerFromSignalName(name: string): string {
-  const raw = name.replace(/^(LLM|Heuristic)\s*/, "").trim();
-  if (/^[A-Z0-9]{2,10}USDT$/.test(raw)) return `${raw.slice(0, -4)}/USDT`;
-  return raw;
-}
 
 interface Props {
   signals: SignalData[];
   decision: DecisionData | null;
 }
-
-const signalBadgeVariant = (d: SignalData["direction"]): "success" | "danger" | "neutral" => {
-  switch (d) {
-    case "bullish": return "success";
-    case "bearish": return "danger";
-    default: return "neutral";
-  }
-};
 
 export const SignalPanel = memo(function SignalPanel({ signals, decision }: Props) {
   if (signals.length === 0 && !decision) {
@@ -41,14 +26,6 @@ export const SignalPanel = memo(function SignalPanel({ signals, decision }: Prop
       </Card>
     );
   }
-
-  const directionIcon = (direction: SignalData["direction"]) => {
-    switch (direction) {
-      case "bullish": return <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />;
-      case "bearish": return <TrendingDown className="w-3.5 h-3.5 text-rose-400" />;
-      default: return <Minus className="w-3.5 h-3.5 text-zinc-500" />;
-    }
-  };
 
   const actionBadge = () => {
     const act = decision?.action ?? "hold";
@@ -69,38 +46,12 @@ export const SignalPanel = memo(function SignalPanel({ signals, decision }: Prop
           signalCount={signals.length}
           riskStatus={decision ? (decision as any).riskStatus : undefined}
         />
-        {signals.length > 0 ? (
-          <div className="flex flex-col gap-1.5 max-h-[120px] overflow-y-auto scrollbar-none pr-1 -mr-1 flex-shrink-0">
-            {signals.map((signal, i) => (
-              <div key={i} className="flex items-start justify-between py-1 border-b border-obsidian-border/50 last:border-0 font-mono gap-3">
-                <div className="flex items-start gap-2 min-w-[85px] flex-1">
-                  <span className="mt-0.5 flex-shrink-0">{directionIcon(signal.direction)}</span>
-                  <span className="text-[12px] text-zinc-300 whitespace-nowrap">{tickerFromSignalName(signal.name)}</span>
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <Badge variant={signalBadgeVariant(signal.direction)}>
-                    {signal.direction === "bullish" ? "BULL" : signal.direction === "bearish" ? "BEAR" : "FLAT"}
-                  </Badge>
-                  <span className="text-[11px] text-zinc-400 tabular-nums min-w-[2.5rem] text-right">
-                    {(signal.strength * 100).toFixed(0)}%
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-[12px] font-mono text-zinc-500 py-3 text-center">No active signals</div>
-        )}
 
         {(() => {
           const activeDecision = decision ?? {
             action: "hold" as const, strength: 0, confidence: 0,
             reason: "System active. Standard monitoring mode.",
           };
-          const topSignal = signals.reduce((best, s) =>
-            Math.abs(s.strength) > Math.abs(best.strength) ? s : best, signals[0] ?? null
-          );
-          const decisionTicker = topSignal ? tickerFromSignalName(topSignal.name) : "ALL";
           const rsiMatch = activeDecision.reason.match(/RSI\s*\?(\d+(?:\.\d+)?)\)?/i);
           const rsi = rsiMatch ? parseFloat(rsiMatch[1]) : null;
 
@@ -108,16 +59,9 @@ export const SignalPanel = memo(function SignalPanel({ signals, decision }: Prop
             <div className="mt-3 pt-3 border-t border-obsidian-border space-y-3 font-mono text-[12px]">
               <div className="flex items-center justify-between">
                 <span className="text-zinc-500 uppercase text-[11px]">Decision Strength</span>
-                <div className="flex items-center gap-2">
-                  {topSignal && (
-                    <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-obsidian-lighter text-zinc-400 border border-obsidian-border">
-                      {decisionTicker}
-                    </span>
-                  )}
-                  <span className={`font-bold ${activeDecision.strength > 0 ? "text-emerald-400" : activeDecision.strength < 0 ? "text-rose-400" : "text-zinc-500"}`}>
-                    {activeDecision.strength > 0 ? "+" : ""}{(activeDecision.strength * 100).toFixed(0)}%
-                  </span>
-                </div>
+                <span className={`font-bold ${activeDecision.strength > 0 ? "text-emerald-400" : activeDecision.strength < 0 ? "text-rose-400" : "text-zinc-500"}`}>
+                  {activeDecision.strength > 0 ? "+" : ""}{(activeDecision.strength * 100).toFixed(0)}%
+                </span>
               </div>
 
               <div className="w-full bg-obsidian-lighter rounded-full h-1 relative overflow-hidden">
@@ -154,7 +98,7 @@ export const SignalPanel = memo(function SignalPanel({ signals, decision }: Prop
                 </div>
               )}
 
-              <p className="text-[12px] text-zinc-400 leading-relaxed italic border-l border-obsidian-border pl-2.5 ml-0.5 font-sans">
+              <p className="text-[12px] text-zinc-400 leading-relaxed italic font-sans">
                 {activeDecision.reason}
               </p>
             </div>
