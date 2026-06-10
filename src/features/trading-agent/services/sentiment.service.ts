@@ -16,6 +16,7 @@ export interface SentimentSnapshot {
 class SentimentService {
   private cache = new Map<string, SentimentSnapshot>();
   private cacheDurationMs = 5 * 60 * 1000; // 5 minutes cache
+  private supportedSymbols = new Set(["BTCUSDT", "ETHUSDT"]);
 
   public async getSentiment(symbol: string): Promise<SentimentSnapshot> {
     const uppercaseSymbol = symbol.toUpperCase();
@@ -65,8 +66,9 @@ class SentimentService {
 
   private async fetchLiveSentiment(symbol: string): Promise<SentimentSnapshot> {
     const productType = "USDT-FUTURES";
+    const isSupported = this.supportedSymbols.has(symbol);
 
-    // 1. Fetch Fear & Greed Index
+    // 1. Fetch Fear & Greed Index (global — works for all symbols)
     let fngValue = 50;
     let fngClass = "Neutral";
     try {
@@ -79,10 +81,16 @@ class SentimentService {
       console.warn("[SentimentService] Fear & Greed fetch failed:", err?.message || err);
     }
 
-    // 2. Fetch Long/Short Ratio
+    // Per-symbol metrics — only fetch for supported major pairs
     let longShortRatio = 1.0;
     let longRatio = 0.5;
     let shortRatio = 0.5;
+    let fundingRate = 0.0;
+    let openInterest = 0.0;
+
+    if (!isSupported) {
+      return { symbol, fearAndGreedValue: fngValue, fearAndGreedClassification: fngClass, longShortRatio, longRatio, shortRatio, fundingRate, openInterest, timestamp: new Date() };
+    }
     try {
       const lsUrl = `https://api.bitget.com/api/v2/mix/market/long-short?symbol=${symbol}&productType=${productType}`;
       const lsResp = await optionalFetch<any>(lsUrl);
@@ -97,7 +105,7 @@ class SentimentService {
     }
 
     // 3. Fetch Funding Rate
-    let fundingRate = 0.0;
+    fundingRate = 0.0;
     try {
       const frUrl = `https://api.bitget.com/api/v2/mix/market/current-fund-rate?symbol=${symbol}&productType=${productType}`;
       const frResp = await optionalFetch<any>(frUrl);
@@ -109,7 +117,7 @@ class SentimentService {
     }
 
     // 4. Fetch Open Interest
-    let openInterest = 0.0;
+    openInterest = 0.0;
     try {
       const oiUrl = `https://api.bitget.com/api/v2/mix/market/open-interest?symbol=${symbol}&productType=${productType}`;
       const oiResp = await optionalFetch<any>(oiUrl);
