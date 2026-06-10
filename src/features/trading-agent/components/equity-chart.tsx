@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, Scatter, ScatterChart, ZAxis } from "recharts";
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import { Card, CardHeader, CardTitle, CardContent } from "@/shared/ui";
 import type { PortfolioData, TickerData, TradeData } from "@/features/trading-agent/hooks/use-agent";
 
@@ -110,6 +110,8 @@ export function EquityChart({ portfolio, ticker, equityCurve, equityHistory, tra
   const isProfit = change >= 0;
 
   const gradientId = "equityGrad";
+  const chartColor = isProfit ? "#10b981" : "#f43f5e";
+  const chartColorDim = isProfit ? "rgba(16, 185, 129, 0.15)" : "rgba(244, 63, 94, 0.15)";
 
   return (
     <Card>
@@ -134,14 +136,14 @@ export function EquityChart({ portfolio, ticker, equityCurve, equityHistory, tra
         </div>
 
         {/* Timeframe selector */}
-        <div className="flex gap-1 mt-3 border border-zinc-800/60 rounded p-0.5 bg-zinc-950/60 w-fit">
+        <div className="flex gap-1 mt-3 border border-obsidian-border rounded p-0.5 bg-obsidian-light/60 w-fit">
           {TIMEFRAMES.map((tf) => (
             <button
               key={tf.key}
               onClick={() => setTimeframe(tf.key)}
               className={`px-2 py-0.5 text-[9px] font-bold tracking-widest uppercase rounded transition-all cursor-pointer ${
                 timeframe === tf.key
-                  ? "bg-cyan-500/15 text-cyan-400 border border-cyan-500/25"
+                  ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
                   : "text-zinc-500 hover:text-zinc-300 border border-transparent"
               }`}
             >
@@ -150,26 +152,26 @@ export function EquityChart({ portfolio, ticker, equityCurve, equityHistory, tra
           ))}
         </div>
 
-        <div className="w-full h-[200px] mt-3">
+        <div className="w-full h-[240px] mt-3">
           {mounted ? (
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData} margin={{ top: 10, right: 0, left: -25, bottom: 0 }}>
                 <defs>
                   <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={isProfit ? "#34d399" : "#f43f5e"} stopOpacity={0.15} />
-                    <stop offset="100%" stopColor={isProfit ? "#34d399" : "#f43f5e"} stopOpacity={0} />
+                    <stop offset="0%" stopColor={chartColor} stopOpacity={0.2} />
+                    <stop offset="100%" stopColor={chartColor} stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <XAxis
                   dataKey="time"
-                  tick={{ fill: "#52525b", fontSize: 9, fontFamily: "JetBrains Mono, monospace" }}
+                  tick={{ fill: "#71717a", fontSize: 9, fontFamily: "JetBrains Mono, monospace" }}
                   axisLine={false}
                   tickLine={false}
                   interval="preserveStartEnd"
                 />
                 <YAxis
                   domain={["auto", "auto"]}
-                  tick={{ fill: "#52525b", fontSize: 9, fontFamily: "JetBrains Mono, monospace" }}
+                  tick={{ fill: "#71717a", fontSize: 9, fontFamily: "JetBrains Mono, monospace" }}
                   axisLine={false}
                   tickLine={false}
                   tickFormatter={(v) => `$${v.toFixed(0)}`}
@@ -179,9 +181,9 @@ export function EquityChart({ portfolio, ticker, equityCurve, equityHistory, tra
                     if (active && payload && payload.length) {
                       const val = payload[0].value as number;
                       return (
-                        <div className="bg-zinc-950/90 border border-zinc-800 rounded px-2.5 py-1.5 backdrop-blur-md text-[10px] font-mono shadow-xl">
-                          <span className="text-zinc-500 block">{label}</span>
-                          <span className="text-zinc-100 font-bold">${val.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                        <div className="bg-obsidian-light/90 border border-obsidian-border rounded px-3 py-2 backdrop-blur-md text-[10px] font-mono shadow-2xl">
+                          <span className="text-zinc-500 block mb-1">{label}</span>
+                          <span className="text-zinc-100 font-bold text-sm">${val.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                         </div>
                       );
                     }
@@ -191,10 +193,11 @@ export function EquityChart({ portfolio, ticker, equityCurve, equityHistory, tra
                 <Area
                   type="monotone"
                   dataKey="equity"
-                  stroke={isProfit ? "#34d399" : "#f43f5e"}
+                  stroke={chartColor}
                   fill={`url(#${gradientId})`}
-                  strokeWidth={1.5}
+                  strokeWidth={2}
                   dot={false}
+                  activeDot={{ r: 4, fill: chartColor, stroke: "#fff", strokeWidth: 2 }}
                 />
                 {tradeMarkers.map((marker, i) => (
                   <ReferenceLine
