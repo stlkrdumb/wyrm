@@ -42,7 +42,7 @@ export function Dashboard() {
       </div>
 
       {/* Main Terminal Grid */}
-      <main className="relative z-10 px-4 pb-4 pt-3 max-w-[1920px] mx-auto grid grid-cols-12 gap-3">
+      <main className="relative z-10 px-4 pb-12 pt-3 max-w-[1920px] mx-auto grid grid-cols-12 gap-3">
         {/* Left Column: Chart + Positions (span 5) */}
         <div className="col-span-5 flex flex-col gap-3">
           <EquityChart 
