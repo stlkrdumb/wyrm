@@ -74,12 +74,11 @@ export function EquityChart({ portfolio, ticker, equityCurve, equityHistory, tra
       return filtered.map(e => ({ time: formatAxisTime(e.ts, timeframe), equity: e.equity, isTrade: false }));
     }
 
-    // No data: flat line at initialCash
-    return Array.from({ length: 48 }, (_, i) => ({
-      time: `${(i % 24).toString().padStart(2, "0")}:00`,
-      equity: initialCash,
-      isTrade: false,
-    }));
+    // No data: simple flat line
+    return [
+      { time: "Start", equity: initialCash, isTrade: false },
+      { time: "Now", equity: initialCash, isTrade: false },
+    ];
   }, [portfolio, timeframe, equityCurve, equityHistory, initialCash]);
 
   // Trade markers for chart
@@ -185,7 +184,7 @@ export function EquityChart({ portfolio, ticker, equityCurve, equityHistory, tra
                   tick={{ fill: "#71717a", fontSize: 9, fontFamily: "JetBrains Mono, monospace" }}
                   axisLine={false}
                   tickLine={false}
-                  interval="preserveStartEnd"
+                  interval={Math.max(0, Math.floor(chartData.length / 6))}
                 />
                 <YAxis
                   domain={["auto", "auto"]}
