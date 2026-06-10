@@ -76,8 +76,8 @@ export function EquityChart({ portfolio, ticker, equityCurve, equityHistory, tra
 
     // No data: simple flat line
     return [
-      { time: "Start", equity: initialCash, isTrade: false },
-      { time: "Now", equity: initialCash, isTrade: false },
+      { time: "", equity: initialCash, isTrade: false },
+      { time: "", equity: initialCash, isTrade: false },
     ];
   }, [portfolio, timeframe, equityCurve, equityHistory, initialCash]);
 
