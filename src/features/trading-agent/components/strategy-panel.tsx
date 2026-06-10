@@ -86,12 +86,12 @@ export const StrategyPanel = memo(function StrategyPanel() {
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
-            <Loader2 className="w-3.5 h-3.5 text-zinc-500 animate-spin" />
+            <Loader2 className="w-3.5 h-3.5 text-phosphor-dim animate-spin" />
             <CardTitle>Agent Customizer</CardTitle>
           </div>
         </CardHeader>
         <CardContent>
-          <span className="text-[10px] font-mono text-zinc-500 tracking-widest uppercase">Loading Cognitive Core...</span>
+          <span className="text-[10px] font-mono text-phosphor-dim tracking-widest uppercase">Loading Cognitive Core...</span>
         </CardContent>
       </Card>
     );
@@ -102,17 +102,17 @@ export const StrategyPanel = memo(function StrategyPanel() {
       <div onClick={() => setIsCollapsed(!isCollapsed)} className="cursor-pointer select-none">
         <CardHeader>
           <div className="flex items-center gap-2">
-            <Sliders className="w-3.5 h-3.5 text-zinc-500" />
+            <Sliders className="w-3.5 h-3.5 text-phosphor-dim" />
             <CardTitle>Agent Customizer</CardTitle>
           </div>
           <div className="flex items-center gap-2">
             <Badge variant={bias === "AGGRESSIVE" ? "warning" : bias === "CONSERVATIVE" ? "success" : "neutral"}>
               {bias}
             </Badge>
-            <span className="text-[8px] font-mono text-zinc-600 border border-zinc-800 px-1.5 py-0.2 rounded tracking-wider">
+            <span className="text-[8px] font-mono text-phosphor-dim border border-amber-900/20 px-1.5 py-0.2 tracking-wider">
               DD {threshold}%
             </span>
-            <span className="text-[8px] font-mono text-zinc-600 uppercase tracking-widest">
+            <span className="text-[8px] font-mono text-phosphor-dim uppercase tracking-widest">
               {isCollapsed ? "[EXPAND]" : "[COLLAPSE]"}
             </span>
           </div>
@@ -123,7 +123,7 @@ export const StrategyPanel = memo(function StrategyPanel() {
         <CardContent>
           <div className="flex flex-col gap-4 font-mono text-[11px]">
             <div className="flex flex-col gap-1.5">
-              <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">
+              <label className="text-[9px] font-bold text-phosphor-dim uppercase tracking-widest">
                 Cognitive Core Presets
               </label>
               <div className="grid grid-cols-3 gap-2">
@@ -131,7 +131,7 @@ export const StrategyPanel = memo(function StrategyPanel() {
                   <button
                     key={preset.name}
                     onClick={() => { setPersona(preset.persona); setInstructions(preset.instructions); setThreshold(preset.threshold); }}
-                    className="py-1.5 px-2.5 rounded border border-zinc-800 bg-zinc-950/60 text-[9px] hover:bg-zinc-900 hover:text-zinc-200 hover:border-zinc-700 transition-all cursor-pointer font-bold tracking-wider uppercase text-zinc-400 text-center"
+                    className="terminal-btn py-1.5 px-2.5 text-[9px] font-bold tracking-wider uppercase text-center"
                   >
                     {preset.name}
                   </button>
@@ -140,7 +140,7 @@ export const StrategyPanel = memo(function StrategyPanel() {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider">
+              <label className="text-[9px] font-bold text-phosphor-dim uppercase tracking-wider">
                 Agent Trading Persona
               </label>
               <textarea
@@ -148,12 +148,12 @@ export const StrategyPanel = memo(function StrategyPanel() {
                 onChange={(e) => setPersona(e.target.value)}
                 rows={2}
                 placeholder="e.g. Conservative quant trading analyst focusing on long-term trends..."
-                className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-zinc-200 focus:outline-none focus:border-zinc-700 transition-all font-sans leading-relaxed text-[11px] resize-none"
+                className="w-full terminal-input p-2.5 text-amber-100/70 leading-relaxed resize-none"
               />
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider">
+              <label className="text-[9px] font-bold text-phosphor-dim uppercase tracking-wider">
                 Custom Strategy Instructions
               </label>
               <textarea
@@ -161,12 +161,12 @@ export const StrategyPanel = memo(function StrategyPanel() {
                 onChange={(e) => setInstructions(e.target.value)}
                 rows={4}
                 placeholder="e.g. Respect strict RSI oversold limits..."
-                className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-zinc-200 focus:outline-none focus:border-zinc-700 transition-all font-sans leading-relaxed text-[11px] resize-none"
+                className="w-full terminal-input p-2.5 text-amber-100/70 leading-relaxed resize-none"
               />
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">
+              <label className="text-[9px] font-bold text-phosphor-dim uppercase tracking-widest">
                 Emergency Drawdown Limit
               </label>
               <div className="grid grid-cols-4 gap-1.5">
@@ -174,10 +174,10 @@ export const StrategyPanel = memo(function StrategyPanel() {
                   <button
                     key={pct}
                     onClick={() => setThreshold(pct)}
-                    className={`py-1.5 text-[10px] rounded border transition-all uppercase cursor-pointer ${
+                    className={`py-1.5 text-[10px] border transition-all uppercase cursor-pointer ${
                       threshold === pct
-                        ? "bg-zinc-800 text-zinc-100 border-zinc-600 font-bold"
-                        : "text-zinc-500 border-zinc-800 hover:border-zinc-700 hover:text-zinc-300"
+                        ? "bg-amber-900/20 text-phosphor border-amber-500/30 font-bold"
+                        : "text-phosphor-dim border-amber-900/20 hover:border-amber-900/40 hover:text-phosphor-muted"
                     }`}
                   >
                     {pct}%
@@ -185,13 +185,13 @@ export const StrategyPanel = memo(function StrategyPanel() {
                 ))}
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-[9px] text-zinc-600 uppercase tracking-wider">Custom:</span>
+                <span className="text-[9px] text-phosphor-dim uppercase tracking-wider">Custom:</span>
                 <input
                   type="number" min={1} max={50} value={threshold}
                   onChange={(e) => setThreshold(Math.min(50, Math.max(1, parseInt(e.target.value) || 1)))}
-                  className="w-20 bg-zinc-950 border border-zinc-800 rounded p-1.5 text-zinc-200 focus:outline-none focus:border-zinc-700 transition-all text-[11px] text-center"
+                  className="w-20 terminal-input p-1.5 text-[11px] text-center"
                 />
-                <span className="text-[9px] text-zinc-600">%</span>
+                <span className="text-[9px] text-phosphor-dim">%</span>
               </div>
             </div>
 
@@ -206,10 +206,10 @@ export const StrategyPanel = memo(function StrategyPanel() {
             </div>
 
             {statusMsg && (
-              <div className={`p-2.5 rounded text-[9px] font-mono font-bold tracking-wider text-center border ${
+              <div className={`p-2.5 text-[9px] font-mono font-bold tracking-wider text-center border ${
                 statusMsg.type === "success"
-                  ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-                  : "bg-rose-500/10 border-rose-500/20 text-rose-400"
+                  ? "bg-phosphor-green/5 border-phosphor-green/30 text-phosphor-green"
+                  : "bg-phosphor-red/5 border-phosphor-red/30 text-phosphor-red"
               }`}>
                 {statusMsg.type === "success" && <CheckCircle className="w-3.5 h-3.5 inline mr-1.5 -mt-0.5" />}
                 {statusMsg.text}

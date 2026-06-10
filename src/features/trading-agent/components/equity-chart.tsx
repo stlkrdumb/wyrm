@@ -50,7 +50,6 @@ export function EquityChart({ portfolio, ticker, equityCurve, equityHistory }: P
   const changePercent = change !== 0 ? ((change / Math.max(initialCash, 1)) * 100).toFixed(2) : "0.00";
 
   const chartData = useMemo(() => {
-    // Backtest mode: use equityCurve prop
     if (equityCurve && equityCurve.length > 0) {
       return equityCurve.map((e) => {
         const date = new Date(e.timestamp);
@@ -58,7 +57,6 @@ export function EquityChart({ portfolio, ticker, equityCurve, equityHistory }: P
       });
     }
 
-    // Live mode: use equityHistory from agent state
     if (equityHistory && equityHistory.length > 0) {
       const cutoff = Date.now() - (TIMEFRAMES.find(t => t.key === timeframe)?.ms ?? 3_600_000);
       const filtered = equityHistory
@@ -66,7 +64,6 @@ export function EquityChart({ portfolio, ticker, equityCurve, equityHistory }: P
         .filter(e => e.ts.getTime() >= cutoff);
 
       if (filtered.length < 2) {
-        // Fall back to showing last handful if too few points
         const recent = equityHistory.slice(-10).map(e => ({
           ts: new Date(e.timestamp), equity: e.equity,
         }));
@@ -76,7 +73,6 @@ export function EquityChart({ portfolio, ticker, equityCurve, equityHistory }: P
       return filtered.map(e => ({ time: formatAxisTime(e.ts, timeframe), equity: e.equity }));
     }
 
-    // No data: flat line at initialCash
     return Array.from({ length: 48 }, (_, i) => ({
       time: `${(i % 24).toString().padStart(2, "0")}:00`,
       equity: initialCash,
@@ -92,34 +88,34 @@ export function EquityChart({ portfolio, ticker, equityCurve, equityHistory }: P
     <Card>
       <CardHeader>
         <CardTitle>Portfolio</CardTitle>
-        <span className="text-[10px] tracking-widest text-zinc-500 font-mono">
+        <span className="text-[10px] tracking-widest text-phosphor-muted font-mono">
           START: ${initialCash.toLocaleString()}
         </span>
       </CardHeader>
       <CardContent>
         <div className="flex items-baseline gap-4">
-          <span className="text-3xl font-black font-mono tracking-tight text-zinc-100 tabular-nums">
+          <span className="text-3xl font-black font-mono tracking-tight text-phosphor phosphor-glow tabular-nums">
             ${displayEquity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
-          <span className={`text-[11px] font-bold font-mono px-2 py-0.5 rounded border tracking-wide uppercase ${
+          <span className={`text-[11px] font-bold font-mono px-2 py-0.5 border tracking-wide uppercase ${
             isProfit
-              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-              : "bg-rose-500/10 text-rose-400 border-rose-500/20"
+              ? "border-phosphor-green/30 text-phosphor-green phosphor-glow-green bg-phosphor-green/5"
+              : "border-phosphor-red/30 text-phosphor-red phosphor-glow-red bg-phosphor-red/5"
           }`}>
             {isProfit ? "+" : ""}{changePercent}%
           </span>
         </div>
 
         {/* Timeframe selector */}
-        <div className="flex gap-1 mt-3 border border-zinc-800/60 rounded p-0.5 bg-zinc-950/60 w-fit">
+        <div className="flex gap-1 mt-3 border border-amber-900/20 p-0.5 bg-[#0a0a0a]/60 w-fit">
           {TIMEFRAMES.map((tf) => (
             <button
               key={tf.key}
               onClick={() => setTimeframe(tf.key)}
-              className={`px-2 py-0.5 text-[9px] font-bold tracking-widest uppercase rounded transition-all cursor-pointer ${
+              className={`px-2 py-0.5 text-[9px] font-bold tracking-widest uppercase transition-all cursor-pointer ${
                 timeframe === tf.key
-                  ? "bg-amber-500/15 text-amber-400 border border-amber-500/25"
-                  : "text-zinc-500 hover:text-zinc-300 border border-transparent"
+                  ? "border border-amber-500/30 text-phosphor phosphor-glow bg-amber-500/5"
+                  : "text-phosphor-dim hover:text-phosphor-muted border border-transparent"
               }`}
             >
               {tf.label}
@@ -133,20 +129,20 @@ export function EquityChart({ portfolio, ticker, equityCurve, equityHistory }: P
               <AreaChart data={chartData} margin={{ top: 10, right: 0, left: -25, bottom: 0 }}>
                 <defs>
                   <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={isProfit ? "#34d399" : "#f43f5e"} stopOpacity={0.15} />
-                    <stop offset="100%" stopColor={isProfit ? "#34d399" : "#f43f5e"} stopOpacity={0} />
+                    <stop offset="0%" stopColor={isProfit ? "#33ff00" : "#ff3333"} stopOpacity={0.15} />
+                    <stop offset="100%" stopColor={isProfit ? "#33ff00" : "#ff3333"} stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <XAxis
                   dataKey="time"
-                  tick={{ fill: "#52525b", fontSize: 9, fontFamily: "JetBrains Mono, monospace" }}
+                  tick={{ fill: "rgba(139, 115, 85, 0.5)", fontSize: 9, fontFamily: "JetBrains Mono, monospace" }}
                   axisLine={false}
                   tickLine={false}
                   interval="preserveStartEnd"
                 />
                 <YAxis
                   domain={["auto", "auto"]}
-                  tick={{ fill: "#52525b", fontSize: 9, fontFamily: "JetBrains Mono, monospace" }}
+                  tick={{ fill: "rgba(139, 115, 85, 0.5)", fontSize: 9, fontFamily: "JetBrains Mono, monospace" }}
                   axisLine={false}
                   tickLine={false}
                   tickFormatter={(v) => `$${v.toFixed(0)}`}
@@ -156,9 +152,9 @@ export function EquityChart({ portfolio, ticker, equityCurve, equityHistory }: P
                     if (active && payload && payload.length) {
                       const val = payload[0].value as number;
                       return (
-                        <div className="bg-zinc-950/90 border border-zinc-800 rounded px-2.5 py-1.5 backdrop-blur-md text-[10px] font-mono shadow-xl">
-                          <span className="text-zinc-500 block">{label}</span>
-                          <span className="text-zinc-100 font-bold">${val.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                        <div className="bg-[#0a0a0a]/95 border border-amber-900/30 px-2.5 py-1.5 backdrop-blur-md text-[10px] font-mono shadow-xl">
+                          <span className="text-phosphor-dim block">{label}</span>
+                          <span className="text-phosphor font-bold">${val.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                         </div>
                       );
                     }
@@ -168,7 +164,7 @@ export function EquityChart({ portfolio, ticker, equityCurve, equityHistory }: P
                 <Area
                   type="monotone"
                   dataKey="equity"
-                  stroke={isProfit ? "#34d399" : "#f43f5e"}
+                  stroke={isProfit ? "#33ff00" : "#ff3333"}
                   fill={`url(#${gradientId})`}
                   strokeWidth={1.5}
                   dot={false}
@@ -176,7 +172,7 @@ export function EquityChart({ portfolio, ticker, equityCurve, equityHistory }: P
               </AreaChart>
             </ResponsiveContainer>
           ) : (
-            <div className="flex items-center justify-center h-full text-[10px] font-mono text-zinc-600 uppercase tracking-widest animate-pulse">
+            <div className="flex items-center justify-center h-full text-[10px] font-mono text-phosphor-dim uppercase tracking-widest animate-pulse">
               Plotting market curve...
             </div>
           )}

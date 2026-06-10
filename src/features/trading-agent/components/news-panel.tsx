@@ -42,9 +42,9 @@ export const NewsPanel = memo(function NewsPanel() {
 
   const getSentimentIcon = (sentiment: NewsArticle["sentiment"]) => {
     switch (sentiment) {
-      case "BULLISH": return <TrendingUp className="w-3 h-3 text-emerald-400" />;
-      case "BEARISH": return <TrendingDown className="w-3 h-3 text-rose-400" />;
-      default: return <Minus className="w-3 h-3 text-zinc-500" />;
+      case "BULLISH": return <TrendingUp className="w-3 h-3 text-phosphor-green" />;
+      case "BEARISH": return <TrendingDown className="w-3 h-3 text-phosphor-red" />;
+      default: return <Minus className="w-3 h-3 text-phosphor-dim" />;
     }
   };
 
@@ -67,17 +67,17 @@ export const NewsPanel = memo(function NewsPanel() {
     <Card>
       <CardHeader>
         <CardTitle>Macro News</CardTitle>
-        <span className="text-[9px] font-mono text-zinc-500">
+        <span className="text-[9px] font-mono text-phosphor-dim">
           {articles.length > 0 ? `${articles.length} headlines` : ""}
         </span>
       </CardHeader>
       <CardContent>
         {isLoading && articles.length === 0 ? (
           <div className="flex items-center justify-center h-[200px]">
-            <Loader2 className="w-5 h-5 text-zinc-500 animate-spin" />
+            <Loader2 className="w-5 h-5 text-phosphor-dim animate-spin" />
           </div>
         ) : articles.length === 0 ? (
-          <div className="text-[11px] font-mono text-zinc-500 py-8 text-center tracking-wide uppercase">
+          <div className="text-[11px] font-mono text-phosphor-dim py-8 text-center tracking-wide uppercase">
             No headlines right now
           </div>
         ) : (
@@ -88,22 +88,22 @@ export const NewsPanel = memo(function NewsPanel() {
                 href={a.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block p-2.5 rounded border border-zinc-800/40 hover:border-zinc-700/60 bg-zinc-950/30 hover:bg-zinc-900/30 transition-all duration-150 group"
+                className="block p-2.5 border border-amber-900/20 hover:border-amber-900/40 bg-[#0a0a0a]/30 hover:bg-[#0a0a0a]/50 transition-all duration-150 group"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
-                    <p className="text-[11px] text-zinc-200 font-medium leading-relaxed line-clamp-2 group-hover:text-zinc-100 transition-colors font-sans">
+                    <p className="text-[11px] text-amber-100/80 font-medium leading-relaxed line-clamp-2 group-hover:text-amber-100 transition-colors font-mono">
                       {a.title}
                     </p>
                     <div className="flex items-center gap-2 mt-1.5">
-                      <span className="text-[8px] font-mono text-zinc-600 uppercase tracking-wider">{a.source}</span>
-                      <span className="text-[8px] font-mono text-zinc-700">•</span>
-                      <span className="text-[8px] font-mono text-zinc-600">{timeAgo(a.publishedOn)} ago</span>
+                      <span className="text-[8px] font-mono text-phosphor-dim uppercase tracking-wider">{a.source}</span>
+                      <span className="text-[8px] font-mono text-phosphor-dim/50">•</span>
+                      <span className="text-[8px] font-mono text-phosphor-dim">{timeAgo(a.publishedOn)} ago</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 flex-shrink-0">
                     {sentimentBadge(a.sentiment)}
-                    <ExternalLink className="w-3 h-3 text-zinc-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <ExternalLink className="w-3 h-3 text-phosphor-dim opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
                 </div>
               </a>
