@@ -1,11 +1,17 @@
 "use client";
 
 import { useEffect, useState, memo, useCallback } from "react";
-import { Brain, Layers, Percent, Activity, Loader2, TrendingUp, TrendingDown } from "lucide-react";
+import { Layers, Percent, Activity, Loader2, TrendingUp, TrendingDown } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent, Badge } from "@/shared/ui";
 import { DEFAULT_SYMBOLS } from "@/features/trading-agent/constants/symbols.constants";
 import type { SentimentSnapshot } from "@/features/trading-agent/index";
 import { apiFetch } from "@/shared/utils/api-fetch";
+
+function formatNumber(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return n.toLocaleString();
+}
 
 export const SentimentPanel = memo(function SentimentPanel() {
   const [sentimentMap, setSentimentMap] = useState<Record<string, SentimentSnapshot>>({});
@@ -39,14 +45,6 @@ export const SentimentPanel = memo(function SentimentPanel() {
 
   const activeData = sentimentMap[activeSymbol];
   const symbolTabs = Object.keys(sentimentMap).length > 0 ? Object.keys(sentimentMap) : DEFAULT_SYMBOLS;
-
-  const getFngColorClass = (val: number) => {
-    if (val <= 25) return "text-rose-500";
-    if (val <= 45) return "text-orange-400";
-    if (val <= 55) return "text-yellow-400";
-    if (val <= 75) return "text-emerald-400";
-    return "text-emerald-300";
-  };
 
   if (isLoading && Object.keys(sentimentMap).length === 0) {
     return (
@@ -84,85 +82,65 @@ export const SentimentPanel = memo(function SentimentPanel() {
       <CardContent>
         {activeData ? (
           <div className="flex flex-col gap-3 font-mono">
-            {/* F&G Header + Spectrum Bar — merged */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <Brain className="w-3.5 h-3.5 text-zinc-400" />
-                  <span className="text-[10px] text-zinc-300 font-semibold">{activeSymbol}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className={`text-base font-black ${getFngColorClass(activeData.fearAndGreedValue)}`}>
-                    {activeData.fearAndGreedValue}
-                  </span>
-                  <Badge variant={activeData.fearAndGreedValue >= 55 ? "success" : activeData.fearAndGreedValue <= 45 ? "danger" : "warning"}>
-                    {activeData.fearAndGreedClassification}
-                  </Badge>
-                </div>
-              </div>
-              <div className="relative h-2.5 rounded-full overflow-hidden bg-zinc-800">
-                <div
-                  className="absolute inset-0"
-                  style={{ background: "linear-gradient(to right, #ef4444, #f97316, #eab308, #22c55e, #10b981)" }}
-                />
-                <div
-                  className="absolute top-0 bottom-0 w-1 bg-white rounded-full shadow-[0_0_8px_rgba(255,255,255,0.8)] transition-all duration-500"
-                  style={{ left: `${activeData.fearAndGreedValue}%` }}
-                />
-              </div>
-              <div className="flex justify-between text-[7px] font-bold tracking-wider uppercase text-zinc-600">
-                <span>Extreme Fear</span>
-                <span>Fear</span>
-                <span>Neutral</span>
-                <span>Greed</span>
-                <span>Extreme Greed</span>
-              </div>
+            {/* Symbol + F&G compact row */}
+            <div className="flex items-center justify-between py-1">
+              <span className="text-[10px] text-zinc-300 font-semibold">{activeSymbol}</span>
+              <Badge variant={activeData.fearAndGreedValue >= 55 ? "success" : activeData.fearAndGreedValue <= 45 ? "danger" : "warning"}>
+                {activeData.fearAndGreedClassification} ({activeData.fearAndGreedValue})
+              </Badge>
             </div>
 
-            {/* Metrics Grid */}
-            <div className="grid grid-cols-3 gap-1.5">
-              <div className="p-2 rounded bg-zinc-900/20 border border-zinc-800/40 space-y-0.5">
-                <div className="flex items-center gap-1 text-zinc-500">
-                  <Layers className="w-2.5 h-2.5" />
+            {/* Three metric cards */}
+            <div className="grid grid-cols-3 gap-2">
+              {/* Long/Short */}
+              <div className="p-2.5 rounded bg-zinc-900/20 border border-zinc-800/40 space-y-1.5">
+                <div className="flex items-center gap-1.5 text-zinc-500">
+                  <Layers className="w-3 h-3" />
                   <span className="text-[7px] uppercase tracking-widest font-bold">Long/Short</span>
                 </div>
-                <div className="relative w-full h-1 bg-zinc-800 rounded-full overflow-hidden">
+                <div className="relative w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
                   <div
                     className="absolute top-0 left-0 h-full bg-emerald-500/60 rounded-full"
                     style={{ width: `${(activeData.longRatio * 100).toFixed(0)}%` }}
                   />
                 </div>
-                <div className="flex justify-between text-[8px] text-zinc-400">
+                <div className="flex justify-between text-[9px] text-zinc-400">
                   <span>L {activeData.longShortRatio.toFixed(2)}</span>
                   <span>S {(1 - activeData.longShortRatio).toFixed(2)}</span>
                 </div>
               </div>
 
-              <div className="p-2 rounded bg-zinc-900/20 border border-zinc-800/40 space-y-0.5">
-                <div className="flex items-center gap-1 text-zinc-500">
-                  <Percent className="w-2.5 h-2.5" />
+              {/* Funding Rate */}
+              <div className="p-2.5 rounded bg-zinc-900/20 border border-zinc-800/40 space-y-1.5">
+                <div className="flex items-center gap-1.5 text-zinc-500">
+                  <Percent className="w-3 h-3" />
                   <span className="text-[7px] uppercase tracking-widest font-bold">Funding</span>
                 </div>
                 <div className="flex items-center gap-1">
                   {activeData.fundingRate > 0 ? (
-                    <TrendingUp className="w-2.5 h-2.5 text-emerald-400" />
+                    <TrendingUp className="w-3 h-3 text-emerald-400" />
                   ) : activeData.fundingRate < 0 ? (
-                    <TrendingDown className="w-2.5 h-2.5 text-rose-400" />
+                    <TrendingDown className="w-3 h-3 text-rose-400" />
                   ) : null}
                   <span className={`text-xs font-bold ${activeData.fundingRate > 0 ? "text-emerald-400" : "text-rose-400"}`}>
                     {(activeData.fundingRate * 100).toFixed(4)}%
                   </span>
                 </div>
+                <span className="text-[8px] text-zinc-500 block">
+                  {activeData.fundingRate > 0 ? "LONG BIAS" : activeData.fundingRate < 0 ? "SHORT BIAS" : "NEUTRAL"}
+                </span>
               </div>
 
-              <div className="p-2 rounded bg-zinc-900/20 border border-zinc-800/40 space-y-0.5">
-                <div className="flex items-center gap-1 text-zinc-500">
-                  <Activity className="w-2.5 h-2.5" />
+              {/* Open Interest */}
+              <div className="p-2.5 rounded bg-zinc-900/20 border border-zinc-800/40 space-y-1.5">
+                <div className="flex items-center gap-1.5 text-zinc-500">
+                  <Activity className="w-3 h-3" />
                   <span className="text-[7px] uppercase tracking-widest font-bold">Open Int.</span>
                 </div>
                 <span className="text-xs font-bold text-zinc-300">
-                  {activeData.openInterest.toLocaleString()}
+                  ${formatNumber(activeData.openInterest)}
                 </span>
+                <span className="text-[8px] text-zinc-600 block">USDT</span>
               </div>
             </div>
           </div>
