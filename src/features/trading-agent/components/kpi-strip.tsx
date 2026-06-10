@@ -1,7 +1,7 @@
 "use client";
 
 import { memo } from "react";
-import { TrendingUp, TrendingDown, Wallet, Target, Activity } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, Target, Activity, Zap } from "lucide-react";
 import type { PortfolioData, PositionData } from "@/features/trading-agent/hooks/use-agent";
 
 interface Props {
@@ -30,86 +30,79 @@ export const KpiStrip = memo(function KpiStrip({ portfolio, positions, peakEquit
 
   const kpiItems = [
     {
-      icon: <Wallet className="w-3.5 h-3.5" />,
+      icon: <Wallet className="w-4 h-4" />,
       label: "EQUITY",
       value: portfolio.equity,
       prefix: "$",
       decimals: 2,
       color: "text-zinc-100",
-      bgColor: "bg-zinc-900/40",
-      borderColor: "border-zinc-800/60",
-      accentColor: "from-zinc-800/0 to-zinc-800/30",
+      glowColor: "rgba(0, 212, 255, 0.1)",
     },
     {
-      icon: isProfit ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />,
+      icon: isProfit ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />,
       label: "TOTAL PnL",
       value: portfolio.totalPnL,
       prefix: "",
       suffix: "",
       decimals: 2,
       color: isProfit ? "text-emerald-400" : "text-rose-400",
-      bgColor: isProfit ? "bg-emerald-500/5" : "bg-rose-500/5",
-      borderColor: isProfit ? "border-emerald-500/15" : "border-rose-500/15",
-      accentColor: isProfit ? "from-emerald-500/0 to-emerald-500/10" : "from-rose-500/0 to-rose-500/10",
+      glowColor: isProfit ? "rgba(16, 185, 129, 0.1)" : "rgba(244, 63, 94, 0.1)",
     },
     {
-      icon: <Target className="w-3.5 h-3.5" />,
+      icon: <Target className="w-4 h-4" />,
       label: "POSITIONS",
       value: positions.length,
       prefix: "",
       suffix: "",
       decimals: 0,
       color: positions.length > 0 ? "text-cyan-400" : "text-zinc-500",
-      bgColor: positions.length > 0 ? "bg-cyan-500/5" : "bg-zinc-900/40",
-      borderColor: positions.length > 0 ? "border-cyan-500/15" : "border-zinc-800/60",
-      accentColor: "from-cyan-500/0 to-cyan-500/10",
+      glowColor: "rgba(0, 212, 255, 0.1)",
     },
     {
-      icon: <Activity className="w-3.5 h-3.5" />,
+      icon: <Zap className="w-4 h-4" />,
       label: "WIN RATE",
       value: portfolio.winRate,
       prefix: "",
       suffix: "%",
       decimals: 1,
       color: portfolio.winRate >= 50 ? "text-emerald-400" : "text-zinc-400",
-      bgColor: "bg-zinc-900/40",
-      borderColor: "border-zinc-800/60",
-      accentColor: "from-zinc-800/0 to-zinc-800/30",
+      glowColor: "rgba(16, 185, 129, 0.1)",
     },
     {
-      icon: <TrendingDown className="w-3.5 h-3.5" />,
+      icon: <Activity className="w-4 h-4" />,
       label: "DRAWDOWN",
       value: drawdown,
       prefix: "",
       suffix: "%",
       decimals: 2,
-      color: drawdown > 5 ? "text-rose-400" : drawdown > 0 ? "text-cyan-400" : "text-zinc-500",
-      bgColor: drawdown > 5 ? "bg-rose-500/5" : "bg-zinc-900/40",
-      borderColor: drawdown > 5 ? "border-rose-500/15" : "border-zinc-800/60",
-      accentColor: drawdown > 5 ? "from-rose-500/0 to-rose-500/10" : "from-zinc-800/0 to-zinc-800/30",
+      color: drawdown > 5 ? "text-rose-400" : drawdown > 0 ? "text-yellow-400" : "text-zinc-500",
+      glowColor: drawdown > 5 ? "rgba(244, 63, 94, 0.1)" : "rgba(0, 212, 255, 0.1)",
     },
   ];
 
   return (
-    <div className="grid grid-cols-5 gap-3">
+    <div className="grid grid-cols-5 gap-2">
       {kpiItems.map((kpi, i) => (
         <div
           key={i}
-          className={`relative overflow-hidden rounded border ${kpi.borderColor} ${kpi.bgColor} px-3 py-2.5 transition-all duration-300 hover:scale-[1.02] group ${
-            isRunning ? "animate-pulse-cyan" : ""
-          }`}
+          className="relative overflow-hidden rounded-lg glass-panel p-3 transition-all duration-300 hover:scale-[1.02] group"
+          style={{
+            boxShadow: isRunning ? `0 0 20px ${kpi.glowColor}` : "none",
+          }}
         >
-          {/* Subtle gradient overlay */}
-          <div className={`absolute inset-0 bg-gradient-to-r ${kpi.accentColor} opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none`} />
-
-          <div className="relative flex flex-col gap-1">
-            <div className="flex items-center gap-1.5 text-[8px] font-bold font-mono tracking-widest uppercase text-zinc-500">
-              <span className="opacity-70">{kpi.icon}</span>
-              {kpi.label}
+          <div className="relative flex items-start justify-between">
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-1.5 text-[9px] font-bold font-mono tracking-widest uppercase text-zinc-500">
+                <span className="opacity-60">{kpi.icon}</span>
+                {kpi.label}
+              </div>
+              <div className={`text-[18px] font-black font-mono tracking-tight ${kpi.color}`}>
+                <CountUp value={kpi.value} prefix={kpi.prefix} suffix={kpi.suffix} decimals={kpi.decimals} />
+              </div>
             </div>
-            <div className={`text-[15px] font-black font-mono tracking-tight ${kpi.color}`}>
-              <CountUp value={kpi.value} prefix={kpi.prefix} suffix={kpi.suffix} decimals={kpi.decimals} />
-            </div>
+            {isRunning && (
+              <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse mt-1" />
+            )}
           </div>
         </div>
       ))}
