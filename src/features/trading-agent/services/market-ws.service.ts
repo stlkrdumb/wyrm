@@ -23,6 +23,7 @@ export class MarketWebSocketService {
   private maxReconnectDelay = 30_000;
   private baseReconnectDelay = 1_000;
   private proxyIndex = 0;
+  private restFallbackTimer: ReturnType<typeof setInterval> | null = null;
 
 
   getConnectionInfo(): { type: "direct" | "proxy" | "fallback"; proxy: string | null } {
@@ -52,6 +53,7 @@ export class MarketWebSocketService {
 
   disconnect(): void {
     this.clearPingTimer();
+    this.clearRestFallbackTimer();
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
@@ -87,6 +89,8 @@ export class MarketWebSocketService {
           }
           this.reconnectAttempt = 0;
           this.ws = ws;
+          // Stop REST fallback timer when WS is live
+          this.clearRestFallbackTimer();
           if (this.subscriptions.length > 0) {
             this.sendSubscribe(this.subscriptions);
           }
@@ -111,7 +115,6 @@ export class MarketWebSocketService {
             }
             this.scheduleReconnect();
           }
-          reject(new Error(`WebSocket closed code=${code} reason=${reason.toString()}`));
         });
 
         const timeout = setTimeout(() => {
@@ -133,6 +136,9 @@ export class MarketWebSocketService {
 
   private fallbackToRest(): Promise<void> {
     console.log("[WS] Starting REST ticker fallback...");
+
+    // Clear any existing fallback timer to prevent accumulation
+    this.clearRestFallbackTimer();
 
     const fetchAllTickers = async () => {
       try {
@@ -175,10 +181,16 @@ export class MarketWebSocketService {
       }
     };
 
-    fetchAllTickers();
-    setInterval(fetchAllTickers, 30_000);
+    this.restFallbackTimer = setInterval(fetchAllTickers, 30_000);
 
     return Promise.resolve();
+  }
+
+  private clearRestFallbackTimer(): void {
+    if (this.restFallbackTimer) {
+      clearInterval(this.restFallbackTimer);
+      this.restFallbackTimer = null;
+    }
   }
 
   private async scheduleReconnect(): Promise<void> {
@@ -226,25 +238,27 @@ export class MarketWebSocketService {
       (code, msg) => console.warn(`[WS] Server error: code=${code}, msg="${msg}"`),
     );
 
-    if (data === "ping") { this.sendPong(); return; }
-    if (data === "pong") { console.log("[WS] Server pong ✓"); this.reconnectAttempt = 0; }
+    if (data === "ping") {
+      // Server sent heartbeat request — respond with pong
+      this.ws?.send("pong");
+      return;
+    }
+    if (data === "pong") {
+      console.log("[WS] Server pong ✓");
+      this.reconnectAttempt = 0;
+    }
   }
 
   private startPingTimer(): void {
     this.clearPingTimer();
     this.pingTimer = setInterval(() => {
       if (this.ws?.readyState === WSClient.OPEN) {
-        this.sendPong();
+        // Client initiated heartbeat — send ping to keep connection alive
+        this.ws.send("ping");
       } else {
         this.clearPingTimer();
       }
     }, 30_000);
-  }
-
-  private sendPong(): void {
-    if (this.ws?.readyState === WSClient.OPEN) {
-      this.ws.send("ping");
-    }
   }
 
   private clearPingTimer(): void {
@@ -252,6 +266,34 @@ export class MarketWebSocketService {
       clearInterval(this.pingTimer);
       this.pingTimer = null;
     }
+  }
+
+  /** Build subscription channels for all configured trading + monitoring symbols */
+  buildSubscriptions(): WSSubscription[] {
+    const monitorSymbols = (process.env.MONITOR_SYMBOLS || "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    return [
+    ...config.tradingSymbols.map((symbol): WSSubscription => ({
+      instType: "SPOT",
+      channel: "ticker",
+      instId: symbol.toUpperCase(),
+    })),
+    ...monitorSymbols.map((symbol): WSSubscription => ({
+      instType: "SPOT",
+      channel: "ticker",
+      instId: symbol.toUpperCase(),
+    })),
+  ];
+}
+
+/** Initialize WebSocket connection — call once on app startup */
+  async initialize(): Promise<{ type: "direct" | "proxy" | "fallback"; proxy: string | null }> {
+    const channels = this.buildSubscriptions();
+    await this.subscribe(channels);
+    return this.getConnectionInfo();
   }
 
   getPriceStore(): PriceStore {

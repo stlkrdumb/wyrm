@@ -92,17 +92,17 @@ export async function getCandlestickData(
   const resp = await bitgetFetch<{
     code: string;
     msg: string;
-    data: Array<[string, string, string, string, string, string, string, string]> | null;
+    data: Array<[string, string, string, string, string, string]> | null;
   }>(`/candles?symbol=${symbol}&granularity=${gran}`);
 
   const rows = resp.data ?? [];
-  return rows.slice(-limit).reverse().map(([ts, o, h, l, c]) => ({
+  return rows.slice(-limit).reverse().map(([ts, o, h, l, c, v]) => ({
     timestamp: Number(ts),
     open: Number(o),
     high: Number(h),
     low: Number(l),
     close: Number(c),
-    volume: 0,
+    volume: Number(v ?? 0),
   }));
 }
 

@@ -16,7 +16,7 @@ export async function POST() {
     console.log(`[API] LLM_MODEL=${process.env.LLM_MODEL}`);
     console.log(`[API] API_KEY=${process.env.OPENAI_API_KEY ? '***' + process.env.OPENAI_API_KEY.slice(-4) : 'MISSING'}`);
     console.log("[API] POST /api/agent/cycle — running agent cycle");
-    
+
     const result = await runAgentCycle();
 
     // Also return current tickers and WS status after the cycle completes
@@ -149,10 +149,19 @@ export async function GET(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const statusParam = searchParams.get("status");
+
+  // Reload .env.local to ensure fresh env vars for WS subscriptions
+  dotenv.config({ path: path.join(process.cwd(), ".env.local"), override: true });
+
   console.log(`[API] PUT /api/agent/cycle?status=${statusParam}`);
 
   if (!["running", "stopped", "paused"].includes(statusParam as string)) {
     return NextResponse.json({ status: "error", message: "Invalid status" }, { status: 400 });
+  }
+
+  // Connect WebSocket only when starting the agent (not on stopped/paused)
+  if (statusParam === "running") {
+    await marketWS.initialize();
   }
 
   const result = await setAgentStatus(statusParam as "running" | "stopped" | "paused");
