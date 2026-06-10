@@ -83,9 +83,6 @@ export const BottomStatusBar = memo(function BottomStatusBar({ agent }: Props) {
             BREAKER
           </span>
         )}
-        {state.modelName && (
-          <Badge variant="neutral" className="text-[9px] uppercase">{state.modelName}</Badge>
-        )}
         {lastCycleAt && (
           <span className="text-zinc-500 tracking-wider uppercase flex items-center gap-1">
             <span className="text-zinc-600">CYCLE</span>

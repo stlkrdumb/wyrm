@@ -14,7 +14,6 @@ const TIMEFRAMES = [
   { key: "4h", label: "4h", ms: 14_400_000 },
   { key: "24h", label: "24h", ms: 86_400_000 },
   { key: "1w", label: "1w", ms: 604_800_000 },
-  { key: "1M", label: "1M", ms: 2_592_000_000 },
 ] as const;
 
 type TimeframeKey = (typeof TIMEFRAMES)[number]["key"];

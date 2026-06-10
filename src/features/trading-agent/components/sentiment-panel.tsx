@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, memo, useCallback } from "react";
-import { Brain, Layers, Percent, Activity, Loader2 } from "lucide-react";
+import { Brain, Layers, Percent, Activity, Loader2, TrendingUp, TrendingDown } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent, Badge } from "@/shared/ui";
 import { RadialGauge } from "./radial-gauge";
 import { DEFAULT_SYMBOLS } from "@/features/trading-agent/constants/symbols.constants";
@@ -41,19 +41,19 @@ export const SentimentPanel = memo(function SentimentPanel() {
   const symbolTabs = Object.keys(sentimentMap).length > 0 ? Object.keys(sentimentMap) : DEFAULT_SYMBOLS;
 
   const getFngColorClass = (val: number) => {
-    if (val <= 25) return "text-red-500";
+    if (val <= 25) return "text-rose-500";
     if (val <= 45) return "text-orange-400";
     if (val <= 55) return "text-yellow-400";
     if (val <= 75) return "text-emerald-400";
-    return "text-green-500";
+    return "text-emerald-300";
   };
 
   const getFngBgClass = (val: number) => {
-    if (val <= 25) return "bg-red-500";
+    if (val <= 25) return "bg-rose-500";
     if (val <= 45) return "bg-orange-500";
     if (val <= 55) return "bg-yellow-500";
     if (val <= 75) return "bg-emerald-500";
-    return "bg-green-500";
+    return "bg-emerald-300";
   };
 
   if (isLoading && Object.keys(sentimentMap).length === 0) {
@@ -92,6 +92,7 @@ export const SentimentPanel = memo(function SentimentPanel() {
       <CardContent>
         {activeData ? (
           <div className="flex flex-col gap-5 font-mono">
+            {/* F&G Header */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Brain className="w-4 h-4 text-zinc-400" />
@@ -107,6 +108,7 @@ export const SentimentPanel = memo(function SentimentPanel() {
               </div>
             </div>
 
+            {/* F&G Gauge */}
             <div className="flex items-center gap-4">
               <RadialGauge value={activeData.fearAndGreedValue} size={140} strokeWidth={8} />
               <div className="flex flex-col gap-1">
@@ -119,7 +121,9 @@ export const SentimentPanel = memo(function SentimentPanel() {
               </div>
             </div>
 
+            {/* Metrics Grid */}
             <div className="grid grid-cols-3 gap-2">
+              {/* Long/Short Ratio */}
               <div className="p-2.5 rounded bg-zinc-900/20 border border-zinc-800/40 space-y-1">
                 <div className="flex items-center gap-1.5 text-zinc-500">
                   <Layers className="w-3 h-3" />
@@ -127,7 +131,8 @@ export const SentimentPanel = memo(function SentimentPanel() {
                 </div>
                 <div className="flex flex-col gap-0.5">
                   <div className="relative w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                    <div className="absolute top-0 left-0 h-full bg-emerald-500/60 rounded-full"
+                    <div
+                      className="absolute top-0 left-0 h-full bg-emerald-500/60 rounded-full"
                       style={{ width: `${(activeData.longRatio * 100).toFixed(0)}%` }}
                     />
                   </div>
@@ -138,21 +143,30 @@ export const SentimentPanel = memo(function SentimentPanel() {
                 </div>
               </div>
 
+              {/* Funding Rate */}
               <div className="p-2.5 rounded bg-zinc-900/20 border border-zinc-800/40 space-y-1.5">
                 <div className="flex items-center gap-1.5 text-zinc-500">
                   <Percent className="w-3 h-3" />
                   <span className="text-[8px] uppercase tracking-widest font-bold">Funding</span>
                 </div>
                 <div className="flex flex-col">
-                  <span className={`text-sm font-bold ${activeData.fundingRate > 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                    {(activeData.fundingRate * 100).toFixed(4)}%
-                  </span>
+                  <div className="flex items-center gap-1">
+                    {activeData.fundingRate > 0 ? (
+                      <TrendingUp className="w-3 h-3 text-emerald-400" />
+                    ) : activeData.fundingRate < 0 ? (
+                      <TrendingDown className="w-3 h-3 text-rose-400" />
+                    ) : null}
+                    <span className={`text-sm font-bold ${activeData.fundingRate > 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                      {(activeData.fundingRate * 100).toFixed(4)}%
+                    </span>
+                  </div>
                   <span className="text-[8px] text-zinc-500 mt-0.5">
                     {activeData.fundingRate > 0 ? "LONG BIAS" : activeData.fundingRate < 0 ? "SHORT BIAS" : "NEUTRAL"}
                   </span>
                 </div>
               </div>
 
+              {/* Open Interest */}
               <div className="p-2.5 rounded bg-zinc-900/20 border border-zinc-800/40 space-y-1">
                 <div className="flex items-center gap-1.5 text-zinc-500">
                   <Activity className="w-3 h-3" />
