@@ -46,8 +46,6 @@ export function EquityChart({ portfolio, ticker, equityCurve, equityHistory, tra
 
   const initialCash = useMemo(() => portfolio.initialCash ?? DEFAULT_INITIAL_CASH, [portfolio.initialCash]);
   const currentEquity = useMemo(() => portfolio.equity ?? portfolio.cash, [portfolio, ticker]);
-  const change = currentEquity - initialCash;
-  const changePercent = change !== 0 ? ((change / Math.max(initialCash, 1)) * 100).toFixed(2) : "0.00";
 
   const chartData = useMemo(() => {
     // Backtest mode: use equityCurve prop
@@ -106,11 +104,10 @@ export function EquityChart({ portfolio, ticker, equityCurve, equityHistory, tra
   }, [trades, chartData, timeframe]);
 
   const displayEquity = ticker ? currentEquity : chartData[chartData.length - 1]?.equity ?? initialCash;
-  const isProfit = change >= 0;
   const isProfitTotal = portfolio.totalPnL >= 0;
 
   const gradientId = "equityGrad";
-  const chartColor = isProfit ? "#10b981" : "#f43f5e";
+  const chartColor = isProfitTotal ? "#10b981" : "#f43f5e";
 
   return (
     <Card>
@@ -125,13 +122,6 @@ export function EquityChart({ portfolio, ticker, equityCurve, equityHistory, tra
         <div className="flex items-baseline gap-4">
           <span className="text-3xl font-black font-mono tracking-tight text-zinc-100 tabular-nums">
             ${displayEquity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </span>
-          <span className={`text-[11px] font-bold font-mono px-2 py-0.5 rounded border tracking-wide uppercase ${
-            isProfit
-              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-              : "bg-rose-500/10 text-rose-400 border-rose-500/20"
-          }`}>
-            {isProfit ? "+" : ""}{changePercent}%
           </span>
         </div>
 

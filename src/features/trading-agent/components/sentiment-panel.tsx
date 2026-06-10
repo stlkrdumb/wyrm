@@ -3,7 +3,6 @@
 import { useEffect, useState, memo, useCallback } from "react";
 import { Brain, Layers, Percent, Activity, Loader2, TrendingUp, TrendingDown } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent, Badge } from "@/shared/ui";
-import { RadialGauge } from "./radial-gauge";
 import { DEFAULT_SYMBOLS } from "@/features/trading-agent/constants/symbols.constants";
 import type { SentimentSnapshot } from "@/features/trading-agent/index";
 
@@ -46,14 +45,6 @@ export const SentimentPanel = memo(function SentimentPanel() {
     if (val <= 55) return "text-yellow-400";
     if (val <= 75) return "text-emerald-400";
     return "text-emerald-300";
-  };
-
-  const getFngBgClass = (val: number) => {
-    if (val <= 25) return "bg-rose-500";
-    if (val <= 45) return "bg-orange-500";
-    if (val <= 55) return "bg-yellow-500";
-    if (val <= 75) return "bg-emerald-500";
-    return "bg-emerald-300";
   };
 
   if (isLoading && Object.keys(sentimentMap).length === 0) {
@@ -108,16 +99,29 @@ export const SentimentPanel = memo(function SentimentPanel() {
               </div>
             </div>
 
-            {/* F&G Gauge */}
-            <div className="flex items-center gap-4">
-              <RadialGauge value={activeData.fearAndGreedValue} size={140} strokeWidth={8} />
-              <div className="flex flex-col gap-1">
-                <span className={`text-2xl font-black ${getFngColorClass(activeData.fearAndGreedValue)}`}>
-                  {activeData.fearAndGreedValue}
-                </span>
-                <span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest">
-                  Extreme Fear ← → Extreme Greed
-                </span>
+            {/* F&G Spectrum Bar */}
+            <div className="flex flex-col gap-2">
+              <div className="relative h-3 rounded-full overflow-hidden bg-zinc-800">
+                {/* Gradient spectrum */}
+                <div
+                  className="absolute inset-0"
+                  style={{
+                    background: "linear-gradient(to right, #ef4444, #f97316, #eab308, #22c55e, #10b981)",
+                  }}
+                />
+                {/* Marker */}
+                <div
+                  className="absolute top-0 bottom-0 w-1 bg-white rounded-full shadow-[0_0_8px_rgba(255,255,255,0.8)] transition-all duration-500"
+                  style={{ left: `${activeData.fearAndGreedValue}%` }}
+                />
+              </div>
+              {/* Labels */}
+              <div className="flex justify-between text-[8px] font-bold tracking-wider uppercase text-zinc-600">
+                <span>Extreme Fear</span>
+                <span>Fear</span>
+                <span>Neutral</span>
+                <span>Greed</span>
+                <span>Extreme Greed</span>
               </div>
             </div>
 
