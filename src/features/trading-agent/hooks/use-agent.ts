@@ -52,6 +52,7 @@ interface AgentState {
   peakEquity: number;
   llmProgress?: { text: string; tokensReceived: number } | null;
   modelName: string;
+  watchlist: string[];
 }
 
 let lastKnownState: AgentState | null = null;
@@ -68,6 +69,7 @@ export function useAgent() {
     circuitBreakerThresholdPct: 5.0,
     peakEquity: 1000,
     modelName: "qwen3.6-plus",
+    watchlist: [],
   });
 
   // Stable fetch function — only recreates if URL changes
@@ -100,6 +102,7 @@ export function useAgent() {
         peakEquity: Number(data.peakEquity) || 1000,
         llmProgress: data.llmProgress || null,
         modelName: data.modelName || "qwen3.6-plus",
+        watchlist: data.watchlist || [],
       };
 
       lastKnownState = normalized;

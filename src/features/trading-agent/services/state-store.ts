@@ -27,6 +27,7 @@ export interface AgentState {
   peakEquity: number;
   llmProgress?: { text: string; tokensReceived: number } | null;
   modelName: string;
+  watchlist: string[];
 }
 
 export const config = {

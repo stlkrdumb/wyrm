@@ -9,7 +9,7 @@ import { SentimentPanel } from "./sentiment-panel";
 import { EquityChart } from "./equity-chart";
 import { PositionsPanel } from "./positions-panel";
 import { TradeLog } from "./trade-log";
-import { MarketWatch } from "./market-watch";
+import { Watchlist } from "./watchlist";
 import { DecisionHistory } from "./decision-history";
 import { BacktestPanel } from "./backtest-panel";
 import { StrategyPanel } from "./strategy-panel";
@@ -28,7 +28,7 @@ export function Dashboard() {
 
       {/* Full-width scrolling ticker tape */}
       <div className="px-6 pt-6 max-w-[1800px] mx-auto w-full flex-shrink-0">
-        <MarketWatch tickers={agent.state.tickers} />
+        <Watchlist tickers={agent.state.tickers} watchlist={agent.state.watchlist} />
       </div>
 
       <main className="flex-1 px-6 pb-6 pt-4 flex flex-col lg:flex-row gap-6 max-w-[1800px] mx-auto w-full">

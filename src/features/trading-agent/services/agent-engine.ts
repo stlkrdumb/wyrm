@@ -80,6 +80,7 @@ function buildInitialState(): AgentState {
     circuitBreakerThresholdPct: saved?.circuitBreakerThresholdPct ?? 5.0,
     peakEquity: peakEq,
     modelName: process.env.LLM_MODEL || "qwen3.6-plus",
+    watchlist: [],
   };
 }
 
@@ -210,6 +211,15 @@ export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ ticker
 
   setS({ decision: best, signals: er.allSignals });
   executeTrades(st, validated, prices, displayTicker);
+
+  // Sync watchlist: keep position symbols + add freshly screened picks
+  const posSyms = new Set(st.positions.map(p => p.symbol));
+  const kept = st.watchlist.filter(s => posSyms.has(s));
+  for (const s of screenSelected) {
+    if (!posSyms.has(s) && !kept.includes(s)) kept.push(s);
+  }
+  st.watchlist = kept;
+
   return { tickerPrice: displayTicker.lastPrice, tickers: Object.fromEntries(prices) };
 }
 
@@ -252,14 +262,15 @@ export async function setAgentStatus(s: "running" | "stopped" | "paused"): Promi
     st.positions = [];
     st.portfolio.totalPnL += totalPnlRealized;
     st.portfolio.equity = st.portfolio.cash;
-    saveBalanceState({
-      initialCash: config.initialCash, startCash: state?.startEquity ?? st.startEquity, cash: st.portfolio.cash,
-      accumulatedRealizedPnL: st.portfolio.totalPnL, positions: [], totalTrades: st.portfolio.totalTrades, winRate: st.portfolio.winRate,
-    });
-    return { closed: closedCount, realizedPnl: totalPnlRealized };
+      st.watchlist = [];
+      saveBalanceState({
+        initialCash: config.initialCash, startCash: state?.startEquity ?? st.startEquity, cash: st.portfolio.cash,
+        accumulatedRealizedPnL: st.portfolio.totalPnL, positions: [], totalTrades: st.portfolio.totalTrades, winRate: st.portfolio.winRate,
+      });
+      return { closed: closedCount, realizedPnl: totalPnlRealized };
+    }
+    return {};
   }
-  return {};
-}
 
 export function resetCircuitBreaker(): void {
   getState().circuitBreakerTripped = false;

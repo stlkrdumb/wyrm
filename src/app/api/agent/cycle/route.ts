@@ -46,6 +46,7 @@ export async function POST() {
       wsConnection: marketWS.getConnectionInfo(),
       decision: currentState.decision,
       signals: currentState.signals.map(s => ({ name: s.name, source: s.source, direction: s.direction, strength: s.strength })),
+      watchlist: currentState.watchlist || [],
     });
   } catch (error: any) {
     console.error("[API] CRITICAL ERROR in POST /api/agent/cycle:", error);
@@ -152,6 +153,7 @@ export async function GET(request: NextRequest) {
     circuitBreakerTripped: currentState.circuitBreakerTripped,
     circuitBreakerThresholdPct: currentState.circuitBreakerThresholdPct,
     peakEquity: currentState.peakEquity,
+    watchlist: currentState.watchlist || [],
   });
 }
 

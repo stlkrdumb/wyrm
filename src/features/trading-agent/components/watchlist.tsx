@@ -5,6 +5,7 @@ import type { TickerData } from "@/features/trading-agent/hooks/use-agent";
 
 interface Props {
   tickers: Record<string, TickerData | null> | null;
+  watchlist: string[];
 }
 
 function TickerItem({ symbol, ticker }: { symbol: string; ticker: TickerData }) {
@@ -32,12 +33,11 @@ function TickerItem({ symbol, ticker }: { symbol: string; ticker: TickerData }) 
 
   return (
     <div className={`flex items-center gap-2.5 px-3 py-1.5 rounded border border-zinc-900 bg-zinc-950/40 transition-all duration-300 flex-shrink-0 ${flashClass}`}>
-      {/* Coin Logo */}
       {!imgError ? (
-        <img 
-          src={logoUrl} 
-          alt={coin} 
-          onError={() => setImgError(true)} 
+        <img
+          src={logoUrl}
+          alt={coin}
+          onError={() => setImgError(true)}
           className="w-4 h-4 rounded-full flex-shrink-0"
         />
       ) : (
@@ -57,23 +57,30 @@ function TickerItem({ symbol, ticker }: { symbol: string; ticker: TickerData }) 
   );
 }
 
-export function MarketWatch({ tickers }: Props) {
-  if (!tickers || Object.keys(tickers).length === 0) {
+export function Watchlist({ tickers, watchlist }: Props) {
+  if (!watchlist || watchlist.length === 0) {
     return (
-      <div className="flex items-center justify-between px-6 py-4 rounded border border-zinc-900 bg-zinc-950/40 backdrop-blur-md">
-        <span className="text-xs font-mono tracking-widest text-zinc-500 uppercase animate-pulse">
-          INITIALIZING MARKET STREAM...
-        </span>
+      <div className="flex flex-col gap-1.5 overflow-hidden">
+        <div className="flex items-center justify-between px-2 flex-shrink-0">
+          <span className="text-[10px] tracking-widest text-zinc-500 font-bold uppercase">Watchlist</span>
+        </div>
+        <div className="flex items-center justify-center py-6 rounded border border-zinc-900 bg-zinc-950/40">
+          <span className="text-xs font-mono text-zinc-600 tracking-wider text-center px-4">
+            No coins selected yet — start the agent and wait for a cycle
+          </span>
+        </div>
       </div>
     );
   }
 
-  const entries = Object.entries(tickers).filter(([, t]) => t !== null) as [string, TickerData][];
+  const entries = watchlist
+    .map(sym => [sym, tickers?.[sym] ?? null] as const)
+    .filter(([, t]) => t !== null) as [string, TickerData][];
 
   return (
     <div className="flex flex-col gap-1.5 overflow-hidden">
       <div className="flex items-center justify-between px-2 flex-shrink-0">
-        <span className="text-[10px] tracking-widest text-zinc-500 font-bold uppercase">Markets</span>
+        <span className="text-[10px] tracking-widest text-zinc-500 font-bold uppercase">Watchlist</span>
         <span className="text-[9px] tracking-wider text-emerald-500 font-bold uppercase flex items-center gap-1.5">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
           Live WebSocket
