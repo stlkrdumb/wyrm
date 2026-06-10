@@ -46,8 +46,8 @@ export function TerminalLog({ logs }: Props) {
   }, [logs]);
 
   return (
-    <Card className="h-[200px]">
-      <CardHeader>
+    <Card className="h-[200px] !border-transparent">
+      <CardHeader className="!border-transparent">
         <CardTitle>Agent Console</CardTitle>
         <span className="text-[9px] tracking-widest text-zinc-500 font-mono flex items-center gap-1.5">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
