@@ -102,7 +102,7 @@ export function CircuitBreakerPanel({
               <Progress
                 value={drawdownProgress}
                 max={100}
-                variant={circuitBreakerTripped ? "rose" : drawdownProgress > 70 ? "cyan" : "emerald"}
+                variant={circuitBreakerTripped ? "rose" : drawdownProgress > 70 ? "white" : "emerald"}
               />
             </div>
 

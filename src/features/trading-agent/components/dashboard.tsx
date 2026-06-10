@@ -101,7 +101,7 @@ export function Dashboard() {
               onClick={() => setActiveSidebarTab("intel")}
               className={`flex-1 py-2 px-3 text-[10px] font-bold tracking-widest uppercase rounded transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                 activeSidebarTab === "intel"
-                  ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
+                  ? "bg-white/10 text-white border border-white/20"
                   : "text-zinc-500 hover:text-zinc-300 border border-transparent"
               }`}
             >
@@ -112,7 +112,7 @@ export function Dashboard() {
               onClick={() => setActiveSidebarTab("config")}
               className={`flex-1 py-2 px-3 text-[10px] font-bold tracking-widest uppercase rounded transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                 activeSidebarTab === "config"
-                  ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
+                  ? "bg-white/10 text-white border border-white/20"
                   : "text-zinc-500 hover:text-zinc-300 border border-transparent"
               }`}
             >

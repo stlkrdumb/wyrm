@@ -16,7 +16,7 @@ interface Props {
 const levelColor: Record<string, string> = {
   info: "text-zinc-500",
   action: "text-emerald-400",
-  warning: "text-cyan-400",
+  warning: "text-white",
   error: "text-rose-400",
 };
 

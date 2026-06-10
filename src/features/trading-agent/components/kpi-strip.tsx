@@ -55,7 +55,7 @@ export const KpiStrip = memo(function KpiStrip({ portfolio, positions, peakEquit
       prefix: "",
       suffix: "",
       decimals: 0,
-      color: positions.length > 0 ? "text-cyan-400" : "text-zinc-500",
+      color: positions.length > 0 ? "text-white" : "text-zinc-500",
       glowColor: "rgba(0, 212, 255, 0.1)",
     },
     {
@@ -101,7 +101,7 @@ export const KpiStrip = memo(function KpiStrip({ portfolio, positions, peakEquit
               </div>
             </div>
             {isRunning && (
-              <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse mt-1" />
+              <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse mt-1" />
             )}
           </div>
         </div>

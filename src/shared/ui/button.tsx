@@ -1,7 +1,7 @@
 import { cn } from "@/shared/ui/utils";
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "primary" | "secondary" | "ghost" | "danger" | "cyan" | "emerald";
+  variant?: "primary" | "secondary" | "ghost" | "danger" | "white" | "emerald";
   size?: "sm" | "md" | "lg";
 }
 
@@ -10,7 +10,7 @@ const variants = {
   secondary: "bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800",
   ghost: "hover:bg-zinc-800 text-zinc-400",
   danger: "bg-rose-600 hover:bg-rose-500 text-white border border-rose-500",
-  cyan: "bg-cyan-600 hover:bg-cyan-500 text-white border border-cyan-500",
+  white: "bg-white hover:bg-white text-white border border-white",
   emerald: "bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500",
 };
 
@@ -25,7 +25,7 @@ export function Button({ className, variant = "primary", size = "md", ...props }
     <button
       className={cn(
         "inline-flex items-center justify-center rounded-md font-semibold tracking-wider uppercase transition-all duration-200",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/50 disabled:pointer-events-none disabled:opacity-40",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 disabled:pointer-events-none disabled:opacity-40",
         variants[variant],
         sizes[size],
         className

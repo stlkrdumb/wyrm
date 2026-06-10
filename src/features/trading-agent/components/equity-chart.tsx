@@ -172,7 +172,7 @@ export function EquityChart({ portfolio, ticker, equityCurve, equityHistory, tra
               onClick={() => setTimeframe(tf.key)}
               className={`px-2 py-0.5 text-[9px] font-bold tracking-widest uppercase rounded transition-all cursor-pointer ${
                 timeframe === tf.key
-                  ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
+                  ? "bg-white/10 text-white border border-white/20"
                   : "text-zinc-500 hover:text-zinc-300 border border-transparent"
               }`}
             >

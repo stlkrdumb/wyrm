@@ -40,8 +40,8 @@ export const BottomStatusBar = memo(function BottomStatusBar({ agent }: Props) {
     if (state.wsStatus === "connected") {
       if (state.wsConnection?.type === "proxy") {
         return (
-          <span title={state.wsConnection?.proxy || "Proxy Route"} className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold tracking-wider uppercase bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 cursor-help">
-            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+          <span title={state.wsConnection?.proxy || "Proxy Route"} className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold tracking-wider uppercase bg-white/10 text-white border border-white/20 cursor-help">
+            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
             PROXY
           </span>
         );
@@ -96,8 +96,8 @@ export const BottomStatusBar = memo(function BottomStatusBar({ agent }: Props) {
 
       <div className="flex items-center gap-2">
         {showLlmProgress && (
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[9px] font-medium tracking-wider uppercase bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[9px] font-medium tracking-wider uppercase bg-white/10 text-white border border-white/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
             LLM
             <span className="text-zinc-600 font-normal">({state.llmProgress?.tokensReceived || 0}t)</span>
           </span>

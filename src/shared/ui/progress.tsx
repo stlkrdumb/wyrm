@@ -5,14 +5,14 @@ import { cn } from "@/shared/ui/utils";
 interface ProgressProps {
   value: number;
   max?: number;
-  variant?: "emerald" | "cyan" | "rose" | "zinc";
+  variant?: "emerald" | "white" | "rose" | "zinc";
   className?: string;
   barClassName?: string;
 }
 
 const barVariants = {
   emerald: "bg-emerald-500",
-  cyan: "bg-cyan-500",
+  white: "bg-white",
   rose: "bg-rose-500",
   zinc: "bg-zinc-500",
 };

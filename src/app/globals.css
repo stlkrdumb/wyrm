@@ -9,9 +9,9 @@
   --color-obsidian-lighter: #1a1a24;
   --color-obsidian-border: #2a2a3a;
   --color-obsidian-border-hover: #3a3a4a;
-  --color-cyan: #00d4ff;
-  --color-cyan-dim: #00d4ff40;
-  --color-cyan-glow: #00d4ff20;
+  --color-accent: white;
+  --color-accent-dim: rgba(255,255,255,0.25);
+  --color-accent-glow: rgba(255,255,255,0.12);
 }
 
 body {
@@ -48,36 +48,36 @@ body {
 
 .glass-panel:hover {
   border-color: var(--color-obsidian-border-hover);
-  box-shadow: 0 0 20px rgba(0, 212, 255, 0.05);
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.05);
 }
 
 .glass-panel-glow {
   background: rgba(17, 17, 24, 0.7);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(0, 212, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 8px;
   box-shadow: 0 0 30px rgba(0, 212, 255, 0.08);
 }
 
 /* ─── Cyan Glow Utilities ──────────────────────── */
 
-.glow-cyan {
-  text-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+.glow-white {
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
 }
 
-.glow-cyan-subtle {
-  text-shadow: 0 0 6px rgba(0, 212, 255, 0.15);
+.glow-white-subtle {
+  text-shadow: 0 0 6px rgba(255, 255, 255, 0.15);
 }
 
 /* ─── Cyan pulse glow for active state */
-@keyframes pulse-cyan {
-  0%, 100% { box-shadow: 0 0 4px rgba(0, 212, 255, 0.15); }
-  50% { box-shadow: 0 0 16px rgba(0, 212, 255, 0.35); }
+@keyframes pulse-white {
+  0%, 100% { box-shadow: 0 0 4px rgba(255, 255, 255, 0.15); }
+  50% { box-shadow: 0 0 16px rgba(255, 255, 255, 0.35); }
 }
 
-.animate-pulse-cyan {
-  animation: pulse-cyan 2s ease-in-out infinite;
+.animate-pulse-white {
+  animation: pulse-white 2s ease-in-out infinite;
 }
 
 /* ─── Empty State Animation ──────────────────────── */
@@ -106,7 +106,7 @@ body {
 
 @keyframes count-up-flash {
   0% { color: inherit; }
-  20% { color: #00d4ff; }
+  20% { color: white; }
   100% { color: inherit; }
 }
 
