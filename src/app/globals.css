@@ -89,6 +89,40 @@ body {
   @apply bg-zinc-700;
 }
 
+/* ─── Empty State Animation ──────────────────────── */
+
+@keyframes empty-pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.6; }
+}
+
+.animate-empty-pulse {
+  animation: empty-pulse 2s ease-in-out infinite;
+}
+
+@keyframes scan-line {
+  0% { top: 0%; opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+
+.animate-scan-line {
+  animation: scan-line 3s ease-in-out infinite;
+}
+
+/* ─── Count-up number transition ───────────────────── */
+
+@keyframes count-up-flash {
+  0% { color: inherit; }
+  20% { color: #fbbf24; }
+  100% { color: inherit; }
+}
+
+.animate-count-up {
+  animation: count-up-flash 0.5s ease-out;
+}
+
 /* ─── Ticker Flash Animations ──────────────────────── */
 
 @keyframes slide-in-right {

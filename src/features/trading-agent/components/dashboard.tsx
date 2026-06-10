@@ -17,13 +17,13 @@ import { CircuitBreakerPanel } from "./circuit-breaker-panel";
 import { NewsPanel } from "./news-panel";
 import { TerminalLog } from "./terminal-log";
 import { TradeToast } from "./trade-toast";
+import { KpiStrip } from "./kpi-strip";
 import { Tabs } from "@/shared/ui";
-import { Brain, ChevronLeft, ChevronRight } from "lucide-react";
+import { Brain } from "lucide-react";
 
 export function Dashboard() {
   const agent = useAgent();
   const [activeLogTab, setActiveLogTab] = useState<"execution" | "decision" | "console">("execution");
-  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
   const [activeSidebarTab, setActiveSidebarTab] = useState<"intel" | "config">("intel");
 
   return (
@@ -31,8 +31,18 @@ export function Dashboard() {
       <TradeToast trades={agent.state.trades} />
       <StatusHeader agent={agent} />
 
+      {/* KPI Strip */}
+      <div className="px-6 pt-4 max-w-[1800px] mx-auto w-full flex-shrink-0">
+        <KpiStrip
+          portfolio={agent.state.portfolio}
+          positions={agent.state.positions}
+          peakEquity={agent.state.peakEquity}
+          status={agent.state.status}
+        />
+      </div>
+
       {/* Watchlist */}
-      <div className="px-6 pt-6 max-w-[1800px] mx-auto w-full flex-shrink-0">
+      <div className="px-6 pt-4 max-w-[1800px] mx-auto w-full flex-shrink-0">
         <Watchlist tickers={agent.state.tickers} watchlist={agent.state.watchlist} />
       </div>
 
@@ -55,8 +65,8 @@ export function Dashboard() {
               </div>
             )}
 
-            {/* Unified Logs Console */}
-            <div className="flex flex-col gap-4 p-5 rounded border border-zinc-800/80 bg-zinc-950/60 shadow-lg shadow-black/40 relative overflow-hidden h-[450px]">
+            {/* Unified Logs Console — Full Height */}
+            <div className="flex flex-col gap-4 p-5 rounded border border-zinc-800/80 bg-zinc-950/60 shadow-lg shadow-black/40 relative overflow-hidden flex-grow min-h-[500px]">
               <Tabs
                 tabs={[
                   { key: "execution", label: "Execution Log" },
@@ -79,83 +89,53 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* Collapsible Right Sidebar */}
-        <div className={`flex-shrink-0 transition-all duration-300 ease-in-out flex flex-col gap-4 overflow-hidden ${
-          isSidebarOpen ? "w-full lg:w-[380px]" : "w-full lg:w-[48px]"
-        }`}>
-          {isSidebarOpen ? (
-            <>
-              <button
-                onClick={() => setIsSidebarOpen(false)}
-                className="w-full py-2 bg-zinc-950/40 hover:bg-zinc-900 border border-zinc-800/80 rounded flex items-center justify-center text-zinc-500 hover:text-zinc-300 font-mono text-[9px] uppercase tracking-widest gap-2 cursor-pointer transition-colors"
-              >
-                <ChevronRight className="w-3 h-3" />
-                <span>COLLAPSE</span>
-              </button>
+        {/* Right Sidebar — Always Open */}
+        <div className="flex-shrink-0 flex flex-col gap-4 w-full lg:w-[360px] overflow-hidden">
+          {/* Sidebar Tab Switcher */}
+          <div className="flex gap-1 border border-zinc-800/80 rounded p-0.5 bg-zinc-950/60">
+            <button
+              onClick={() => setActiveSidebarTab("intel")}
+              className={`flex-1 py-1.5 text-[9px] font-bold tracking-widest uppercase rounded transition-all cursor-pointer ${
+                activeSidebarTab === "intel"
+                  ? "bg-amber-500/15 text-amber-400 border border-amber-500/25"
+                  : "text-zinc-500 hover:text-zinc-300 border border-transparent"
+              }`}
+            >
+              <Brain className="w-3 h-3 inline mr-1 -mt-0.5" />
+              Intel
+            </button>
+            <button
+              onClick={() => setActiveSidebarTab("config")}
+              className={`flex-1 py-1.5 text-[9px] font-bold tracking-widest uppercase rounded transition-all cursor-pointer ${
+                activeSidebarTab === "config"
+                  ? "bg-amber-500/15 text-amber-400 border border-amber-500/25"
+                  : "text-zinc-500 hover:text-zinc-300 border border-transparent"
+              }`}
+            >
+              Config
+            </button>
+          </div>
 
-              {/* Sidebar Tab Switcher */}
-              <div className="flex gap-1 border border-zinc-800/80 rounded p-0.5 bg-zinc-950/60">
-                <button
-                  onClick={() => setActiveSidebarTab("intel")}
-                  className={`flex-1 py-1.5 text-[9px] font-bold tracking-widest uppercase rounded transition-all cursor-pointer ${
-                    activeSidebarTab === "intel"
-                      ? "bg-amber-500/15 text-amber-400 border border-amber-500/25"
-                      : "text-zinc-500 hover:text-zinc-300 border border-transparent"
-                  }`}
-                >
-                  <Brain className="w-3 h-3 inline mr-1 -mt-0.5" />
-                  Intel
-                </button>
-                <button
-                  onClick={() => setActiveSidebarTab("config")}
-                  className={`flex-1 py-1.5 text-[9px] font-bold tracking-widest uppercase rounded transition-all cursor-pointer ${
-                    activeSidebarTab === "config"
-                      ? "bg-amber-500/15 text-amber-400 border border-amber-500/25"
-                      : "text-zinc-500 hover:text-zinc-300 border border-transparent"
-                  }`}
-                >
-                  Config
-                </button>
-              </div>
-
-              <div className="flex flex-col gap-4 overflow-y-auto scrollbar-none flex-grow">
-                {activeSidebarTab === "intel" ? (
-                  <>
-                    <SentimentPanel />
-                    <NewsPanel />
-                  </>
-                ) : (
-                  <>
-                    <BacktestPanel />
-                    <CircuitBreakerPanel
-                      circuitBreakerTripped={agent.state.circuitBreakerTripped}
-                      circuitBreakerThresholdPct={agent.state.circuitBreakerThresholdPct}
-                      peakEquity={agent.state.peakEquity}
-                      currentEquity={agent.state.portfolio?.equity ?? 0}
-                      resetBreaker={agent.resetBreaker}
-                    />
-                    <StrategyPanel />
-                  </>
-                )}
-              </div>
-            </>
-          ) : (
-            <div className="flex flex-col items-center gap-4 pt-2 h-full border border-zinc-800/80 bg-zinc-950/20 rounded py-4">
-              <button
-                onClick={() => setIsSidebarOpen(true)}
-                className="p-2 bg-zinc-950/40 hover:bg-zinc-900 border border-zinc-800/80 rounded flex items-center justify-center text-zinc-500 hover:text-zinc-300 cursor-pointer transition-colors"
-                title="Expand Sidebar"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <div
-                className="text-[9px] font-mono tracking-widest text-zinc-600 font-bold uppercase select-none pointer-events-none whitespace-nowrap"
-                style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
-              >
-                SIDEBAR
-              </div>
-            </div>
-          )}
+          <div className="flex flex-col gap-4 overflow-y-auto scrollbar-none flex-grow">
+            {activeSidebarTab === "intel" ? (
+              <>
+                <SentimentPanel />
+                <NewsPanel />
+              </>
+            ) : (
+              <>
+                <BacktestPanel />
+                <CircuitBreakerPanel
+                  circuitBreakerTripped={agent.state.circuitBreakerTripped}
+                  circuitBreakerThresholdPct={agent.state.circuitBreakerThresholdPct}
+                  peakEquity={agent.state.peakEquity}
+                  currentEquity={agent.state.portfolio?.equity ?? 0}
+                  resetBreaker={agent.resetBreaker}
+                />
+                <StrategyPanel />
+              </>
+            )}
+          </div>
         </div>
       </main>
 

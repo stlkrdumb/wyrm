@@ -32,8 +32,16 @@ export const SignalPanel = memo(function SignalPanel({ signals, decision }: Prop
           <CardTitle>Decision Signals</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-[11px] font-mono text-zinc-500 py-12 text-center tracking-wide uppercase">
-            Waiting for agent cycle initialization...
+          <div className="relative flex items-center justify-center py-12 overflow-hidden">
+            <div className="absolute inset-0 opacity-20" style={{
+              backgroundImage: 'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
+              backgroundSize: '20px 20px'
+            }} />
+            <div className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-amber-500/40 to-transparent animate-scan-line" />
+            <div className="relative z-10 flex flex-col items-center gap-2 text-[11px] font-mono text-zinc-500 tracking-wide uppercase">
+              <div className="w-2 h-2 rounded-full bg-amber-500/30 animate-empty-pulse" />
+              <span>Waiting for agent cycle initialization...</span>
+            </div>
           </div>
         </CardContent>
       </Card>

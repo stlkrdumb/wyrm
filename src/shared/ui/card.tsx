@@ -9,11 +9,25 @@ export function Card({ className, children }: CardProps) {
   return (
     <div
       className={cn(
-        "rounded border border-zinc-800/80 bg-zinc-950/60 p-4 shadow-lg shadow-black/40 relative overflow-hidden transition-colors duration-300 hover:border-zinc-700/80",
+        "rounded border border-zinc-800/80 bg-zinc-950/60 p-4 shadow-lg shadow-black/40 relative overflow-hidden transition-all duration-300 hover:border-zinc-700/80 hover:shadow-xl hover:shadow-black/50 z-0",
         className
       )}
     >
       <div className="absolute inset-0 bg-gradient-to-b from-zinc-900/30 to-transparent pointer-events-none" />
+      {children}
+    </div>
+  );
+}
+
+export function CardGlow({ className, children }: CardProps) {
+  return (
+    <div
+      className={cn(
+        "rounded border border-amber-500/30 bg-zinc-950/60 p-4 shadow-lg shadow-amber-900/20 relative overflow-hidden transition-all duration-300 hover:border-amber-500/50 hover:shadow-xl hover:shadow-amber-900/30 z-10",
+        className
+      )}
+    >
+      <div className="absolute inset-0 bg-gradient-to-b from-amber-900/10 to-transparent pointer-events-none" />
       {children}
     </div>
   );
