@@ -19,7 +19,7 @@ import { TerminalLog } from "./terminal-log";
 import { TradeToast } from "./trade-toast";
 import { KpiStrip } from "./kpi-strip";
 import { Tabs } from "@/shared/ui";
-import { Brain } from "lucide-react";
+import { Activity, Brain, Settings } from "lucide-react";
 
 export function Dashboard() {
   const agent = useAgent();
@@ -27,12 +27,18 @@ export function Dashboard() {
   const [activeSidebarTab, setActiveSidebarTab] = useState<"intel" | "config">("intel");
 
   return (
-    <div className="flex flex-col min-h-screen bg-zinc-950/20 text-zinc-100">
+    <div className="min-h-screen bg-obsidian text-zinc-100 relative">
+      {/* Subtle radial gradient overlay */}
+      <div className="fixed inset-0 bg-gradient-radial pointer-events-none" />
+      <div className="fixed inset-0 grid-bg pointer-events-none opacity-30" />
+
       <TradeToast trades={agent.state.trades} />
+      
+      {/* Header */}
       <StatusHeader agent={agent} />
 
       {/* KPI Strip */}
-      <div className="px-6 pt-4 max-w-[1800px] mx-auto w-full flex-shrink-0">
+      <div className="relative z-10 px-4 pt-4 max-w-[1920px] mx-auto">
         <KpiStrip
           portfolio={agent.state.portfolio}
           positions={agent.state.positions}
@@ -42,81 +48,91 @@ export function Dashboard() {
       </div>
 
       {/* Watchlist */}
-      <div className="px-6 pt-4 max-w-[1800px] mx-auto w-full flex-shrink-0">
+      <div className="relative z-10 px-4 pt-3 max-w-[1920px] mx-auto">
         <Watchlist tickers={agent.state.tickers} watchlist={agent.state.watchlist} />
       </div>
 
-      <main className="flex-1 px-6 pb-6 pt-4 flex flex-col lg:flex-row gap-6 max-w-[1800px] mx-auto w-full">
-        {/* Main Workspace */}
-        <div className="flex-grow grid grid-cols-1 xl:grid-cols-2 gap-6 min-w-0">
+      {/* Main Terminal Grid */}
+      <main className="relative z-10 px-4 pb-4 pt-3 max-w-[1920px] mx-auto grid grid-cols-12 gap-3">
+        {/* Left Column: Chart + Positions (span 5) */}
+        <div className="col-span-5 flex flex-col gap-3">
+          <EquityChart 
+            portfolio={agent.state.portfolio} 
+            ticker={agent.state.ticker} 
+            equityHistory={agent.state.equityHistory}
+            trades={agent.state.trades}
+          />
+          <PositionsPanel 
+            positions={agent.state.positions} 
+            tickers={agent.state.tickers} 
+          />
+        </div>
+
+        {/* Center Column: Signals + Logs (span 4) */}
+        <div className="col-span-4 flex flex-col gap-3">
+          <SignalPanel 
+            signals={agent.state.signals} 
+            decision={agent.state.decision} 
+          />
           
-          {/* Column 1: Equity + Positions */}
-          <div className="flex flex-col gap-6">
-            <EquityChart portfolio={agent.state.portfolio} ticker={agent.state.ticker} equityHistory={agent.state.equityHistory} trades={agent.state.trades} />
-            <PositionsPanel positions={agent.state.positions} tickers={agent.state.tickers} />
-          </div>
+          {agent.state.decision && (agent.state.decision as any).riskStatus === "blocked" && (
+            <div className="glass-panel border-rose-500/30 bg-rose-950/20 p-3 text-[11px] text-rose-400 font-mono animate-pulse">
+              <span className="font-bold mr-2">RISK ALERT:</span> {agent.state.decision.reason}
+            </div>
+          )}
 
-          {/* Column 2: Signals + Logs */}
-          <div className="flex flex-col gap-6">
-            <SignalPanel signals={agent.state.signals} decision={agent.state.decision} />
-            {agent.state.decision && (agent.state.decision as any).riskStatus === "blocked" && (
-              <div className="bg-rose-500/10 border border-rose-500/50 p-3 rounded text-[11px] text-rose-400 font-mono animate-pulse">
-                <span className="font-bold mr-2">RISK ALERT:</span> {agent.state.decision.reason}
-              </div>
-            )}
-
-            {/* Unified Logs Console — Full Height */}
-            <div className="flex flex-col gap-4 p-5 rounded border border-zinc-800/80 bg-zinc-950/60 shadow-lg shadow-black/40 relative overflow-hidden flex-grow min-h-[500px]">
-              <Tabs
-                tabs={[
-                  { key: "execution", label: "Execution Log" },
-                  { key: "decision", label: "Decision Log" },
-                  { key: "console", label: "Console" },
-                ]}
-                active={activeLogTab}
-                onChange={(key) => setActiveLogTab(key as "execution" | "decision" | "console")}
-              />
-              <div className="flex-grow overflow-hidden flex flex-col">
-                {activeLogTab === "execution" ? (
-                  <TradeLog trades={agent.state.trades} portfolio={agent.state.portfolio} isTabMode={true} />
-                ) : activeLogTab === "decision" ? (
-                  <DecisionHistory isTabMode={true} />
-                ) : (
-                  <TerminalLog logs={agent.state.logs} />
-                )}
-              </div>
+          {/* Logs Console */}
+          <div className="glass-panel flex flex-col gap-3 p-4 flex-grow min-h-[500px]">
+            <Tabs
+              tabs={[
+                { key: "execution", label: "Execution" },
+                { key: "decision", label: "Decisions" },
+                { key: "console", label: "Console" },
+              ]}
+              active={activeLogTab}
+              onChange={(key) => setActiveLogTab(key as "execution" | "decision" | "console")}
+            />
+            <div className="flex-grow overflow-hidden flex flex-col">
+              {activeLogTab === "execution" ? (
+                <TradeLog trades={agent.state.trades} portfolio={agent.state.portfolio} isTabMode={true} />
+              ) : activeLogTab === "decision" ? (
+                <DecisionHistory isTabMode={true} />
+              ) : (
+                <TerminalLog logs={agent.state.logs} />
+              )}
             </div>
           </div>
         </div>
 
-        {/* Right Sidebar — Always Open */}
-        <div className="flex-shrink-0 flex flex-col gap-4 w-full lg:w-[360px] overflow-hidden">
-          {/* Sidebar Tab Switcher */}
-          <div className="flex gap-1 border border-zinc-800/80 rounded p-0.5 bg-zinc-950/60">
+        {/* Right Column: Intel + Config (span 3) */}
+        <div className="col-span-3 flex flex-col gap-3">
+          {/* Sidebar Tabs */}
+          <div className="glass-panel p-1 flex gap-1">
             <button
               onClick={() => setActiveSidebarTab("intel")}
-              className={`flex-1 py-1.5 text-[9px] font-bold tracking-widest uppercase rounded transition-all cursor-pointer ${
+              className={`flex-1 py-2 px-3 text-[10px] font-bold tracking-widest uppercase rounded transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                 activeSidebarTab === "intel"
-                  ? "bg-cyan-500/15 text-cyan-400 border border-cyan-500/25"
+                  ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
                   : "text-zinc-500 hover:text-zinc-300 border border-transparent"
               }`}
             >
-              <Brain className="w-3 h-3 inline mr-1 -mt-0.5" />
+              <Brain className="w-3 h-3" />
               Intel
             </button>
             <button
               onClick={() => setActiveSidebarTab("config")}
-              className={`flex-1 py-1.5 text-[9px] font-bold tracking-widest uppercase rounded transition-all cursor-pointer ${
+              className={`flex-1 py-2 px-3 text-[10px] font-bold tracking-widest uppercase rounded transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                 activeSidebarTab === "config"
-                  ? "bg-cyan-500/15 text-cyan-400 border border-cyan-500/25"
+                  ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
                   : "text-zinc-500 hover:text-zinc-300 border border-transparent"
               }`}
             >
+              <Settings className="w-3 h-3" />
               Config
             </button>
           </div>
 
-          <div className="flex flex-col gap-4 overflow-y-auto scrollbar-none flex-grow">
+          <div className="flex flex-col gap-3 flex-grow overflow-hidden">
             {activeSidebarTab === "intel" ? (
               <>
                 <SentimentPanel />

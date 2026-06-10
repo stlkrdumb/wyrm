@@ -1,92 +1,83 @@
 @import "tailwindcss";
 
 @theme inline {
-  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --font-mono: "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  --font-display: "Azeret Mono", "JetBrains Mono", ui-monospace, monospace;
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+  --font-display: "Space Grotesk", "JetBrains Mono", monospace;
+  --color-obsidian: #0a0a0f;
+  --color-obsidian-light: #111118;
+  --color-obsidian-lighter: #1a1a24;
+  --color-obsidian-border: #2a2a3a;
+  --color-obsidian-border-hover: #3a3a4a;
+  --color-cyan: #00d4ff;
+  --color-cyan-dim: #00d4ff40;
+  --color-cyan-glow: #00d4ff20;
 }
 
 body {
-  @apply bg-zinc-950 text-zinc-100 antialiased;
+  background: var(--color-obsidian);
+  color: #e4e4e7;
   font-family: var(--font-sans);
+  overflow-x: hidden;
 }
 
-/* ─── Animated Grid Background ─────────────────────── */
+/* ─── Obsidian Background ─────────────────────── */
 
-.matrix-grid {
-  background-color: #090a0c;
-  background-image: 
-    linear-gradient(rgba(255, 255, 255, 0.012) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.012) 1px, transparent 1px);
-  background-size: 40px 40px;
-  position: relative;
-  animation: grid-pulse 8s ease-in-out infinite;
+.bg-obsidian {
+  background-color: var(--color-obsidian);
 }
 
-.matrix-grid::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at 50% 0%, rgba(24, 24, 27, 0.5) 0%, transparent 75%);
-  pointer-events: none;
+.bg-obsidian-light {
+  background-color: var(--color-obsidian-light);
 }
 
-@keyframes grid-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.85; }
+.bg-obsidian-lighter {
+  background-color: var(--color-obsidian-lighter);
 }
 
-/* ─── Glow Utilities ──────────────────────────────── */
+/* ─── Glassmorphism Panels ─────────────────────── */
 
-.glow-green {
-  text-shadow: 0 0 8px rgba(16, 185, 129, 0.15);
+.glass-panel {
+  background: rgba(17, 17, 24, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--color-obsidian-border);
+  border-radius: 8px;
+  transition: all 0.3s ease;
 }
+
+.glass-panel:hover {
+  border-color: var(--color-obsidian-border-hover);
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.05);
+}
+
+.glass-panel-glow {
+  background: rgba(17, 17, 24, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(0, 212, 255, 0.15);
+  border-radius: 8px;
+  box-shadow: 0 0 30px rgba(0, 212, 255, 0.08);
+}
+
+/* ─── Cyan Glow Utilities ──────────────────────── */
 
 .glow-cyan {
-  text-shadow: 0 0 8px rgba(6, 182, 212, 0.15);
+  text-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
 }
 
-.glow-rose {
-  text-shadow: 0 0 8px rgba(244, 63, 94, 0.15);
+.glow-cyan-subtle {
+  text-shadow: 0 0 6px rgba(0, 212, 255, 0.15);
 }
 
-/* Cyan pulse glow for active state */
+/* ─── Cyan pulse glow for active state */
 @keyframes pulse-cyan {
-  0%, 100% { box-shadow: 0 0 4px rgba(6, 182, 212, 0.2); }
-  50% { box-shadow: 0 0 12px rgba(6, 182, 212, 0.4); }
+  0%, 100% { box-shadow: 0 0 4px rgba(0, 212, 255, 0.15); }
+  50% { box-shadow: 0 0 16px rgba(0, 212, 255, 0.35); }
 }
 
 .animate-pulse-cyan {
   animation: pulse-cyan 2s ease-in-out infinite;
-}
-
-/* ─── Hide Scrollbar ───────────────────────────────── */
-
-.scrollbar-none::-webkit-scrollbar {
-  display: none;
-}
-.scrollbar-none {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
-/* ─── Custom Scrollbar ─────────────────────────────── */
-
-::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
-}
-
-::-webkit-scrollbar-track {
-  background: rgba(9, 10, 12, 0.5);
-}
-
-::-webkit-scrollbar-thumb {
-  @apply bg-zinc-800 rounded border border-zinc-900/50;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  @apply bg-zinc-700;
 }
 
 /* ─── Empty State Animation ──────────────────────── */
@@ -115,7 +106,7 @@ body {
 
 @keyframes count-up-flash {
   0% { color: inherit; }
-  20% { color: #fbbf24; }
+  20% { color: #00d4ff; }
   100% { color: inherit; }
 }
 
@@ -148,9 +139,9 @@ body {
     transform: scale(1.02);
   }
   100% { 
-    border-color: rgb(24, 24, 27); 
+    border-color: var(--color-obsidian-border); 
     box-shadow: none; 
-    background-color: rgba(9, 10, 12, 0.4);
+    background-color: transparent;
     transform: scale(1);
   }
 }
@@ -163,9 +154,9 @@ body {
     transform: scale(1.02);
   }
   100% { 
-    border-color: rgb(24, 24, 27); 
+    border-color: var(--color-obsidian-border); 
     box-shadow: none; 
-    background-color: rgba(9, 10, 12, 0.4);
+    background-color: transparent;
     transform: scale(1);
   }
 }
@@ -176,4 +167,120 @@ body {
 
 .animate-tick-down {
   animation: tick-down-glow 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ─── Hide Scrollbar ───────────────────────────────── */
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ─── Custom Scrollbar ─────────────────────────────── */
+
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(10, 10, 15, 0.5);
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-obsidian-border rounded;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-obsidian-border-hover;
+}
+
+/* ─── Data Table Styling ───────────────────────────── */
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.data-table th {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #71717a;
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--color-obsidian-border);
+}
+
+.data-table td {
+  font-size: 12px;
+  font-family: var(--font-mono);
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(42, 42, 58, 0.5);
+  transition: background 0.15s ease;
+}
+
+.data-table tr:hover td {
+  background: rgba(0, 212, 255, 0.03);
+}
+
+/* ─── Terminal Text ──────────────────────────────── */
+
+.terminal-text {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.5;
+  color: #a1a1aa;
+}
+
+/* ─── Status Badge ──────────────────────────────── */
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.status-badge-live {
+  background: rgba(16, 185, 129, 0.1);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.status-badge-paused {
+  background: rgba(234, 179, 8, 0.1);
+  color: #facc15;
+  border: 1px solid rgba(234, 179, 8, 0.2);
+}
+
+.status-badge-offline {
+  background: rgba(113, 113, 122, 0.1);
+  color: #71717a;
+  border: 1px solid rgba(113, 113, 122, 0.2);
+}
+
+/* ─── Gradient Backgrounds ───────────────────────── */
+
+.bg-gradient-radial {
+  background: radial-gradient(ellipse at 50% 0%, rgba(0, 212, 255, 0.03) 0%, transparent 50%);
+}
+
+/* ─── Grid Background ─────────────────────────────── */
+
+.grid-bg {
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 50px 50px;
 }

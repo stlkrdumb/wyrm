@@ -29,7 +29,6 @@ export interface PortfolioSnapshot {
   initialCash: number;
   cash: number;
   equity: number;
-  positions: Position[];
   totalTrades: number;
   winRate: number;
   totalPnL: number;

@@ -81,7 +81,6 @@ function buildInitialState(): AgentState {
       initialCash: config.initialCash,
       cash,
       equity: cash,
-      positions: positions.map((p) => ({ ...p })),
       totalTrades: saved?.totalTrades || 0,
       winRate: saved?.winRate || 0,
       totalPnL: realizedPnL,
@@ -218,7 +217,7 @@ export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ ticker
       }
     }
 
-    const vr = riskManager.validateDecision(decision, st.portfolio, ticker ?? undefined);
+    const vr = riskManager.validateDecision(decision, st.portfolio, ticker ?? undefined, st.positions);
     await historyService.saveDecision({
       id: `DEC-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       timestamp: new Date(), symbol: sym, decision, riskStatus: "approved", riskReason: "",
@@ -272,7 +271,6 @@ export function getAgentState(): AgentState {
     portfolio: {
       ...st.portfolio,
       timestamp: st.portfolio.timestamp instanceof Date ? st.portfolio.timestamp : new Date(st.portfolio.timestamp),
-      positions: st.portfolio.positions.map(p => ({ ...p })),
     },
     positions: st.positions.map(p => ({ ...p })),
     trades: st.trades.map(t => ({ ...t, timestamp: t.timestamp instanceof Date ? t.timestamp : new Date(t.timestamp) })),

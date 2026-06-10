@@ -136,7 +136,6 @@ export class SimOrderEngine {
       initialCash: this.config.initialCash,
       cash: this.cash,
       equity,
-      positions,
       totalTrades: this.trades.length,
       winRate: totalClosed > 0 ? (wins / totalClosed) * 100 : 0,
       totalPnL,

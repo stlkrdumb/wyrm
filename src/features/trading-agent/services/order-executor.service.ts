@@ -54,7 +54,6 @@ export async function flattenPositions(state: AgentState): Promise<{ closed: num
     ...state.portfolio,
     timestamp: new Date(),
     equity: state.portfolio.cash,
-    positions: [],
     totalPnL: state.portfolio.cash - state.startEquity,
     winRate,
   };
@@ -181,7 +180,6 @@ export function executeTrades(
     initialCash: config.initialCash,
     cash: liquidBalance,
     equity: realEquity,
-    positions: [...state.positions],
     totalPnL: realEquity - state.startEquity,
     winRate,
   };

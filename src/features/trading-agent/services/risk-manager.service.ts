@@ -22,7 +22,8 @@ export class RiskManager {
   public validateDecision(
     decision: TradingDecision,
     portfolio: PortfolioSnapshot,
-    tickerData?: TickerData
+    tickerData?: TickerData,
+    positions?: Position[]
   ): RiskValidationResult {
     if (!decision || decision.action === "hold") {
       return { isAllowed: true };
@@ -44,7 +45,7 @@ export class RiskManager {
     }
 
     // 2. Check Concurrent Positions
-    const openPositions = portfolio.positions.filter(p => p.side === "long" || p.side === "short");
+    const openPositions = (positions || []).filter(p => p.side === "long" || p.side === "short");
     if (openPositions.length >= RISK_CONFIG.MAX_CONCURRENT_POSITIONS) {
       return {
         isAllowed: false,
