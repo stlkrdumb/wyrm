@@ -149,6 +149,13 @@ export async function evaluateDecision(ticker: TickerData): Promise<{ decision: 
   return { decision: r.decisions[ticker.symbol], signals: r.allSignals };
 }
 
+/** Abort helper — returns true if agent is no longer running */
+function isStopped(): boolean {
+  const st = getState();
+  if (st.circuitBreakerTripped) { st.status = "stopped"; return true; }
+  return st.status !== "running";
+}
+
 export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ tickerPrice: number; tickers: Record<string, TickerData> }> {
   const st = getState();
   if (st.circuitBreakerTripped) { st.status = "stopped"; return { tickerPrice: 0, tickers: {} }; }
@@ -160,6 +167,7 @@ export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ ticker
 
   // Stage 1: Screen the wider market for trade candidates
   const screenResult = await runScreening(st.positions);
+  if (isStopped()) { console.warn("[Agent] Stop requested during screening — aborting cycle"); return { tickerPrice: 0, tickers: {} }; }
   const screenSelected = screenResult.selected;
 
   // Always include existing positions + screening picks
@@ -196,6 +204,7 @@ export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ ticker
     llmProgress.text += token;
     llmProgress.tokensReceived += 1;
   });
+  if (isStopped()) { console.warn("[Agent] Stop requested during evaluation — aborting cycle"); return { tickerPrice: 0, tickers: {} }; }
 
   const validated: Record<string, TradingDecision> = {};
   let best: TradingDecision | null = null;
@@ -230,6 +239,7 @@ export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ ticker
   } else {
     pushLog("info", "No actionable signal — holding position");
   }
+  if (isStopped()) { console.warn("[Agent] Stop requested before trade execution — aborting cycle"); return { tickerPrice: 0, tickers: {} }; }
   executeTrades(st, validated, prices, displayTicker);
 
   // Sync watchlist: keep position symbols + add freshly screened picks
