@@ -140,7 +140,7 @@ export function BacktestPanel({ onBack }: { onBack?: () => void }) {
                 </div>
                 <div className="p-3 bg-zinc-900/20 rounded border border-zinc-800/60 flex flex-col gap-1">
                   <span className="text-zinc-500 text-[8px] font-bold uppercase">Sharpe Ratio</span>
-                  <span className={`text-[16px] font-black tracking-tight ${result.sharpeRatio > 1 ? "text-emerald-400" : result.sharpeRatio > 0 ? "text-amber-400" : "text-rose-400"}`}>
+                  <span className={`text-[16px] font-black tracking-tight ${result.sharpeRatio > 1 ? "text-emerald-400" : result.sharpeRatio > 0 ? "text-cyan-400" : "text-rose-400"}`}>
                     {result.sharpeRatio.toFixed(2)}
                   </span>
                 </div>

@@ -59,10 +59,10 @@ export const KpiStrip = memo(function KpiStrip({ portfolio, positions, peakEquit
       prefix: "",
       suffix: "",
       decimals: 0,
-      color: positions.length > 0 ? "text-amber-400" : "text-zinc-500",
-      bgColor: positions.length > 0 ? "bg-amber-500/5" : "bg-zinc-900/40",
-      borderColor: positions.length > 0 ? "border-amber-500/15" : "border-zinc-800/60",
-      accentColor: "from-amber-500/0 to-amber-500/10",
+      color: positions.length > 0 ? "text-cyan-400" : "text-zinc-500",
+      bgColor: positions.length > 0 ? "bg-cyan-500/5" : "bg-zinc-900/40",
+      borderColor: positions.length > 0 ? "border-cyan-500/15" : "border-zinc-800/60",
+      accentColor: "from-cyan-500/0 to-cyan-500/10",
     },
     {
       icon: <Activity className="w-3.5 h-3.5" />,
@@ -83,7 +83,7 @@ export const KpiStrip = memo(function KpiStrip({ portfolio, positions, peakEquit
       prefix: "",
       suffix: "%",
       decimals: 2,
-      color: drawdown > 5 ? "text-rose-400" : drawdown > 0 ? "text-amber-400" : "text-zinc-500",
+      color: drawdown > 5 ? "text-rose-400" : drawdown > 0 ? "text-cyan-400" : "text-zinc-500",
       bgColor: drawdown > 5 ? "bg-rose-500/5" : "bg-zinc-900/40",
       borderColor: drawdown > 5 ? "border-rose-500/15" : "border-zinc-800/60",
       accentColor: drawdown > 5 ? "from-rose-500/0 to-rose-500/10" : "from-zinc-800/0 to-zinc-800/30",
@@ -96,7 +96,7 @@ export const KpiStrip = memo(function KpiStrip({ portfolio, positions, peakEquit
         <div
           key={i}
           className={`relative overflow-hidden rounded border ${kpi.borderColor} ${kpi.bgColor} px-3 py-2.5 transition-all duration-300 hover:scale-[1.02] group ${
-            isRunning ? "animate-pulse-amber" : ""
+            isRunning ? "animate-pulse-cyan" : ""
           }`}
         >
           {/* Subtle gradient overlay */}

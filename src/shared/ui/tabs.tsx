@@ -23,7 +23,7 @@ export function Tabs({ tabs, active, onChange, className }: TabsProps) {
         >
           {tab.label}
           {active === tab.key && (
-            <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-500/70 rounded-full" />
+            <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-cyan-500/70 rounded-full" />
           )}
         </button>
       ))}

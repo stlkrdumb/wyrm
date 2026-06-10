@@ -65,7 +65,7 @@ export const DecisionPipeline = memo(function DecisionPipeline({ decision, signa
               status === "completed"
                 ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
                 : status === "active"
-                ? "bg-amber-500/10 border-amber-500/20 text-amber-400 animate-pulse-amber"
+                ? "bg-cyan-500/10 border-cyan-500/20 text-cyan-400 animate-pulse-cyan"
                 : status === "blocked"
                 ? "bg-rose-500/10 border-rose-500/20 text-rose-400"
                 : "bg-zinc-900/20 border-zinc-800/40 text-zinc-600"

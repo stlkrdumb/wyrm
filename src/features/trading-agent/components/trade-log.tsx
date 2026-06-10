@@ -44,9 +44,9 @@ export const TradeLog = memo(function TradeLog({ trades, portfolio, isTabMode }:
               backgroundImage: 'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
               backgroundSize: '20px 20px'
             }} />
-            <div className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-amber-500/40 to-transparent animate-scan-line" />
+            <div className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-cyan-500/40 to-transparent animate-scan-line" />
             <div className="relative z-10 flex flex-col items-center gap-2 text-[11px] font-mono text-zinc-500 tracking-wide uppercase">
-              <div className="w-2 h-2 rounded-full bg-amber-500/30 animate-empty-pulse" />
+              <div className="w-2 h-2 rounded-full bg-cyan-500/30 animate-empty-pulse" />
               <span>Awaiting execution logs • system idle</span>
             </div>
           </div>

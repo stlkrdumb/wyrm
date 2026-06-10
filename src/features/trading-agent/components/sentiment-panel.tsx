@@ -80,7 +80,7 @@ export const SentimentPanel = memo(function SentimentPanel() {
               onClick={() => setActiveSymbol(sym)}
               className={`px-2 py-0.5 text-[9px] font-bold tracking-widest uppercase rounded transition-all cursor-pointer ${
                 activeSymbol === sym
-                  ? "bg-amber-500/15 text-amber-400 border border-amber-500/25"
+                  ? "bg-cyan-500/15 text-cyan-400 border border-cyan-500/25"
                   : "text-zinc-500 hover:text-zinc-300 border border-transparent"
               }`}
             >

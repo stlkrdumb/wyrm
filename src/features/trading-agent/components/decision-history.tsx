@@ -73,7 +73,7 @@ export function DecisionHistory({ onBack, isTabMode }: Props) {
           placeholder="Filter by symbol or status..."
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          className="w-full bg-zinc-900/60 border border-zinc-800 rounded px-2.5 py-1.5 text-[10px] font-mono text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-amber-500/40 transition-colors"
+          className="w-full bg-zinc-900/60 border border-zinc-800 rounded px-2.5 py-1.5 text-[10px] font-mono text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-cyan-500/40 transition-colors"
         />
       </div>
 
