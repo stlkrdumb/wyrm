@@ -39,7 +39,7 @@ export const StatusHeader = memo(function StatusHeader({ agent }: Props) {
       </div>
 
       <div className="flex items-center gap-3">
-        {/* Status Indicator */}
+        {/* Model Indicator */}
         <div className="flex items-center gap-2 px-3 py-1.5 rounded bg-obsidian-lighter border border-obsidian-border">
           <div className={`w-2 h-2 rounded-full ${
             status === "running" 
@@ -49,7 +49,7 @@ export const StatusHeader = memo(function StatusHeader({ agent }: Props) {
               : "bg-zinc-500"
           }`} />
           <span className="text-[10px] font-mono font-bold tracking-widest uppercase text-zinc-400">
-            {status === "running" ? "LIVE" : status === "paused" ? "PAUSED" : "OFFLINE"}
+            {state.modelName || "IDLE"}
           </span>
         </div>
 
@@ -83,6 +83,7 @@ export const StatusHeader = memo(function StatusHeader({ agent }: Props) {
 }, (prev, next) => {
   return (
     prev.agent.state.status === next.agent.state.status &&
-    prev.agent.state.circuitBreakerTripped === next.agent.state.circuitBreakerTripped
+    prev.agent.state.circuitBreakerTripped === next.agent.state.circuitBreakerTripped &&
+    prev.agent.state.modelName === next.agent.state.modelName
   );
 });

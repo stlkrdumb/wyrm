@@ -17,9 +17,8 @@ import { CircuitBreakerPanel } from "./circuit-breaker-panel";
 import { NewsPanel } from "./news-panel";
 import { TerminalLog } from "./terminal-log";
 import { TradeToast } from "./trade-toast";
-import { KpiStrip } from "./kpi-strip";
 import { Tabs } from "@/shared/ui";
-import { Activity, Brain, Settings } from "lucide-react";
+import { Brain, Settings } from "lucide-react";
 
 export function Dashboard() {
   const agent = useAgent();
@@ -36,16 +35,6 @@ export function Dashboard() {
       
       {/* Header */}
       <StatusHeader agent={agent} />
-
-      {/* KPI Strip */}
-      <div className="relative z-10 px-4 pt-4 max-w-[1920px] mx-auto">
-        <KpiStrip
-          portfolio={agent.state.portfolio}
-          positions={agent.state.positions}
-          peakEquity={agent.state.peakEquity}
-          status={agent.state.status}
-        />
-      </div>
 
       {/* Watchlist */}
       <div className="relative z-10 px-4 pt-3 max-w-[1920px] mx-auto">

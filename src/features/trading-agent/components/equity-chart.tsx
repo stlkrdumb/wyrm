@@ -108,10 +108,10 @@ export function EquityChart({ portfolio, ticker, equityCurve, equityHistory, tra
 
   const displayEquity = ticker ? currentEquity : chartData[chartData.length - 1]?.equity ?? initialCash;
   const isProfit = change >= 0;
+  const isProfitTotal = portfolio.totalPnL >= 0;
 
   const gradientId = "equityGrad";
   const chartColor = isProfit ? "#10b981" : "#f43f5e";
-  const chartColorDim = isProfit ? "rgba(16, 185, 129, 0.15)" : "rgba(244, 63, 94, 0.15)";
 
   return (
     <Card>
@@ -122,6 +122,7 @@ export function EquityChart({ portfolio, ticker, equityCurve, equityHistory, tra
         </span>
       </CardHeader>
       <CardContent>
+        {/* Main Equity Display */}
         <div className="flex items-baseline gap-4">
           <span className="text-3xl font-black font-mono tracking-tight text-zinc-100 tabular-nums">
             ${displayEquity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -133,6 +134,34 @@ export function EquityChart({ portfolio, ticker, equityCurve, equityHistory, tra
           }`}>
             {isProfit ? "+" : ""}{changePercent}%
           </span>
+        </div>
+
+        {/* Inline Stats Row */}
+        <div className="grid grid-cols-4 gap-2 mt-3">
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[8px] font-mono font-bold tracking-widest uppercase text-zinc-500">Total PnL</span>
+            <span className={`text-[13px] font-black font-mono tabular-nums ${isProfitTotal ? "text-emerald-400" : "text-rose-400"}`}>
+              {isProfitTotal ? "+" : ""}${portfolio.totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            </span>
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[8px] font-mono font-bold tracking-widest uppercase text-zinc-500">Win Rate</span>
+            <span className={`text-[13px] font-black font-mono tabular-nums ${portfolio.winRate >= 50 ? "text-emerald-400" : "text-zinc-300"}`}>
+              {portfolio.winRate.toFixed(1)}%
+            </span>
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[8px] font-mono font-bold tracking-widest uppercase text-zinc-500">Trades</span>
+            <span className="text-[13px] font-black font-mono tabular-nums text-zinc-300">
+              {portfolio.totalTrades}
+            </span>
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[8px] font-mono font-bold tracking-widest uppercase text-zinc-500">Cash</span>
+            <span className="text-[13px] font-black font-mono tabular-nums text-zinc-300">
+              ${portfolio.cash.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            </span>
+          </div>
         </div>
 
         {/* Timeframe selector */}
