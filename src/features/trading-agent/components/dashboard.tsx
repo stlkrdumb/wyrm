@@ -52,7 +52,7 @@ export function Dashboard() {
           
           {/* Column 1: Equity + Positions */}
           <div className="flex flex-col gap-6">
-            <EquityChart portfolio={agent.state.portfolio} ticker={agent.state.ticker} equityHistory={agent.state.equityHistory} />
+            <EquityChart portfolio={agent.state.portfolio} ticker={agent.state.ticker} equityHistory={agent.state.equityHistory} trades={agent.state.trades} />
             <PositionsPanel positions={agent.state.positions} tickers={agent.state.tickers} />
           </div>
 

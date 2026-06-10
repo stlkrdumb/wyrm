@@ -3,6 +3,7 @@
 import { memo } from "react";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent, Badge } from "@/shared/ui";
+import { DecisionPipeline } from "./decision-pipeline";
 import type { SignalData, DecisionData } from "@/features/trading-agent/hooks/use-agent";
 
 function tickerFromSignalName(name: string): string {
@@ -70,6 +71,11 @@ export const SignalPanel = memo(function SignalPanel({ signals, decision }: Prop
         <div className="flex items-center gap-2 font-mono">{actionBadge()}</div>
       </CardHeader>
       <CardContent>
+        <DecisionPipeline
+          decision={decision}
+          signalCount={signals.length}
+          riskStatus={decision ? (decision as any).riskStatus : undefined}
+        />
         {signals.length > 0 ? (
           <div className="flex flex-col gap-2 max-h-[140px] overflow-y-auto scrollbar-none pr-1 -mr-1 flex-shrink-0">
             {signals.map((signal, i) => (

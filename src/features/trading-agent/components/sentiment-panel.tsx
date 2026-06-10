@@ -3,6 +3,7 @@
 import { useEffect, useState, memo, useCallback } from "react";
 import { Brain, Layers, Percent, Activity, Loader2 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent, Badge } from "@/shared/ui";
+import { RadialGauge } from "./radial-gauge";
 import { DEFAULT_SYMBOLS } from "@/features/trading-agent/constants/symbols.constants";
 import type { SentimentSnapshot } from "@/features/trading-agent/index";
 
@@ -106,27 +107,15 @@ export const SentimentPanel = memo(function SentimentPanel() {
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <div className="flex justify-between text-[9px] text-zinc-500 uppercase tracking-widest">
-                <span>Fear & Greed Index</span>
-                <span>Extreme Fear ← → Extreme Greed</span>
-              </div>
-              <div className="relative w-full h-2.5 bg-zinc-900 rounded-full overflow-hidden">
-                {[
-                  { pct: 20, color: "bg-red-600" },
-                  { pct: 20, color: "bg-orange-500" },
-                  { pct: 20, color: "bg-yellow-500" },
-                  { pct: 20, color: "bg-emerald-500" },
-                  { pct: 20, color: "bg-green-500" },
-                ].map((seg, i) => (
-                  <div key={i} className={`absolute top-0 h-full ${seg.color}`}
-                    style={{ left: `${i * 20}%`, width: "20%", opacity: 0.3 }}
-                  />
-                ))}
-                <div
-                  className={`absolute top-0 h-full w-1 rounded-full transition-all duration-500 ${getFngBgClass(activeData.fearAndGreedValue)}`}
-                  style={{ left: `${activeData.fearAndGreedValue}%`, transform: "translateX(-2px)" }}
-                />
+            <div className="flex items-center gap-4">
+              <RadialGauge value={activeData.fearAndGreedValue} size={140} strokeWidth={8} />
+              <div className="flex flex-col gap-1">
+                <span className={`text-2xl font-black ${getFngColorClass(activeData.fearAndGreedValue)}`}>
+                  {activeData.fearAndGreedValue}
+                </span>
+                <span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest">
+                  Extreme Fear ← → Extreme Greed
+                </span>
               </div>
             </div>
 

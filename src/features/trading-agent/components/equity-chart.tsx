@@ -1,9 +1,9 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, Scatter, ScatterChart, ZAxis } from "recharts";
 import { Card, CardHeader, CardTitle, CardContent } from "@/shared/ui";
-import type { PortfolioData, TickerData } from "@/features/trading-agent/hooks/use-agent";
+import type { PortfolioData, TickerData, TradeData } from "@/features/trading-agent/hooks/use-agent";
 
 const DEFAULT_INITIAL_CASH = 1000;
 
@@ -24,6 +24,7 @@ interface Props {
   ticker: TickerData | null;
   equityCurve?: { timestamp: Date | string; equity: number }[];
   equityHistory?: { timestamp: string; equity: number }[];
+  trades?: TradeData[];
 }
 
 function formatAxisTime(ts: Date, tf: TimeframeKey): string {
@@ -39,7 +40,7 @@ function formatAxisTime(ts: Date, tf: TimeframeKey): string {
   return `${ts.getMonth() + 1}/${ts.getDate()}`;
 }
 
-export function EquityChart({ portfolio, ticker, equityCurve, equityHistory }: Props) {
+export function EquityChart({ portfolio, ticker, equityCurve, equityHistory, trades }: Props) {
   const [mounted, setMounted] = useState(false);
   const [timeframe, setTimeframe] = useState<TimeframeKey>("1h");
   useEffect(() => { setMounted(true); }, []);
@@ -54,7 +55,7 @@ export function EquityChart({ portfolio, ticker, equityCurve, equityHistory }: P
     if (equityCurve && equityCurve.length > 0) {
       return equityCurve.map((e) => {
         const date = new Date(e.timestamp);
-        return { time: formatAxisTime(date, timeframe), equity: e.equity };
+        return { time: formatAxisTime(date, timeframe), equity: e.equity, isTrade: false };
       });
     }
 
@@ -70,18 +71,40 @@ export function EquityChart({ portfolio, ticker, equityCurve, equityHistory }: P
         const recent = equityHistory.slice(-10).map(e => ({
           ts: new Date(e.timestamp), equity: e.equity,
         }));
-        return recent.map(e => ({ time: formatAxisTime(e.ts, timeframe), equity: e.equity }));
+        return recent.map(e => ({ time: formatAxisTime(e.ts, timeframe), equity: e.equity, isTrade: false }));
       }
 
-      return filtered.map(e => ({ time: formatAxisTime(e.ts, timeframe), equity: e.equity }));
+      return filtered.map(e => ({ time: formatAxisTime(e.ts, timeframe), equity: e.equity, isTrade: false }));
     }
 
     // No data: flat line at initialCash
     return Array.from({ length: 48 }, (_, i) => ({
       time: `${(i % 24).toString().padStart(2, "0")}:00`,
       equity: initialCash,
+      isTrade: false,
     }));
   }, [portfolio, timeframe, equityCurve, equityHistory, initialCash]);
+
+  // Trade markers for chart
+  const tradeMarkers = useMemo(() => {
+    if (!trades || trades.length === 0 || chartData.length === 0) return [];
+    const markers: { time: string; equity: number; action: string; size: number }[] = [];
+    for (const trade of trades) {
+      const tradeTime = new Date(trade.timestamp);
+      const tradeTimeStr = formatAxisTime(tradeTime, timeframe);
+      // Find closest chart point or use the equity at that time
+      const closest = chartData.find(d => d.time === tradeTimeStr) || chartData[chartData.length - 1];
+      if (closest) {
+        markers.push({
+          time: tradeTimeStr,
+          equity: closest.equity,
+          action: trade.action,
+          size: trade.size,
+        });
+      }
+    }
+    return markers.slice(-10); // Show last 10 trades
+  }, [trades, chartData, timeframe]);
 
   const displayEquity = ticker ? currentEquity : chartData[chartData.length - 1]?.equity ?? initialCash;
   const isProfit = change >= 0;
@@ -173,6 +196,16 @@ export function EquityChart({ portfolio, ticker, equityCurve, equityHistory }: P
                   strokeWidth={1.5}
                   dot={false}
                 />
+                {tradeMarkers.map((marker, i) => (
+                  <ReferenceLine
+                    key={i}
+                    x={marker.time}
+                    stroke={marker.action === "entry" || marker.action === "add" ? "#10b981" : "#f43f5e"}
+                    strokeDasharray="3 3"
+                    strokeWidth={1}
+                    opacity={0.6}
+                  />
+                ))}
               </AreaChart>
             </ResponsiveContainer>
           ) : (
