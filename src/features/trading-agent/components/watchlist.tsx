@@ -33,11 +33,11 @@ function TickerItem({ symbol, ticker }: { symbol: string; ticker: TickerData }) 
   const logoUrl = `https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/${coin.toLowerCase()}.png`;
 
   return (
-    <div className={`flex items-center gap-2.5 px-3 py-1.5 rounded border border-zinc-800/80 bg-zinc-950/40 transition-all duration-300 flex-shrink-0 ${flashClass}`}>
+    <div className={`flex items-center gap-2.5 px-3 py-1.5 rounded border border-obsidian-border bg-obsidian-light/40 transition-all duration-300 flex-shrink-0 ${flashClass}`}>
       {!imgError ? (
         <img src={logoUrl} alt={coin} onError={() => setImgError(true)} className="w-4 h-4 rounded-full flex-shrink-0" />
       ) : (
-        <span className="w-4 h-4 rounded-full bg-zinc-900 border border-zinc-800 text-[8px] font-bold text-zinc-500 flex items-center justify-center flex-shrink-0 font-sans">
+        <span className="w-4 h-4 rounded-full bg-obsidian-lighter border border-obsidian-border text-[8px] font-bold text-zinc-500 flex items-center justify-center flex-shrink-0 font-sans">
           {coin.slice(0, 2)}
         </span>
       )}
@@ -59,7 +59,7 @@ export function Watchlist({ tickers, watchlist }: Props) {
         <div className="flex items-center justify-between px-2 flex-shrink-0">
           <span className="text-[10px] tracking-widest text-zinc-500 font-bold uppercase font-display">Watchlist</span>
         </div>
-        <div className="flex items-center justify-center py-6 rounded border border-zinc-800/80 bg-zinc-950/40">
+        <div className="flex items-center justify-center py-6 rounded border border-obsidian-border bg-obsidian-light/40">
           <span className="text-xs font-mono text-zinc-600 tracking-wider text-center px-4">
             No coins selected yet — start the agent and wait for a cycle
           </span>
@@ -81,7 +81,7 @@ export function Watchlist({ tickers, watchlist }: Props) {
           Live WebSocket
         </span>
       </div>
-      <div className="flex flex-wrap gap-2 border border-zinc-800/80 bg-zinc-950/40 rounded py-2.5 px-3">
+      <div className="flex flex-wrap gap-2 border border-obsidian-border bg-obsidian-light/40 rounded py-2.5 px-3">
         {entries.map(([symbol, ticker]) => (
           <TickerItem key={symbol} symbol={symbol} ticker={ticker} />
         ))}
