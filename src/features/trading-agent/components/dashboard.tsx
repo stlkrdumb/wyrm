@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useAgent } from "@/features/trading-agent/hooks/use-agent";
 import { StatusHeader } from "./status-header";
+import { BottomStatusBar } from "./bottom-status-bar";
 import { SignalPanel } from "./signal-panel";
 import { SentimentPanel } from "./sentiment-panel";
 import { EquityChart } from "./equity-chart";
@@ -94,9 +95,8 @@ export function Dashboard() {
               circuitBreakerTripped={agent.state.circuitBreakerTripped}
               circuitBreakerThresholdPct={agent.state.circuitBreakerThresholdPct}
               peakEquity={agent.state.peakEquity}
-              currentEquity={agent.state.portfolio.equity}
+              currentEquity={agent.state.portfolio?.equity ?? 0}
               resetBreaker={agent.resetBreaker}
-              updateBreakerThreshold={agent.updateBreakerThreshold}
             />
             <StrategyPanel />
           </div>
@@ -154,10 +154,7 @@ export function Dashboard() {
         </div>
       </main>
 
-      <footer className="border-t border-zinc-900 bg-zinc-950/70 px-6 py-4 text-[10px] font-mono tracking-wider text-zinc-550 flex items-center justify-between">
-        <span className="text-[10px] tracking-widest text-zinc-500 font-bold uppercase">WYRM TRADER // V0.1.0</span>
-        <span className="text-[10px] tracking-widest text-zinc-500 font-mono">SIMULATED TRADING CONSOLE — NO REAL CAPITAL</span>
-      </footer>
+      <BottomStatusBar agent={agent} />
     </div>
   );
 }

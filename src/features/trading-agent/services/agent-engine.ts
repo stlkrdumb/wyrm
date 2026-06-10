@@ -1,3 +1,5 @@
+import dotenv from "dotenv";
+import path from "node:path";
 import type { Signal, TickerData, TradingDecision, Position } from "@/features/trading-agent/types";
 import type { AgentState } from "./state-store";
 import { config, setTradeCounter, getTradeCounter, calculateWinRate } from "./state-store";
@@ -9,6 +11,9 @@ import { riskManager } from "./risk-manager.service";
 import { historyService } from "./history-service";
 import { loadBalanceState, saveBalanceState } from "./balance-store";
 import type { DecisionRecord } from "@/features/trading-agent/types/history.types";
+
+// Load .env.local to ensure env vars are available
+dotenv.config({ path: path.join(process.cwd(), ".env.local"), override: true });
 
 // ─── Public API Re-exports ──────────────────
 export type { AgentState };
@@ -73,6 +78,7 @@ function buildInitialState(): AgentState {
     circuitBreakerTripped: saved?.circuitBreakerTripped ?? false,
     circuitBreakerThresholdPct: saved?.circuitBreakerThresholdPct ?? 5.0,
     peakEquity: peakEq,
+    modelName: process.env.LLM_MODEL || "qwen3.6-plus",
   };
 }
 
@@ -208,19 +214,23 @@ export async function setAgentStatus(s: "running" | "stopped" | "paused"): Promi
   const st = getState();
   st.status = s;
 
-  if (s === "paused") {
+  if (s === "paused" || s === "stopped") {
     let closedCount = 0, totalPnlRealized = 0;
     for (const p of st.positions) {
       if (p.size <= 0) continue;
       const snap = priceStore.getCached(p.symbol);
       const currentPrice = snap?.lastPrice ?? p.entryPrice;
-      const pnl = (currentPrice - p.entryPrice) * p.size;
+      const revenue = currentPrice * p.size;
+      const fee = revenue * config.feePct;
+      const pnl = (currentPrice - p.entryPrice) * p.size - fee;
       const tc = getTradeCounter() + 1; setTradeCounter(tc);
       st.trades.push({ id: `T${tc}`, timestamp: new Date(), symbol: p.symbol, side: "sell", action: "exit", size: p.size, price: currentPrice, pnl });
+      st.portfolio.cash += revenue - fee;
       totalPnlRealized += pnl; closedCount++;
     }
     st.positions = [];
     st.portfolio.totalPnL += totalPnlRealized;
+    st.portfolio.equity = st.portfolio.cash;
     saveBalanceState({
       initialCash: config.initialCash, startCash: state?.startEquity ?? st.startEquity, cash: st.portfolio.cash,
       accumulatedRealizedPnL: st.portfolio.totalPnL, positions: [], totalTrades: st.portfolio.totalTrades, winRate: st.portfolio.winRate,

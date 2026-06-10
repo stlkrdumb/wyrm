@@ -106,6 +106,15 @@ export async function chatCompletion(options: {
   }
 }
 
+/** Extract system message from messages array and return { system, messages } */
+function splitMessages(
+  messages: Array<{ role: string; content: string }>
+): { system: string | undefined; userMessages: Array<{ role: string; content: string }> } {
+  const sys = messages.find(m => m.role === "system")?.content;
+  const userMessages = messages.filter(m => m.role !== "system");
+  return { system: sys, userMessages };
+}
+
 /** Generate text via generateText with a timeout guard for local LLM hardware */
 async function _generateWithProviderWithTimeout(
   provider: any,
@@ -116,15 +125,16 @@ async function _generateWithProviderWithTimeout(
   onToken?: TokenCallback,
 ): Promise<string> {
   const timeoutMs = _modelPreference === "plus" ? PLUS_TIMEOUT_MS : FAST_TIMEOUT_MS;
+  const { system, userMessages } = splitMessages(messages);
 
   return await Promise.race([
     generateText({
       model: provider(model),
-      messages: messages as any, // cast needed for ai SDK strict typing
+      system,
+      messages: userMessages as any, // cast needed for ai SDK strict typing
       temperature: temperature ?? 0.3,
       maxOutputTokens: maxTokens ?? 4096,
     }).then(({ text }) => {
-      // Emit full response if onToken callback is provided (for progress UI)
       if (onToken) onToken(text, text);
       return text;
     }),
@@ -134,7 +144,7 @@ async function _generateWithProviderWithTimeout(
   ]);
 }
 
-/** Generate text with 429 rate limit retry + exponential backoff */
+/** Wrapper around generateText (no timeout — called for fast model or inside retry) */
 async function _generateWithProvider(
   provider: any,
   model: string,
@@ -143,14 +153,17 @@ async function _generateWithProvider(
   maxTokens?: number,
   onToken?: TokenCallback,
 ): Promise<string> {
+  const { system, userMessages } = splitMessages(messages);
+
   const { text } = await generateText({
     model: provider(model),
-    messages: messages as any, // cast needed for ai SDK strict typing
+    system,
+    messages: userMessages as any, // cast needed for ai SDK strict typing
     temperature: temperature ?? 0.3,
     maxOutputTokens: maxTokens ?? 4096,
   });
 
-  if (onToken) onToken(text, text); // Emit full response once
+  if (onToken) onToken(text, text);
 
   return text;
 }

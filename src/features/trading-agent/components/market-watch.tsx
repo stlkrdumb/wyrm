@@ -70,12 +70,6 @@ export function MarketWatch({ tickers }: Props) {
 
   const entries = Object.entries(tickers).filter(([, t]) => t !== null) as [string, TickerData][];
 
-  // Repeat entries if the list is small to ensure marquee fills the viewport and scrolls seamlessly
-  const listItems = [...entries];
-  while (listItems.length < 8 && entries.length > 0) {
-    listItems.push(...entries);
-  }
-
   return (
     <div className="flex flex-col gap-1.5 overflow-hidden">
       <div className="flex items-center justify-between px-2 flex-shrink-0">
@@ -85,20 +79,10 @@ export function MarketWatch({ tickers }: Props) {
           Live WebSocket
         </span>
       </div>
-      <div className="relative flex overflow-x-hidden border border-zinc-900 bg-zinc-950/40 rounded py-2.5">
-        {/* Left/Right Fading Edge Overlays */}
-        <div className="absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-[#090a0c] to-transparent pointer-events-none z-10" />
-        <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-[#090a0c] to-transparent pointer-events-none z-10" />
-
-        {/* Scrolling Tickers */}
-        <div className="animate-marquee flex gap-4 pr-4">
-          {listItems.map(([symbol, ticker], i) => (
-            <TickerItem key={`${symbol}-${i}`} symbol={symbol} ticker={ticker} />
-          ))}
-          {listItems.map(([symbol, ticker], i) => (
-            <TickerItem key={`${symbol}-dup-${i}`} symbol={symbol} ticker={ticker} />
-          ))}
-        </div>
+      <div className="flex flex-wrap gap-2 border border-zinc-900 bg-zinc-950/40 rounded py-2.5 px-3">
+        {entries.map(([symbol, ticker]) => (
+          <TickerItem key={symbol} symbol={symbol} ticker={ticker} />
+        ))}
       </div>
     </div>
   );

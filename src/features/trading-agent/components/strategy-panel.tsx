@@ -7,24 +7,28 @@ const STRATEGY_PRESETS = [
   {
     name: "CONSERVATIVE",
     persona: "Conservative quantitative analyst prioritizing capital preservation and compounding.",
-    instructions: "Trade conservatively. Always favor 'hold' unless conviction is very high. Wait for strong oversold indicators (1h RSI < 30) and Bollinger Band lower border breaks. Limit trade sizes and take profits early."
+    instructions: "Trade conservatively. Always favor 'hold' unless conviction is very high. Wait for strong oversold indicators (1h RSI < 30) and Bollinger Band lower border breaks. Limit trade sizes and take profits early.",
+    threshold: 5,
   },
   {
     name: "BALANCED",
     persona: "Balanced macro trend strategist seeking medium-term swings while maintaining risk guardrails.",
-    instructions: "Execute a balanced profile. Buy support zones on 1-hour chart confirmations and take profits at daily resistance levels. Distribute sizes evenly. Do not enter trades during high-volatility spikes."
+    instructions: "Execute a balanced profile. Buy support zones on 1-hour chart confirmations and take profits at daily resistance levels. Distribute sizes evenly. Do not enter trades during high-volatility spikes.",
+    threshold: 8,
   },
   {
     name: "AGGRESSIVE",
     persona: "High-frequency momentum trader looking to scalp quick micro-trends in volatile conditions.",
-    instructions: "Look for quick momentum scalping on 5m chart trend changes. Enter trades on RSI breakouts above 55 or below 45. Target high-volatility moves. Accept higher drawdown limits to capture larger swings."
-  }
+    instructions: "Look for quick momentum scalping on 5m chart trend changes. Enter trades on RSI breakouts above 55 or below 45. Target high-volatility moves. Accept higher drawdown limits to capture larger swings.",
+    threshold: 12,
+  },
 ];
 
 export const StrategyPanel = memo(function StrategyPanel() {
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [persona, setPersona] = useState("");
   const [instructions, setInstructions] = useState("");
+  const [threshold, setThreshold] = useState(10);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [statusMsg, setStatusMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -37,6 +41,9 @@ export const StrategyPanel = memo(function StrategyPanel() {
         const data = await res.json();
         setPersona(data.persona || "");
         setInstructions(data.customInstructions || "");
+        if (data.circuitBreakerThresholdPct != null) {
+          setThreshold(data.circuitBreakerThresholdPct);
+        }
       } catch (err) {
         console.error(err);
       } finally {
@@ -52,7 +59,7 @@ export const StrategyPanel = memo(function StrategyPanel() {
     try {
       const res = await fetch("/api/agent/strategy", {
         method: "POST",
-        body: JSON.stringify({ persona, customInstructions: instructions }),
+        body: JSON.stringify({ persona, customInstructions: instructions, circuitBreakerThresholdPct: threshold }),
         headers: { "Content-Type": "application/json" },
       });
       if (!res.ok) throw new Error("Failed to save strategy");
@@ -78,6 +85,8 @@ export const StrategyPanel = memo(function StrategyPanel() {
   };
 
   const bias = getStrategyBias();
+
+  const THRESHOLD_PRESETS = [2, 3, 5, 8, 10, 12, 15, 20];
 
   if (loading) {
     return (
@@ -112,9 +121,14 @@ export const StrategyPanel = memo(function StrategyPanel() {
             {isCollapsed ? "[EXPAND]" : "[COLLAPSE]"}
           </span>
         </div>
-        <span className={`text-[8px] font-bold px-1.5 py-0.2 rounded border font-mono tracking-wider ${bias.color}`}>
-          {bias.label}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className={`text-[8px] font-bold px-1.5 py-0.2 rounded border font-mono tracking-wider ${bias.color}`}>
+            {bias.label}
+          </span>
+          <span className="text-[8px] font-mono text-zinc-600 border border-zinc-900 px-1.5 py-0.2 rounded tracking-wider">
+            DD {threshold}%
+          </span>
+        </div>
       </div>
 
       {!isCollapsed && (
@@ -131,6 +145,7 @@ export const StrategyPanel = memo(function StrategyPanel() {
                   onClick={() => {
                     setPersona(preset.persona);
                     setInstructions(preset.instructions);
+                    setThreshold(preset.threshold);
                   }}
                   className="py-1.5 px-2.5 rounded border border-zinc-900 bg-zinc-950/60 text-[9px] hover:bg-zinc-900 hover:text-zinc-200 hover:border-zinc-800 transition-all cursor-pointer font-bold tracking-wider uppercase text-zinc-450 text-center"
                 >
@@ -166,6 +181,43 @@ export const StrategyPanel = memo(function StrategyPanel() {
               placeholder="e.g. Respect strict RSI oversold limits. Buy only on oversold and MACD confirmations. Hold is always the preferred default decision."
               className="w-full bg-zinc-950 border border-zinc-850 rounded p-2.5 text-zinc-200 focus:outline-none focus:border-zinc-750 transition-all font-sans leading-relaxed text-[11px] resize-none"
             />
+          </div>
+
+          {/* Drawdown Threshold */}
+          <div className="flex flex-col gap-2">
+            <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">
+              Emergency Drawdown Limit
+            </label>
+            <div className="grid grid-cols-4 gap-1.5">
+              {THRESHOLD_PRESETS.map((pct) => (
+                <button
+                  key={pct}
+                  onClick={() => setThreshold(pct)}
+                  className={`py-1.5 text-[10px] rounded border transition-all uppercase cursor-pointer ${
+                    threshold === pct
+                      ? "bg-zinc-800 text-zinc-100 border-zinc-650 font-bold"
+                      : "text-zinc-500 border-zinc-900 hover:border-zinc-850 hover:text-zinc-350"
+                  }`}
+                >
+                  {pct}%
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] text-zinc-600 uppercase tracking-wider">Custom:</span>
+              <input
+                type="number"
+                min={1}
+                max={50}
+                value={threshold}
+                onChange={(e) => {
+                  const v = Math.min(50, Math.max(1, parseInt(e.target.value) || 1));
+                  setThreshold(v);
+                }}
+                className="w-20 bg-zinc-950 border border-zinc-850 rounded p-1.5 text-zinc-200 focus:outline-none focus:border-zinc-750 transition-all text-[11px] text-center"
+              />
+              <span className="text-[9px] text-zinc-600">%</span>
+            </div>
           </div>
 
           {/* Save Action */}

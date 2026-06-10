@@ -22,6 +22,7 @@ export async function POST(request: Request) {
     strategyService.saveStrategy({
       persona: body.persona,
       customInstructions: body.customInstructions,
+      circuitBreakerThresholdPct: body.circuitBreakerThresholdPct ?? 10,
     });
     return NextResponse.json({ status: "success", message: "Strategy updated successfully" });
   } catch (error: any) {

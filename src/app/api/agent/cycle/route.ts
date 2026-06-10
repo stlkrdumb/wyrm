@@ -188,9 +188,16 @@ export async function PUT(request: NextRequest) {
       }
     });
     
-    // Run initial cycle immediately
-    const initResult = await runAgentCycle();
-    console.log("[PUT /api/agent/cycle] Agent started — initial cycle done, ticker price:", initResult.tickerPrice);
+    // Warmup delay before first cycle — let WS data settle
+    console.log("[AGENT CYCLE] Warming up — first cycle in 20s");
+    setTimeout(async () => {
+      if (getAgentState().status !== "running") {
+        console.log("[AGENT CYCLE] Warmup aborted — agent no longer running");
+        return;
+      }
+      const initResult = await runAgentCycle();
+      console.log("[PUT /api/agent/cycle] Agent started — initial cycle done, ticker price:", initResult.tickerPrice);
+    }, 20_000);
   } else {
     // Stop auto-cycling for stopped/paused states
     marketWS.stopAgentCycles();
@@ -198,9 +205,9 @@ export async function PUT(request: NextRequest) {
       console.log("[AGENT CYCLE] Auto-cycling stopped");
     }
     
-    // Close positions on pause
+    // Close positions on stop/pause
     if (result.closed) {
-      console.log(`[AGENT CYCLE] Paused — closed ${result.closed} position(s), PnL: $${result.realizedPnl}`);
+      console.log(`[AGENT CYCLE] ${statusParam} — closed ${result.closed} position(s), PnL: $${result.realizedPnl}`);
     }
   }
 

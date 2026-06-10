@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Shield, RefreshCw, AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
+import { Shield, RefreshCw, AlertTriangle } from "lucide-react";
 
 interface Props {
   circuitBreakerTripped: boolean;
@@ -9,7 +9,6 @@ interface Props {
   peakEquity: number;
   currentEquity: number;
   resetBreaker: () => Promise<void>;
-  updateBreakerThreshold: (pct: number) => Promise<void>;
 }
 
 export function CircuitBreakerPanel({
@@ -18,11 +17,9 @@ export function CircuitBreakerPanel({
   peakEquity,
   currentEquity,
   resetBreaker,
-  updateBreakerThreshold,
 }: Props) {
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [isResetting, setIsResetting] = useState(false);
-  const [isUpdating, setIsUpdating] = useState<number | null>(null);
 
   // Calculate current drawdown percentage
   const currentDrawdown = peakEquity > 0 
@@ -39,15 +36,6 @@ export function CircuitBreakerPanel({
       await resetBreaker();
     } finally {
       setIsResetting(false);
-    }
-  };
-
-  const handleThresholdChange = async (pct: number) => {
-    setIsUpdating(pct);
-    try {
-      await updateBreakerThreshold(pct);
-    } finally {
-      setIsUpdating(null);
     }
   };
 
@@ -156,26 +144,18 @@ export function CircuitBreakerPanel({
             </div>
           </div>
 
-          {/* Threshold Selection */}
+          {/* Threshold — display-only, configured in Agent Customizer */}
           <div className="flex flex-col gap-1.5">
             <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">
               Emergency Drawdown Limit
             </label>
-            <div className="grid grid-cols-5 gap-1.5">
-              {[2, 3, 5, 8, 10].map((pct) => (
-                <button
-                  key={pct}
-                  onClick={() => handleThresholdChange(pct)}
-                  disabled={isUpdating !== null || circuitBreakerTripped}
-                  className={`py-1.5 text-[10px] rounded border transition-all uppercase cursor-pointer ${
-                    circuitBreakerThresholdPct === pct
-                      ? "bg-zinc-800 text-zinc-100 border-zinc-650 font-bold"
-                      : "text-zinc-500 border-zinc-900 hover:border-zinc-850 hover:text-zinc-350"
-                  }`}
-                >
-                  {isUpdating === pct ? "..." : `${pct}%`}
-                </button>
-              ))}
+            <div className="flex items-center gap-2 px-1">
+              <span className="text-[13px] font-bold tracking-tight text-zinc-300">
+                {circuitBreakerThresholdPct}%
+              </span>
+              <span className="text-[9px] text-zinc-600 tracking-wider">
+                (configured in Agent Customizer)
+              </span>
             </div>
           </div>
 

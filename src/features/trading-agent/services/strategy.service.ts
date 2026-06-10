@@ -1,16 +1,19 @@
 import fs from "node:fs";
 import path from "node:path";
+import { updateCircuitBreakerThreshold } from "./agent-engine";
 
 const STRATEGY_FILE = path.join(process.cwd(), ".data", "agent-strategy.json");
 
 export interface AgentStrategy {
   persona: string;
   customInstructions: string;
+  circuitBreakerThresholdPct?: number;
 }
 
 const DEFAULT_STRATEGY: AgentStrategy = {
   persona: "Conservative quantitative analyst prioritizing capital preservation.",
   customInstructions: "Trade conservatively. Always favor 'hold' unless conviction is very high. Look for strong RSI oversold (<35) for buy entry and overbought (>65) for exit.",
+  circuitBreakerThresholdPct: 10,
 };
 
 class StrategyService {
@@ -26,6 +29,10 @@ class StrategyService {
       }
       const raw = fs.readFileSync(STRATEGY_FILE, "utf-8");
       const parsed = JSON.parse(raw) as AgentStrategy;
+      // Ensure backward compat — fill in missing field
+      if (parsed.circuitBreakerThresholdPct == null) {
+        parsed.circuitBreakerThresholdPct = 10;
+      }
       this.cachedStrategy = parsed;
       return parsed;
     } catch (err) {
@@ -41,6 +48,11 @@ class StrategyService {
       fs.writeFileSync(STRATEGY_FILE, JSON.stringify(strategy, null, 2));
       this.cachedStrategy = strategy;
       console.log("[StrategyService] Saved strategy to disk:", strategy.persona);
+
+      // Apply the drawdown threshold immediately to the agent state
+      if (strategy.circuitBreakerThresholdPct != null) {
+        updateCircuitBreakerThreshold(strategy.circuitBreakerThresholdPct);
+      }
     } catch (err) {
       console.error("[StrategyService] Failed to save strategy:", err);
     }

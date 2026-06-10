@@ -325,3 +325,8 @@ export class MarketWebSocketService {
 }
 
 export const marketWS = new MarketWebSocketService();
+
+// Auto-initialize WebSocket on module load (connects at server startup)
+marketWS.initialize().catch(err => {
+  console.warn("[WS] Auto-initialize failed (will retry on demand):", err instanceof Error ? err.message : String(err));
+});

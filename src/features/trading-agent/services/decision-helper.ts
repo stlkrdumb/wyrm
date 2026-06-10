@@ -100,7 +100,8 @@ export function parseSingleResponse(response: string): { decision: TradingDecisi
   const jsonMatch = response.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error("Failed to extract JSON from LLM response");
 
-  const parsed = JSON.parse(jsonMatch[0]);
+  const cleaned = repairJSON(jsonMatch[0]);
+  const parsed = JSON.parse(cleaned);
 
   let action: "buy" | "sell" | "hold";
   if (["buy", "sell", "hold"].includes(parsed.action)) {
@@ -127,14 +128,40 @@ export function parseSingleResponse(response: string): { decision: TradingDecisi
   };
 }
 
+/** Attempt to repair common LLM JSON mistakes before parsing */
+function repairJSON(raw: string): string {
+  // Remove trailing commas before } or ]
+  let cleaned = raw.replace(/,(\s*[}\]])/g, "$1");
+  // Remove comments (// and /* */)
+  cleaned = cleaned.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
+  // Replace single quotes with double quotes (but not inside already-double-quoted strings)
+  cleaned = cleaned.replace(/(?<!\\)'(?=[^"]*"(?:[^"]*"[^"]*")*[^"]*$)/g, '"');
+  // Wrap unquoted keys (word before colon, not already quoted)
+  cleaned = cleaned.replace(/([{,]\s*)(\w+)(\s*:)/g, '$1"$2"$3');
+  // Insert missing commas between properties at newlines — } or ] followed by newline+quote
+  cleaned = cleaned.replace(/}\s*\n(\s*)"/g, '},\n$1"');
+  cleaned = cleaned.replace(/]\s*\n(\s*)"/g, '],\n$1"');
+  return cleaned;
+}
+
 export function parseMultiResponse(
   response: string,
   symbols: string[]
 ): { decisions: Record<string, TradingDecision>; allSignals: Signal[] } {
   const jsonMatch = response.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error("Failed to extract JSON from LLM multi-pair response");
+  if (!jsonMatch) {
+    console.error(`[DecisionHelper] LLM raw response (no JSON found):\n${response.slice(0, 2000)}`);
+    throw new Error("Failed to extract JSON from LLM multi-pair response");
+  }
 
-  const parsed = JSON.parse(jsonMatch[0]);
+  const cleaned = repairJSON(jsonMatch[0]);
+  let parsed: Record<string, any>;
+  try {
+    parsed = JSON.parse(cleaned);
+  } catch (parseErr) {
+    console.error(`[DecisionHelper] JSON parse error — raw:\n${jsonMatch[0].slice(0, 2000)}`);
+    throw parseErr;
+  }
   const decisions: Record<string, TradingDecision> = {};
   const allSignals: Signal[] = [];
 
