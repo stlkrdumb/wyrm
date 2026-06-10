@@ -23,7 +23,30 @@ export class MarketWebSocketService {
   private maxReconnectDelay = 30_000;
   private baseReconnectDelay = 1_000;
   private proxyIndex = 0;
+  private agentCycleTimer: ReturnType<typeof setInterval> | null = null;
+  private agentCycleHandler: (() => Promise<void>) | null = null;
   private restFallbackTimer: ReturnType<typeof setInterval> | null = null;
+
+  setAgentCycleHandler(handler: () => Promise<void>) {
+    this.agentCycleHandler = handler;
+    if (!this.agentCycleTimer) {
+      this.agentCycleTimer = setInterval(async () => {
+        if (this.agentCycleHandler) {
+          await this.agentCycleHandler();
+        }
+      }, Number(process.env.AGENT_CYCLE_INTERVAL_MS) || 60_000);
+      console.log("[WS] Agent cycle timer started (every 60s)");
+    }
+  }
+
+  stopAgentCycles() {
+    if (this.agentCycleTimer) {
+      clearInterval(this.agentCycleTimer);
+      this.agentCycleTimer = null;
+      this.agentCycleHandler = null;
+      console.log("[WS] Agent cycle timer stopped");
+    }
+  }
 
 
   getConnectionInfo(): { type: "direct" | "proxy" | "fallback"; proxy: string | null } {

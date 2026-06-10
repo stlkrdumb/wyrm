@@ -12,14 +12,20 @@ const INITIAL_CASH = Number(process.env.SIM_INITIAL_CASH) || 1000;
 
 export async function POST() {
   try {
-    console.log(`[API] OPENAI_BASE_URL=${process.env.OPENAI_BASE_URL}`);
-    console.log(`[API] LLM_MODEL=${process.env.LLM_MODEL}`);
-    console.log(`[API] API_KEY=${process.env.OPENAI_API_KEY ? '***' + process.env.OPENAI_API_KEY.slice(-4) : 'MISSING'}`);
-    console.log("[API] POST /api/agent/cycle — running agent cycle");
+    const currentState = getAgentState();
+
+    if (currentState.status !== "running") {
+      return NextResponse.json({ 
+        status: "info", 
+        message: "Agent is not in running state. Call PUT /api/agent/cycle?status=running first.", 
+        currentStatus: currentState.status 
+      });
+    }
+
+    console.log(`[API] POST /api/agent/cycle — LLM_MODEL=${process.env.LLM_MODEL} API_KEY=${process.env.OPENAI_API_KEY ? '***' + process.env.OPENAI_API_KEY.slice(-4) : 'MISSING'}`);
 
     const result = await runAgentCycle();
 
-    // Also return current tickers and WS status after the cycle completes
     const allSnapshots = priceStore.getAll();
     const tickersMap: Record<string, any> = {};
     for (const [symbol, snapshot] of allSnapshots) {
@@ -30,16 +36,19 @@ export async function POST() {
     let wsStatus: "connected" | "connecting" | "reconnecting" = "connected";
     if (allSnapshots.size === 0) wsStatus = "reconnecting";
 
+    console.log("[POST /api/agent/cycle] Cycle complete — decision:", currentState.decision?.action, "signals:", currentState.signals.length);
+
     return NextResponse.json({
       status: "success",
       ticker: result.tickerPrice,
       tickers: Object.keys(tickersMap).length > 0 ? tickersMap : null,
       wsStatus,
       wsConnection: marketWS.getConnectionInfo(),
+      decision: currentState.decision,
+      signals: currentState.signals.map(s => ({ name: s.name, source: s.source, direction: s.direction, strength: s.strength })),
     });
   } catch (error: any) {
     console.error("[API] CRITICAL ERROR in POST /api/agent/cycle:", error);
-    console.error("[API] Stack Trace:", error.stack);
     return NextResponse.json({ 
       status: "error", 
       message: error.message || "Internal Server Error",
@@ -159,12 +168,42 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ status: "error", message: "Invalid status" }, { status: 400 });
   }
 
-  // Connect WebSocket only when starting the agent (not on stopped/paused)
+  // Set agent status before lifecycle management
+  const result = await setAgentStatus(statusParam as "running" | "stopped" | "paused");
+
   if (statusParam === "running") {
+    // Initialize WS and start auto-cycling interval
     await marketWS.initialize();
+    
+    // Register the cycle handler for the periodic interval
+    marketWS.setAgentCycleHandler(async () => {
+      if (getAgentState().status === "running") {
+        try {
+          const initResult = await runAgentCycle();
+          console.log("[AGENT CYCLE] LLM analysis done — ticker price:", initResult.tickerPrice,
+            "signals:", getAgentState().signals.length);
+        } catch (err) {
+          console.error("[AGENT CYCLE] Cycle failed:", err instanceof Error ? err.message : String(err));
+        }
+      }
+    });
+    
+    // Run initial cycle immediately
+    const initResult = await runAgentCycle();
+    console.log("[PUT /api/agent/cycle] Agent started — initial cycle done, ticker price:", initResult.tickerPrice);
+  } else {
+    // Stop auto-cycling for stopped/paused states
+    marketWS.stopAgentCycles();
+    if (statusParam === "stopped") {
+      console.log("[AGENT CYCLE] Auto-cycling stopped");
+    }
+    
+    // Close positions on pause
+    if (result.closed) {
+      console.log(`[AGENT CYCLE] Paused — closed ${result.closed} position(s), PnL: $${result.realizedPnl}`);
+    }
   }
 
-  const result = await setAgentStatus(statusParam as "running" | "stopped" | "paused");
   const current = getAgentState();
 
   return NextResponse.json({

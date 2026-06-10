@@ -188,7 +188,20 @@ export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ ticker
 
 export function getAgentState(): AgentState {
   const st = getState();
-  return JSON.parse(JSON.stringify(st));
+  // Deep copy preserving Date objects (JSON.stringify would convert Dates to strings)
+  return {
+    ...st,
+    lastCycleAt: st.lastCycleAt ? new Date(st.lastCycleAt) : null,
+    ticker: st.ticker ? { ...st.ticker, timestamp: st.ticker.timestamp instanceof Date ? st.ticker.timestamp : new Date(st.ticker.timestamp) } : null,
+    signals: st.signals.map(sig => ({ ...sig, timestamp: sig.timestamp instanceof Date ? sig.timestamp : new Date(sig.timestamp) })),
+    portfolio: {
+      ...st.portfolio,
+      timestamp: st.portfolio.timestamp instanceof Date ? st.portfolio.timestamp : new Date(st.portfolio.timestamp),
+      positions: st.portfolio.positions.map(p => ({ ...p })),
+    },
+    positions: st.positions.map(p => ({ ...p })),
+    trades: st.trades.map(t => ({ ...t, timestamp: t.timestamp instanceof Date ? t.timestamp : new Date(t.timestamp) })),
+  };
 }
 
 export async function setAgentStatus(s: "running" | "stopped" | "paused"): Promise<{ closed?: number; realizedPnl?: number }> {
