@@ -37,7 +37,7 @@ export class RiskManager {
     }
 
     // 1. Check Conviction Threshold
-    if (decision.strength < RISK_CONFIG.MIN_CONVICTION_THRESHOLD) {
+    if (Math.abs(decision.strength) < RISK_CONFIG.MIN_CONVICTION_THRESHOLD) {
       return {
         isAllowed: false,
         reason: `Conviction strength (${decision.strength.toFixed(2)}) is below threshold (${RISK_CONFIG.MIN_CONVICTION_THRESHOLD})`,

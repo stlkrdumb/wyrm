@@ -88,7 +88,7 @@ Rules:
 - Strength: -1 (strong sell) to +1 (strong buy)
 - Confidence: 0-1
 - Keep reason under 40 words with specific indicator values and sentiment/funding conditions if they influence your decision
-- Only trade if conviction is meaningful — "hold" is the default
+- Make a confident call per symbol — avoid defaulting to "hold" when signals are clear
 
 Respond with ONLY valid JSON in this exact format:
 {
