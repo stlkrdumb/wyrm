@@ -40,7 +40,7 @@ export function BacktestPanel({ onBack }: { onBack?: () => void }) {
       <div onClick={() => setIsCollapsed(!isCollapsed)} className="cursor-pointer select-none">
         <CardHeader>
           <div className="flex items-center gap-2">
-            <Activity className="w-3.5 h-3.5 text-phosphor-dim" />
+            <Activity className="w-3.5 h-3.5 text-zinc-500" />
             <CardTitle>Simulation Sandbox</CardTitle>
           </div>
           <Badge variant="neutral" className="text-[8px]">{result ? "RESULTS" : "SETUP"}</Badge>
@@ -51,45 +51,45 @@ export function BacktestPanel({ onBack }: { onBack?: () => void }) {
         <CardContent>
           {!result ? (
             <div className="flex flex-col gap-5">
-              <div className="space-y-1.5 font-mono text-[11px] text-phosphor-muted">
-                <div className="text-[10px] font-bold text-phosphor-dim uppercase tracking-wider">HISTORICAL SIMULATOR</div>
+              <div className="space-y-1.5 font-mono text-[11px] text-zinc-400">
+                <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">HISTORICAL SIMULATOR</div>
                 <p className="leading-relaxed">
                   Backtest the trading agent against a 30-step historical market price series. Uses live-sourced historical spot tickers.
                 </p>
               </div>
 
-              <div className="p-4 bg-[#0a0a0a]/30 border border-amber-900/20 space-y-4 font-mono text-[11px]">
+              <div className="p-4 bg-zinc-900/10 rounded border border-zinc-800 space-y-4 font-mono text-[11px]">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[9px] font-bold text-phosphor-dim uppercase tracking-wider flex items-center gap-1">
-                    <DollarSign className="w-3 h-3 text-phosphor-dim" />
+                  <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-1">
+                    <DollarSign className="w-3 h-3 text-zinc-500" />
                     Initial Equity (USDT)
                   </label>
                   <div className="relative">
-                    <span className="absolute left-3 top-2.5 text-phosphor-dim font-bold">$</span>
+                    <span className="absolute left-3 top-2.5 text-zinc-500 font-bold">$</span>
                     <input
                       type="number" value={initialEquity}
                       onChange={(e) => setInitialEquity(Number(e.target.value))}
-                      className="w-full bg-[#0a0a0a] border border-amber-900/20 pl-7 pr-3 py-2 text-amber-100/70 focus:outline-none focus:border-amber-500/30 transition-all terminal-input"
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded pl-7 pr-3 py-2 text-zinc-200 focus:outline-none focus:border-zinc-700 transition-all"
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 border-t border-amber-900/20 pt-3">
+                <div className="grid grid-cols-2 gap-3 border-t border-zinc-800/60 pt-3">
                   <div className="flex flex-col gap-0.5">
-                    <span className="text-[8px] font-bold text-phosphor-dim uppercase">Simulated Fee</span>
-                    <span className="text-amber-100/70">0.10% (Taker)</span>
+                    <span className="text-[8px] font-bold text-zinc-500 uppercase">Simulated Fee</span>
+                    <span className="text-zinc-300">0.10% (Taker)</span>
                   </div>
                   <div className="flex flex-col gap-0.5">
-                    <span className="text-[8px] font-bold text-phosphor-dim uppercase">Leverage</span>
-                    <span className="text-amber-100/70">1.0x (Spot Only)</span>
+                    <span className="text-[8px] font-bold text-zinc-500 uppercase">Leverage</span>
+                    <span className="text-zinc-300">1.0x (Spot Only)</span>
                   </div>
                   <div className="flex flex-col gap-0.5">
-                    <span className="text-[8px] font-bold text-phosphor-dim uppercase">Risk Limits</span>
-                    <span className="text-amber-100/70">5% SL / 10% TP</span>
+                    <span className="text-[8px] font-bold text-zinc-500 uppercase">Risk Limits</span>
+                    <span className="text-zinc-300">5% SL / 10% TP</span>
                   </div>
                   <div className="flex flex-col gap-0.5">
-                    <span className="text-[8px] font-bold text-phosphor-dim uppercase">Pairs Scope</span>
-                    <span className="text-amber-100/70">Dynamic Screening</span>
+                    <span className="text-[8px] font-bold text-zinc-500 uppercase">Pairs Scope</span>
+                    <span className="text-zinc-300">Dynamic Screening</span>
                   </div>
                 </div>
               </div>
@@ -98,7 +98,7 @@ export function BacktestPanel({ onBack }: { onBack?: () => void }) {
                 <Button variant="primary" onClick={runBacktest} disabled={loading} className="w-full">
                   {loading ? (
                     <>
-                      <span className="animate-spin inline-block w-3 h-3 border border-t-transparent border-amber-100/70 mr-2" />
+                      <span className="animate-spin inline-block w-3 h-3 border border-t-transparent border-zinc-200 rounded-full mr-2" />
                       SIMULATING CYCLE STEP...
                     </>
                   ) : (
@@ -109,7 +109,7 @@ export function BacktestPanel({ onBack }: { onBack?: () => void }) {
                   )}
                 </Button>
                 {error && (
-                  <div className="bg-phosphor-red/5 border border-phosphor-red/30 p-3 text-[10px] text-phosphor-red font-mono text-center">
+                  <div className="bg-rose-500/10 border border-rose-500/30 p-3 rounded text-[10px] text-rose-400 font-mono text-center">
                     {error}
                   </div>
                 )}
@@ -117,40 +117,40 @@ export function BacktestPanel({ onBack }: { onBack?: () => void }) {
             </div>
           ) : (
             <div className="flex flex-col gap-5">
-              <div className="flex justify-between items-center bg-[#0a0a0a]/30 p-3 border border-amber-900/20 flex-shrink-0">
+              <div className="flex justify-between items-center bg-zinc-900/10 p-3 rounded border border-zinc-800 flex-shrink-0">
                 <div className="flex items-center gap-2">
-                  <Award className="w-4 h-4 text-phosphor-dim" />
-                  <span className="text-[10px] font-mono text-phosphor-muted font-bold uppercase">Simulation Results</span>
+                  <Award className="w-4 h-4 text-zinc-500" />
+                  <span className="text-[10px] font-mono text-zinc-400 font-bold uppercase">Simulation Results</span>
                 </div>
-                <button onClick={() => setResult(null)} className="text-[9px] font-mono font-bold text-phosphor-dim hover:text-phosphor-muted transition-colors uppercase flex items-center gap-1">
+                <button onClick={() => setResult(null)} className="text-[9px] font-mono font-bold text-zinc-500 hover:text-zinc-300 transition-colors uppercase flex items-center gap-1">
                   <RotateCcw className="w-3 h-3" /> Reset
                 </button>
               </div>
 
               <div className="grid grid-cols-2 gap-3 font-mono text-[11px]">
-                <div className={`p-3 bg-[#0a0a0a]/30 border border-amber-900/20 flex flex-col gap-1 ${isProfit ? "border-t-2 border-t-phosphor-green" : "border-t-2 border-t-phosphor-red"}`}>
-                  <span className="text-phosphor-dim text-[8px] font-bold uppercase">Total Return</span>
-                  <span className={`text-[16px] font-black tracking-tight ${isProfit ? "text-phosphor-green phosphor-glow-green" : "text-phosphor-red phosphor-glow-red"}`}>
+                <div className={`p-3 bg-zinc-900/20 rounded border border-zinc-800/60 flex flex-col gap-1 ${isProfit ? "border-l-2 border-l-emerald-500" : "border-l-2 border-l-rose-500"}`}>
+                  <span className="text-zinc-500 text-[8px] font-bold uppercase">Total Return</span>
+                  <span className={`text-[16px] font-black tracking-tight ${isProfit ? "text-emerald-400" : "text-rose-400"}`}>
                     {isProfit ? "+" : ""}{result.totalReturn.toFixed(2)}%
                   </span>
                 </div>
-                <div className="p-3 bg-[#0a0a0a]/30 border border-amber-900/20 flex flex-col gap-1 border-t-2 border-t-phosphor-red">
-                  <span className="text-phosphor-dim text-[8px] font-bold uppercase">Max Drawdown</span>
-                  <span className="text-[16px] font-black text-phosphor-red tracking-tight">-{result.maxDrawdown.toFixed(2)}%</span>
+                <div className="p-3 bg-zinc-900/20 rounded border border-zinc-800/60 flex flex-col gap-1 border-l-2 border-l-rose-500">
+                  <span className="text-zinc-500 text-[8px] font-bold uppercase">Max Drawdown</span>
+                  <span className="text-[16px] font-black text-rose-400 tracking-tight">-{result.maxDrawdown.toFixed(2)}%</span>
                 </div>
-                <div className="p-3 bg-[#0a0a0a]/30 border border-amber-900/20 flex flex-col gap-1">
-                  <span className="text-phosphor-dim text-[8px] font-bold uppercase">Win Rate</span>
-                  <span className="text-[16px] font-black text-amber-100/70 tracking-tight">{result.winRate.toFixed(1)}%</span>
+                <div className="p-3 bg-zinc-900/20 rounded border border-zinc-800/60 flex flex-col gap-1">
+                  <span className="text-zinc-500 text-[8px] font-bold uppercase">Win Rate</span>
+                  <span className="text-[16px] font-black text-zinc-300 tracking-tight">{result.winRate.toFixed(1)}%</span>
                 </div>
-                <div className="p-3 bg-[#0a0a0a]/30 border border-amber-900/20 flex flex-col gap-1">
-                  <span className="text-phosphor-dim text-[8px] font-bold uppercase">Trades Executed</span>
-                  <span className="text-[16px] font-black text-amber-100/70 tracking-tight">{result.totalTrades}</span>
+                <div className="p-3 bg-zinc-900/20 rounded border border-zinc-800/60 flex flex-col gap-1">
+                  <span className="text-zinc-500 text-[8px] font-bold uppercase">Trades Executed</span>
+                  <span className="text-[16px] font-black text-zinc-300 tracking-tight">{result.totalTrades}</span>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <span className="block text-[9px] font-mono text-phosphor-dim font-bold uppercase tracking-wider">Equity Curve</span>
-                <div className="p-1.5 bg-[#0a0a0a]/30 border border-amber-900/20">
+                <span className="block text-[9px] font-mono text-zinc-500 font-bold uppercase tracking-wider">Equity Curve</span>
+                <div className="p-1.5 bg-zinc-950/45 border border-zinc-800 rounded">
                   <EquityChart
                     portfolio={{
                       initialCash: initialEquity,
@@ -167,10 +167,10 @@ export function BacktestPanel({ onBack }: { onBack?: () => void }) {
               </div>
 
               <div className="space-y-2 flex-grow">
-                <span className="block text-[9px] font-mono text-phosphor-dim font-bold uppercase tracking-wider">Trade Ledger</span>
-                <div className="w-full max-h-[180px] overflow-y-auto border border-amber-900/20 bg-[#0a0a0a]/30 scrollbar-none">
-                  <table className="w-full text-[10px] font-mono text-left terminal-table">
-                    <thead className="bg-[#0a0a0a]/50 text-phosphor-dim border-b border-amber-900/20 sticky top-0 backdrop-blur-md">
+                <span className="block text-[9px] font-mono text-zinc-500 font-bold uppercase tracking-wider">Trade Ledger</span>
+                <div className="w-full max-h-[180px] overflow-y-auto border border-zinc-800 bg-zinc-950/20 rounded scrollbar-none">
+                  <table className="w-full text-[10px] font-mono text-left">
+                    <thead className="bg-zinc-900/50 text-zinc-500 border-b border-zinc-800 sticky top-0 backdrop-blur-md">
                       <tr>
                         <th className="p-2 font-bold uppercase tracking-wider text-[8px]">Time</th>
                         <th className="p-2 font-bold uppercase tracking-wider text-[8px]">Symbol</th>
@@ -179,20 +179,20 @@ export function BacktestPanel({ onBack }: { onBack?: () => void }) {
                         <th className="p-2 font-bold uppercase tracking-wider text-[8px] text-right">PnL</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-amber-900/10">
+                    <tbody className="divide-y divide-zinc-800/40">
                       {result.trades.length > 0 ? (
                         result.trades.map((trade, i) => (
-                          <tr key={i} className="hover:bg-amber-500/[0.03] transition-all duration-100">
-                            <td className="p-2 text-phosphor-dim">{new Date(trade.timestamp).toLocaleTimeString()}</td>
-                            <td className="p-2 font-bold text-amber-100/70">{trade.symbol}</td>
+                          <tr key={i} className="hover:bg-zinc-900/20 transition-all duration-100">
+                            <td className="p-2 text-zinc-500">{new Date(trade.timestamp).toLocaleTimeString()}</td>
+                            <td className="p-2 font-bold text-zinc-300">{trade.symbol}</td>
                             <td className="p-2">
                               <Badge variant={trade.side === "buy" ? "success" : "danger"} className="text-[8px]">
                                 {trade.side.toUpperCase()}
                               </Badge>
                             </td>
-                            <td className="p-2 text-phosphor-muted">${trade.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                            <td className="p-2 text-zinc-400">${trade.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                             <td className={`p-2 text-right font-bold ${
-                              trade.pnl > 0 ? "text-phosphor-green" : trade.pnl < 0 ? "text-phosphor-red" : "text-phosphor-dim"
+                              trade.pnl > 0 ? "text-emerald-400" : trade.pnl < 0 ? "text-rose-400" : "text-zinc-500"
                             }`}>
                               {trade.pnl !== 0 ? (trade.pnl > 0 ? "+" : "") : ""}{trade.pnl !== 0 ? trade.pnl.toFixed(2) : "0.00"}
                             </td>
@@ -200,7 +200,7 @@ export function BacktestPanel({ onBack }: { onBack?: () => void }) {
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={5} className="p-8 text-center text-phosphor-dim uppercase tracking-widest text-[9px]">
+                          <td colSpan={5} className="p-8 text-center text-zinc-500 uppercase tracking-widest text-[9px]">
                             No trades executed in simulation
                           </td>
                         </tr>

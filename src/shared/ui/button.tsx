@@ -6,12 +6,12 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 }
 
 const variants = {
-  primary: "terminal-btn terminal-btn-primary",
-  secondary: "terminal-btn",
-  ghost: "terminal-btn border-transparent",
-  danger: "terminal-btn terminal-btn-danger",
-  amber: "terminal-btn terminal-btn-primary",
-  emerald: "terminal-btn terminal-btn-primary",
+  primary: "bg-zinc-800 hover:bg-zinc-700 text-zinc-100 border border-zinc-700",
+  secondary: "bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800",
+  ghost: "hover:bg-zinc-800 text-zinc-400",
+  danger: "bg-rose-600 hover:bg-rose-500 text-white border border-rose-500",
+  amber: "bg-amber-600 hover:bg-amber-500 text-white border border-amber-500",
+  emerald: "bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500",
 };
 
 const sizes = {
@@ -24,8 +24,8 @@ export function Button({ className, variant = "primary", size = "md", ...props }
   return (
     <button
       className={cn(
-        "inline-flex items-center justify-center font-bold tracking-wider uppercase transition-all duration-200",
-        "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-amber-500/30 disabled:pointer-events-none disabled:opacity-30",
+        "inline-flex items-center justify-center rounded-md font-semibold tracking-wider uppercase transition-all duration-200",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50 disabled:pointer-events-none disabled:opacity-40",
         variants[variant],
         sizes[size],
         className

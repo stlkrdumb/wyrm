@@ -11,24 +11,24 @@ interface ProgressProps {
 }
 
 const barVariants = {
-  emerald: "bg-phosphor-green",
-  amber: "bg-phosphor",
-  rose: "bg-phosphor-red",
-  zinc: "bg-phosphor-dim",
+  emerald: "bg-emerald-500",
+  amber: "bg-amber-500",
+  rose: "bg-rose-500",
+  zinc: "bg-zinc-500",
 };
 
 export function Progress({ value, max = 1, variant = "zinc", className, barClassName }: ProgressProps) {
   const pct = Math.min(100, Math.max(0, (value / max) * 100));
 
   return (
-    <div className={cn("h-[2px] bg-amber-900/20 overflow-hidden", className)}>
+    <div className={cn("h-1.5 rounded-full bg-zinc-800/60 overflow-hidden", className)}>
       <div
         className={cn(
-          "h-full transition-all duration-500 ease-out",
+          "h-full rounded-full transition-all duration-500 ease-out",
           barVariants[variant],
           barClassName
         )}
-        style={{ width: `${pct}%`, boxShadow: variant === 'amber' || variant === 'emerald' ? '0 0 4px rgba(255,176,0,0.3)' : 'none' }}
+        style={{ width: `${pct}%` }}
       />
     </div>
   );

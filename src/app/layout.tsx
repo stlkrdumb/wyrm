@@ -1,6 +1,12 @@
 import type { Metadata } from "next";
-import { JetBrains_Mono } from "next/font/google";
+import { Azeret_Mono, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+
+const azeretMono = Azeret_Mono({
+  subsets: ["latin"],
+  variable: "--font-display",
+  display: "swap",
+});
 
 const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
@@ -9,8 +15,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "WYRM TRADER — Autonomous Trading Terminal",
-  description: "Autonomous trading agent with sim execution, multi-signal analysis, and real-time terminal powered by Bitget Agent Hub.",
+  title: "WYRM Trader — Autonomous Trading Agent",
+  description: "Autonomous trading agent with sim execution, multi-signal analysis, and real-time dashboard powered by Bitget Agent Hub.",
   icons: [{ rel: "icon", url: "/logo.svg" }],
 };
 
@@ -22,12 +28,10 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`h-full antialiased dark ${jetbrainsMono.variable}`}
+      className={`h-full antialiased dark ${azeretMono.variable} ${jetbrainsMono.variable}`}
       suppressHydrationWarning
     >
-      <body className="min-h-screen flex flex-col bg-[#080808] text-amber-100/90 crt-bg scanlines crt-flicker font-mono">
-        {children}
-      </body>
+      <body className="min-h-screen flex flex-col bg-zinc-950 text-zinc-100 matrix-grid">{children}</body>
     </html>
   );
 }

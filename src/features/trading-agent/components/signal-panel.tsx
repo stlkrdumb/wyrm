@@ -32,7 +32,7 @@ export const SignalPanel = memo(function SignalPanel({ signals, decision }: Prop
           <CardTitle>Decision Signals</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-[11px] font-mono text-phosphor-dim py-12 text-center tracking-wide uppercase">
+          <div className="text-[11px] font-mono text-zinc-500 py-12 text-center tracking-wide uppercase">
             Waiting for agent cycle initialization...
           </div>
         </CardContent>
@@ -42,9 +42,9 @@ export const SignalPanel = memo(function SignalPanel({ signals, decision }: Prop
 
   const directionIcon = (direction: SignalData["direction"]) => {
     switch (direction) {
-      case "bullish": return <TrendingUp className="w-3.5 h-3.5 text-phosphor-green" />;
-      case "bearish": return <TrendingDown className="w-3.5 h-3.5 text-phosphor-red" />;
-      default: return <Minus className="w-3.5 h-3.5 text-phosphor-dim" />;
+      case "bullish": return <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />;
+      case "bearish": return <TrendingDown className="w-3.5 h-3.5 text-rose-400" />;
+      default: return <Minus className="w-3.5 h-3.5 text-zinc-500" />;
     }
   };
 
@@ -65,16 +65,16 @@ export const SignalPanel = memo(function SignalPanel({ signals, decision }: Prop
         {signals.length > 0 ? (
           <div className="flex flex-col gap-2 max-h-[140px] overflow-y-auto scrollbar-none pr-1 -mr-1 flex-shrink-0">
             {signals.map((signal, i) => (
-              <div key={i} className="flex items-start justify-between py-1.5 border-b border-amber-900/10 last:border-0 font-mono gap-3">
+              <div key={i} className="flex items-start justify-between py-1.5 border-b border-zinc-800/20 last:border-0 font-mono gap-3">
                 <div className="flex items-start gap-2.5 min-w-[85px] flex-1">
                   <span className="mt-0.5 flex-shrink-0">{directionIcon(signal.direction)}</span>
-                  <span className="text-[11px] text-amber-100/80 whitespace-nowrap">{tickerFromSignalName(signal.name)}</span>
+                  <span className="text-[11px] text-zinc-300 whitespace-nowrap">{tickerFromSignalName(signal.name)}</span>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <Badge variant={signalBadgeVariant(signal.direction)}>
                     {signal.direction === "bullish" ? "BULL" : signal.direction === "bearish" ? "BEAR" : "FLAT"}
                   </Badge>
-                  <span className="text-[10px] text-phosphor-muted tabular-nums min-w-[2.5rem] text-right">
+                  <span className="text-[10px] text-zinc-400 tabular-nums min-w-[2.5rem] text-right">
                     {(signal.strength * 100).toFixed(0)}%
                   </span>
                 </div>
@@ -82,7 +82,7 @@ export const SignalPanel = memo(function SignalPanel({ signals, decision }: Prop
             ))}
           </div>
         ) : (
-          <div className="text-[11px] font-mono text-phosphor-dim py-4 text-center">No active signals</div>
+          <div className="text-[11px] font-mono text-zinc-500 py-4 text-center">No active signals</div>
         )}
 
         {(() => {
@@ -98,60 +98,59 @@ export const SignalPanel = memo(function SignalPanel({ signals, decision }: Prop
           const rsi = rsiMatch ? parseFloat(rsiMatch[1]) : null;
 
           return (
-            <div className="mt-2 pt-4 border-t border-amber-900/20 space-y-4 font-mono text-[11px]">
+            <div className="mt-2 pt-4 border-t border-zinc-800 space-y-4 font-mono text-[11px]">
               <div className="flex items-center justify-between">
-                <span className="text-phosphor-dim uppercase text-[10px]">Decision Strength</span>
+                <span className="text-zinc-500 uppercase text-[10px]">Decision Strength</span>
                 <div className="flex items-center gap-2">
                   {topSignal && (
-                    <span className="px-1.5 py-0.2 text-[8px] font-bold bg-[#0a0a0a] text-phosphor-muted border border-amber-900/20">
+                    <span className="px-1.5 py-0.2 rounded text-[8px] font-bold bg-zinc-900 text-zinc-400 border border-zinc-800">
                       {decisionTicker}
                     </span>
                   )}
-                  <span className={`font-bold ${activeDecision.strength > 0 ? "text-phosphor-green phosphor-glow-green" : activeDecision.strength < 0 ? "text-phosphor-red phosphor-glow-red" : "text-phosphor-dim"}`}>
+                  <span className={`font-bold ${activeDecision.strength > 0 ? "text-emerald-400" : activeDecision.strength < 0 ? "text-rose-400" : "text-zinc-500"}`}>
                     {activeDecision.strength > 0 ? "+" : ""}{(activeDecision.strength * 100).toFixed(0)}%
                   </span>
                 </div>
               </div>
 
-              <div className="w-full h-[2px] bg-amber-900/20 relative overflow-hidden">
+              <div className="w-full bg-zinc-800 rounded-full h-1 relative overflow-hidden">
                 <div
-                  className={`h-full transition-all duration-500 ${
-                    activeDecision.strength > 0 ? "bg-phosphor-green" :
-                    activeDecision.strength < 0 ? "bg-phosphor-red" : "bg-phosphor-dim"
+                  className={`h-full rounded-full transition-all duration-500 ${
+                    activeDecision.strength > 0 ? "bg-emerald-500" :
+                    activeDecision.strength < 0 ? "bg-rose-500" : "bg-zinc-600"
                   }`}
                   style={{
                     width: `${Math.max(6, Math.abs(activeDecision.strength) * 50)}%`,
-                    marginLeft: activeDecision.strength >= 0 ? "50%" : `${50 - Math.abs(activeDecision.strength) * 50}%`,
-                    boxShadow: activeDecision.strength !== 0 ? `0 0 4px ${activeDecision.strength > 0 ? 'rgba(51,255,0,0.3)' : 'rgba(255,51,51,0.3)'}` : 'none'
+                    marginLeft: activeDecision.strength >= 0 ? "50%" : `${50 - Math.abs(activeDecision.strength) * 50}%`
                   }}
                 />
-                <div className="absolute left-1/2 top-0 w-[1px] h-full bg-amber-900/30" />
+                <div className="absolute left-1/2 top-0 w-0.5 h-full bg-zinc-700" />
               </div>
 
               {rsi !== null && (
-                <div className="space-y-1.5 py-2.5 px-3 bg-[#0a0a0a]/50 border border-amber-900/20">
-                  <div className="flex justify-between text-[10px] text-phosphor-dim font-bold">
+                <div className="space-y-1.5 py-2.5 px-3 bg-zinc-950/30 rounded border border-zinc-800/60">
+                  <div className="flex justify-between text-[10px] text-zinc-500 font-bold">
                     <span>COMPUTED RSI(14)</span>
-                    <span className={rsi >= 70 ? "text-phosphor-red" : rsi <= 30 ? "text-phosphor-green" : "text-amber-100/70"}>
+                    <span className={rsi >= 70 ? "text-rose-400" : rsi <= 30 ? "text-emerald-400" : "text-zinc-300"}>
                       {rsi.toFixed(1)}
                     </span>
                   </div>
-                  <div className="relative w-full h-[2px] bg-amber-900/20 overflow-hidden">
-                    <div className="absolute left-0 top-0 h-full w-[30%] bg-phosphor-green/5" />
-                    <div className="absolute left-[30%] top-0 h-full w-[40%] bg-amber-900/5" />
-                    <div className="absolute left-[70%] top-0 h-full w-[30%] bg-phosphor-red/5" />
-                    <div className={`absolute top-0 w-[2px] h-full transition-all duration-500 ${
-                      rsi >= 70 ? "bg-phosphor-red" : rsi <= 30 ? "bg-phosphor-green" : "bg-phosphor-muted"
-                    }`} style={{ left: `calc(${rsi}% - 1px)` }} />
+                  <div className="relative w-full h-1 bg-zinc-800 rounded-full overflow-hidden">
+                    <div className="absolute left-0 top-0 h-full w-[30%] bg-emerald-500/5" />
+                    <div className="absolute left-[30%] top-0 h-full w-[40%] bg-zinc-800/10" />
+                    <div className="absolute left-[70%] top-0 h-full w-[30%] bg-rose-500/5" />
+                    <div className={`absolute top-0 w-1.5 h-full rounded-full transition-all duration-500 ${
+                      rsi >= 70 ? "bg-rose-400" : rsi <= 30 ? "bg-emerald-400" : "bg-zinc-400"
+                    }`} style={{ left: `calc(${rsi}% - 3px)` }} />
                   </div>
-                  <div className="flex justify-between text-[8px] text-phosphor-dim/50 font-bold">
+                  <div className="flex justify-between text-[8px] text-zinc-600 font-bold">
                     <span>OVERSOLD (30)</span>
                     <span>OVERBOUGHT (70)</span>
                   </div>
                 </div>
               )}
 
-              <p className="text-[11px] text-amber-100/50 leading-relaxed italic border-l border-amber-900/20 pl-3 bg-[#0a0a0a]/20 py-2 rounded-r font-mono">
+              <p className="text-[11px] text-zinc-400 leading-relaxed italic border-l border-zinc-700 pl-3 bg-zinc-950/20 py-2 rounded-r font-sans">
                 {activeDecision.reason}
               </p>
             </div>

@@ -9,11 +9,11 @@ export function Card({ className, children }: CardProps) {
   return (
     <div
       className={cn(
-        "terminal-card terminal-border-hover p-4 transition-all duration-300",
+        "rounded border border-zinc-800/80 bg-zinc-950/60 p-4 shadow-lg shadow-black/40 relative overflow-hidden transition-colors duration-300 hover:border-zinc-700/80",
         className
       )}
     >
-      <div className="absolute inset-0 bg-gradient-to-b from-amber-500/[0.02] to-transparent pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-b from-zinc-900/30 to-transparent pointer-events-none" />
       {children}
     </div>
   );
@@ -21,20 +21,16 @@ export function Card({ className, children }: CardProps) {
 
 export function CardHeader({ className, children }: CardProps) {
   return (
-    <div className={cn("relative mb-3 pb-2 border-b border-amber-900/20 flex items-center justify-between", className)}>
+    <div className={cn("relative mb-3 pb-2 border-b border-zinc-800/60 flex items-center justify-between", className)}>
       {children}
     </div>
   );
 }
 
 export function CardTitle({ className, children }: CardProps) {
-  return (
-    <h3 className={cn("text-[10px] font-bold uppercase tracking-[0.2em] text-phosphor phosphor-glow", className)}>
-      {children}
-    </h3>
-  );
+  return <h3 className={cn("text-[10px] font-bold uppercase tracking-[0.15em] text-amber-500/70", className)}>{children}</h3>;
 }
 
 export function CardContent({ className, children }: CardProps) {
-  return <div className={cn("relative text-xs text-amber-100/70", className)}>{children}</div>;
+  return <div className={cn("relative text-xs text-zinc-300", className)}>{children}</div>;
 }

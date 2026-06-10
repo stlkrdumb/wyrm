@@ -33,16 +33,16 @@ function TickerItem({ symbol, ticker }: { symbol: string; ticker: TickerData }) 
   const logoUrl = `https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/${coin.toLowerCase()}.png`;
 
   return (
-    <div className={`flex items-center gap-2.5 px-3 py-1.5 border border-amber-900/20 bg-[#0a0a0a]/80 transition-all duration-300 flex-shrink-0 ${flashClass}`}>
+    <div className={`flex items-center gap-2.5 px-3 py-1.5 rounded border border-zinc-800/80 bg-zinc-950/40 transition-all duration-300 flex-shrink-0 ${flashClass}`}>
       {!imgError ? (
-        <img src={logoUrl} alt={coin} onError={() => setImgError(true)} className="w-4 h-4 rounded-full flex-shrink-0 opacity-70" />
+        <img src={logoUrl} alt={coin} onError={() => setImgError(true)} className="w-4 h-4 rounded-full flex-shrink-0" />
       ) : (
-        <span className="w-4 h-4 border border-amber-900/30 text-[8px] font-bold text-phosphor-dim flex items-center justify-center flex-shrink-0 font-mono">
+        <span className="w-4 h-4 rounded-full bg-zinc-900 border border-zinc-800 text-[8px] font-bold text-zinc-500 flex items-center justify-center flex-shrink-0 font-sans">
           {coin.slice(0, 2)}
         </span>
       )}
-      <span className="font-mono font-bold text-xs text-phosphor">{coin}/USDT</span>
-      <span className="font-mono text-xs font-semibold tabular-nums text-amber-100/70">
+      <span className="font-mono font-bold text-xs text-zinc-100">{coin}/USDT</span>
+      <span className="font-mono text-xs font-semibold tabular-nums text-zinc-300">
         ${ticker.lastPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}
       </span>
       <Badge variant={isPos ? "success" : "danger"} className="text-[9px] px-1.5">
@@ -57,11 +57,11 @@ export function Watchlist({ tickers, watchlist }: Props) {
     return (
       <div className="flex flex-col gap-1.5 overflow-hidden">
         <div className="flex items-center justify-between px-2 flex-shrink-0">
-          <span className="text-[10px] tracking-widest text-phosphor-muted font-bold uppercase font-mono">Watchlist</span>
+          <span className="text-[10px] tracking-widest text-zinc-500 font-bold uppercase font-display">Watchlist</span>
         </div>
-        <div className="flex items-center justify-center py-6 border border-amber-900/20 bg-[#0a0a0a]/80">
-          <span className="text-xs font-mono text-phosphor-dim tracking-wider text-center px-4">
-            No coins selected — initialize agent to begin scanning
+        <div className="flex items-center justify-center py-6 rounded border border-zinc-800/80 bg-zinc-950/40">
+          <span className="text-xs font-mono text-zinc-600 tracking-wider text-center px-4">
+            No coins selected yet — start the agent and wait for a cycle
           </span>
         </div>
       </div>
@@ -75,13 +75,13 @@ export function Watchlist({ tickers, watchlist }: Props) {
   return (
     <div className="flex flex-col gap-1.5 overflow-hidden">
       <div className="flex items-center justify-between px-2 flex-shrink-0">
-        <span className="text-[10px] tracking-widest text-phosphor-muted font-bold uppercase font-mono">Watchlist</span>
-        <span className="text-[9px] tracking-wider text-phosphor-green font-bold uppercase flex items-center gap-1.5">
-          <span className="w-1.5 h-1.5 bg-phosphor-green animate-pulse" />
+        <span className="text-[10px] tracking-widest text-zinc-500 font-bold uppercase font-display">Watchlist</span>
+        <span className="text-[9px] tracking-wider text-emerald-500 font-bold uppercase flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
           Live WebSocket
         </span>
       </div>
-      <div className="flex flex-wrap gap-2 border border-amber-900/20 bg-[#0a0a0a]/80 py-2.5 px-3">
+      <div className="flex flex-wrap gap-2 border border-zinc-800/80 bg-zinc-950/40 rounded py-2.5 px-3">
         {entries.map(([symbol, ticker]) => (
           <TickerItem key={symbol} symbol={symbol} ticker={ticker} />
         ))}

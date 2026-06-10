@@ -24,48 +24,33 @@ export const StatusHeader = memo(function StatusHeader({ agent }: Props) {
   }, [isPending, status, setAgentStatus]);
 
   return (
-    <header className="terminal-header px-6 py-4 flex items-center justify-between relative z-50">
+    <header className="flex items-center justify-between px-6 py-4 border-b border-zinc-800/80 bg-zinc-950/70 backdrop-blur-md">
       <div className="flex items-center gap-4">
-        <img src="/logo.svg" alt="Wyrm" className="h-10 w-auto opacity-70" />
-        <div className="flex flex-col">
-          <h1 className="text-sm font-bold tracking-widest text-phosphor phosphor-glow uppercase font-mono">
-            WYRM_TRADER
-          </h1>
-          <span className="text-[9px] tracking-widest text-phosphor-dim uppercase font-mono">
-            Autonomous Trading Terminal v0.1.0
-          </span>
-        </div>
+        <img src="/logo.svg" alt="Wyrm" className="h-12 w-auto" />
+        <h1 className="text-sm font-black tracking-widest text-zinc-100 uppercase font-display">
+          WYRM // <span className="text-zinc-500 font-normal">TRADING CONSOLE</span>
+        </h1>
       </div>
 
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2 text-[9px] font-mono text-phosphor-dim tracking-widest">
-          <span>STATUS:</span>
-          <span className={status === "running" ? "text-phosphor-green phosphor-glow-green" : "text-phosphor-muted"}>
-            {status === "running" ? "ONLINE" : "OFFLINE"}
-          </span>
-          <span className="crt-cursor" />
-        </div>
+      <div className="flex items-center gap-2">
         <Button
           onClick={handleToggle}
           disabled={isPending || (status !== "running" && state.circuitBreakerTripped)}
-          variant={status === "running" ? "danger" : "amber"}
+          variant={status === "running" ? "danger" : "emerald"}
           size="sm"
         >
           {isPending ? (
             <>
-              <span className="animate-pulse mr-2">█</span>
-              {status === "running" ? "STOPPING..." : "BOOTING..."}
+              <svg className="animate-spin -ml-1 mr-2 h-3 w-3 text-zinc-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              {status === "running" ? "STOPPING..." : "STARTING..."}
             </>
           ) : status === "running" ? (
-            <>
-              <span className="mr-1 text-phosphor-red">■</span>
-              HALT
-            </>
+            <>&#9632; STOP</>
           ) : (
-            <>
-              <span className="mr-1 text-phosphor-green">▶</span>
-              INIT
-            </>
+            <>&#9654; START</>
           )}
         </Button>
       </div>

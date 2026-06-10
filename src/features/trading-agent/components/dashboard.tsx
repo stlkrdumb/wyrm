@@ -25,7 +25,7 @@ export function Dashboard() {
   const [activeSidebarTab, setActiveSidebarTab] = useState<"intel" | "config">("intel");
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#080808]/20 text-amber-100/90">
+    <div className="flex flex-col min-h-screen bg-zinc-950/20 text-zinc-100">
       <StatusHeader agent={agent} />
 
       {/* Watchlist */}
@@ -47,13 +47,13 @@ export function Dashboard() {
           <div className="flex flex-col gap-6">
             <SignalPanel signals={agent.state.signals} decision={agent.state.decision} />
             {agent.state.decision && (agent.state.decision as any).riskStatus === "blocked" && (
-              <div className="bg-phosphor-red/5 border border-phosphor-red/30 p-3 text-[11px] text-phosphor-red font-mono animate-pulse">
+              <div className="bg-rose-500/10 border border-rose-500/50 p-3 rounded text-[11px] text-rose-400 font-mono animate-pulse">
                 <span className="font-bold mr-2">RISK ALERT:</span> {agent.state.decision.reason}
               </div>
             )}
 
             {/* Unified Logs Console */}
-            <div className="flex flex-col gap-4 p-5 border border-amber-900/20 bg-[#0a0a0a]/60 shadow-lg shadow-black/40 relative overflow-hidden h-[450px]">
+            <div className="flex flex-col gap-4 p-5 rounded border border-zinc-800/80 bg-zinc-950/60 shadow-lg shadow-black/40 relative overflow-hidden h-[450px]">
               <Tabs
                 tabs={[
                   { key: "execution", label: "Execution Log" },
@@ -81,19 +81,19 @@ export function Dashboard() {
             <>
               <button
                 onClick={() => setIsSidebarOpen(false)}
-                className="sidebar-toggle w-full py-2 flex items-center justify-center text-[9px] uppercase tracking-widest gap-2"
+                className="w-full py-2 bg-zinc-950/40 hover:bg-zinc-900 border border-zinc-800/80 rounded flex items-center justify-center text-zinc-500 hover:text-zinc-300 font-mono text-[9px] uppercase tracking-widest gap-2 cursor-pointer transition-colors"
               >
                 <span>COLLAPSE SIDEBAR</span>
               </button>
 
               {/* Sidebar Tab Switcher */}
-              <div className="flex gap-1 border border-amber-900/20 p-0.5 bg-[#0a0a0a]/60">
+              <div className="flex gap-1 border border-zinc-800/80 rounded p-0.5 bg-zinc-950/60">
                 <button
                   onClick={() => setActiveSidebarTab("intel")}
-                  className={`flex-1 py-1.5 text-[9px] font-bold tracking-widest uppercase transition-all cursor-pointer ${
+                  className={`flex-1 py-1.5 text-[9px] font-bold tracking-widest uppercase rounded transition-all cursor-pointer ${
                     activeSidebarTab === "intel"
-                      ? "border border-amber-500/30 text-phosphor phosphor-glow bg-amber-500/5"
-                      : "text-phosphor-dim hover:text-phosphor-muted border border-transparent"
+                      ? "bg-amber-500/15 text-amber-400 border border-amber-500/25"
+                      : "text-zinc-500 hover:text-zinc-300 border border-transparent"
                   }`}
                 >
                   <Brain className="w-3 h-3 inline mr-1 -mt-0.5" />
@@ -101,10 +101,10 @@ export function Dashboard() {
                 </button>
                 <button
                   onClick={() => setActiveSidebarTab("config")}
-                  className={`flex-1 py-1.5 text-[9px] font-bold tracking-widest uppercase transition-all cursor-pointer ${
+                  className={`flex-1 py-1.5 text-[9px] font-bold tracking-widest uppercase rounded transition-all cursor-pointer ${
                     activeSidebarTab === "config"
-                      ? "border border-amber-500/30 text-phosphor phosphor-glow bg-amber-500/5"
-                      : "text-phosphor-dim hover:text-phosphor-muted border border-transparent"
+                      ? "bg-amber-500/15 text-amber-400 border border-amber-500/25"
+                      : "text-zinc-500 hover:text-zinc-300 border border-transparent"
                   }`}
                 >
                   Config
@@ -131,21 +131,21 @@ export function Dashboard() {
               )}
             </>
           ) : (
-            <div className="flex flex-col items-center gap-6 pt-2 h-full border border-amber-900/20 bg-[#0a0a0a]/20 py-4">
+            <div className="flex flex-col items-center gap-6 pt-2 h-full border border-zinc-800/80 bg-zinc-950/20 rounded py-4">
               <button
                 onClick={() => setIsSidebarOpen(true)}
-                className="sidebar-toggle p-2 flex items-center justify-center"
+                className="p-2 bg-zinc-950/40 hover:bg-zinc-900 border border-zinc-800/80 rounded flex items-center justify-center text-zinc-500 hover:text-zinc-300 cursor-pointer transition-colors"
                 title="Expand Sidebar"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
-              <div className="flex flex-col gap-5 items-center text-phosphor-dim mt-2">
-                <div className="hover:text-phosphor-muted cursor-pointer transition-colors" onClick={() => setIsSidebarOpen(true)} title="Market Intelligence">
+              <div className="flex flex-col gap-5 items-center text-zinc-600 mt-2">
+                <div className="hover:text-zinc-400 cursor-pointer transition-colors" onClick={() => setIsSidebarOpen(true)} title="Market Intelligence">
                   <Brain className="w-4 h-4" />
                 </div>
               </div>
               <div
-                className="text-[9px] font-mono tracking-widest text-phosphor-dim font-bold uppercase select-none pointer-events-none mt-6 whitespace-nowrap"
+                className="text-[9px] font-mono tracking-widest text-zinc-600 font-bold uppercase select-none pointer-events-none mt-6 whitespace-nowrap"
                 style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
               >
                 SIDEBAR // TOOLS

@@ -14,22 +14,22 @@ export const BottomStatusBar = memo(function BottomStatusBar({ agent }: Props) {
     switch (status) {
       case "running":
         return (
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[9px] font-bold tracking-wider uppercase border border-phosphor-green/30 text-phosphor-green phosphor-glow-green">
-            <span className="w-1.5 h-1.5 bg-phosphor-green animate-pulse" />
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[9px] font-bold tracking-wider uppercase bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
             ACTIVE
           </span>
         );
       case "paused":
         return (
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[9px] font-bold tracking-wider uppercase border border-amber-500/30 text-amber-400">
-            <span className="w-1.5 h-1.5 bg-amber-400" />
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[9px] font-bold tracking-wider uppercase bg-amber-500/15 text-amber-400 border border-amber-500/25">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
             PAUSED
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[9px] font-bold tracking-wider uppercase border border-phosphor-dim/30 text-phosphor-dim">
-            <span className="w-1.5 h-1.5 bg-phosphor-dim" />
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[9px] font-bold tracking-wider uppercase bg-zinc-500/15 text-zinc-400 border border-zinc-500/25">
+            <span className="w-1.5 h-1.5 rounded-full bg-zinc-500" />
             OFFLINE
           </span>
         );
@@ -40,30 +40,30 @@ export const BottomStatusBar = memo(function BottomStatusBar({ agent }: Props) {
     if (state.wsStatus === "connected") {
       if (state.wsConnection?.type === "proxy") {
         return (
-          <span title={state.wsConnection?.proxy || "Proxy Route"} className="inline-flex items-center gap-1 px-2 py-0.5 text-[9px] font-bold tracking-wider uppercase border border-amber-500/30 text-amber-400 cursor-help">
-            <span className="w-1.5 h-1.5 bg-amber-400 animate-pulse" />
+          <span title={state.wsConnection?.proxy || "Proxy Route"} className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold tracking-wider uppercase bg-amber-500/15 text-amber-400 border border-amber-500/25 cursor-help">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
             PROXY
           </span>
         );
       }
       return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[9px] font-bold tracking-wider uppercase border border-phosphor-dim/30 text-phosphor-muted">
-          <span className="w-1.5 h-1.5 bg-phosphor-muted" />
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold tracking-wider uppercase bg-zinc-500/15 text-zinc-300 border border-zinc-500/25">
+          <span className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
           WS
         </span>
       );
     }
     if (state.wsStatus === "reconnecting") {
       return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[9px] font-bold tracking-wider uppercase border border-amber-500/30 text-amber-400 animate-pulse">
-          <span className="w-1.5 h-1.5 bg-amber-400 animate-ping" />
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold tracking-wider uppercase bg-amber-500/15 text-amber-400 border border-amber-500/25 animate-pulse">
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
           RECON
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[9px] font-bold tracking-wider uppercase border border-phosphor-red/30 text-phosphor-red">
-        <span className="w-1.5 h-1.5 bg-phosphor-red" />
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold tracking-wider uppercase bg-rose-500/15 text-rose-400 border border-rose-500/25">
+        <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
         REST
       </span>
     );
@@ -74,12 +74,12 @@ export const BottomStatusBar = memo(function BottomStatusBar({ agent }: Props) {
   const showLlmProgress = status === "running" && llmStatus.length > 0;
 
   return (
-    <footer className="terminal-status-bar px-4 py-2 flex items-center justify-between text-[9px] font-mono relative z-50">
+    <footer className="sticky bottom-0 z-50 border-t border-zinc-800/80 bg-zinc-950/90 backdrop-blur-lg px-4 py-2 flex items-center justify-between text-[9px] font-mono">
       <div className="flex items-center gap-2">
         {renderBadge()}
         {renderWSBadge()}
         {state.circuitBreakerTripped && (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[9px] font-bold tracking-wider uppercase border border-phosphor-red/30 text-phosphor-red animate-pulse">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold tracking-wider uppercase bg-rose-500/15 text-rose-400 border border-rose-500/25 animate-pulse">
             BREAKER
           </span>
         )}
@@ -87,8 +87,8 @@ export const BottomStatusBar = memo(function BottomStatusBar({ agent }: Props) {
           <Badge variant="neutral" className="text-[9px] uppercase">{state.modelName}</Badge>
         )}
         {lastCycleAt && (
-          <span className="text-phosphor-dim tracking-wider uppercase flex items-center gap-1">
-            <span className="text-phosphor-dim/50">CYCLE</span>
+          <span className="text-zinc-500 tracking-wider uppercase flex items-center gap-1">
+            <span className="text-zinc-600">CYCLE</span>
             {uptime}
           </span>
         )}
@@ -96,13 +96,13 @@ export const BottomStatusBar = memo(function BottomStatusBar({ agent }: Props) {
 
       <div className="flex items-center gap-2">
         {showLlmProgress && (
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[9px] font-medium tracking-wider uppercase border border-amber-500/30 text-amber-400">
-            <span className="w-1.5 h-1.5 bg-amber-400 animate-pulse" />
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[9px] font-medium tracking-wider uppercase bg-amber-500/15 text-amber-400 border border-amber-500/25">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
             LLM
-            <span className="text-phosphor-dim font-normal">({state.llmProgress?.tokensReceived || 0}t)</span>
+            <span className="text-zinc-600 font-normal">({state.llmProgress?.tokensReceived || 0}t)</span>
           </span>
         )}
-        <span className="text-phosphor-dim/50 tracking-widest uppercase">WYRM_TRADER // v0.1.0</span>
+        <span className="text-zinc-600 tracking-widest uppercase">WYRM // V0.1.0</span>
       </div>
     </footer>
   );
