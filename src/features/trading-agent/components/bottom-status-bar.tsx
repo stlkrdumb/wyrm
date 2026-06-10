@@ -70,8 +70,6 @@ export const BottomStatusBar = memo(function BottomStatusBar({ agent }: Props) {
   };
 
   const uptime = lastCycleAt ? new Date(lastCycleAt).toLocaleTimeString() : "--:--:--";
-  const llmStatus = state.llmProgress?.text || "";
-  const showLlmProgress = status === "running" && llmStatus.length > 0;
 
   return (
     <footer className="fixed bottom-0 left-0 right-0 z-50 border-t border-obsidian-border bg-obsidian-light/95 backdrop-blur-xl px-4 py-2 flex items-center justify-between text-[11px] font-mono">
@@ -92,13 +90,6 @@ export const BottomStatusBar = memo(function BottomStatusBar({ agent }: Props) {
       </div>
 
       <div className="flex items-center gap-2">
-        {showLlmProgress && (
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium tracking-wider uppercase bg-white/10 text-white border border-white/20">
-            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-            LLM
-            <span className="text-zinc-600 font-normal">({state.llmProgress?.tokensReceived || 0}t)</span>
-          </span>
-        )}
         <span className="text-zinc-600 tracking-widest uppercase">WYRM // V0.1.0</span>
       </div>
     </footer>

@@ -63,7 +63,7 @@ Autonomous trading agent for the **Bitget AI Base Camp Hackathon S1 (Track 1 —
 
 ```env
 # ─── Authentication ───
-NEXT_PUBLIC_AUTH_TOKEN=wyrm-hackathon-demo-2026   # Bearer token for /api/agent/* routes
+NEXT_PUBLIC_AUTH_TOKEN=example-bearer-token   # Bearer token for /api/agent/* routes
 
 # ─── Bitget API ───
 BITGET_API_KEY=your-api-key
@@ -107,41 +107,41 @@ All agent control is via API (no UI buttons — intended for hackathon/public de
 ```bash
 # Start (opens WebSocket, begins cycles after 20s warmup)
 curl -X PUT "localhost:3000/api/agent/cycle?status=running" \
-  -H "Authorization: Bearer wyrm-hackathon-demo-2026"
+  -H "Authorization: Bearer example-bearer-token"
 
 # Pause (halts cycles, keeps positions open)
 curl -X PUT "localhost:3000/api/agent/cycle?status=paused" \
-  -H "Authorization: Bearer wyrm-hackathon-demo-2026"
+  -H "Authorization: Bearer example-bearer-token"
 
 # Stop (flattens all positions at market, clears watchlist)
 curl -X PUT "localhost:3000/api/agent/cycle?status=stopped" \
-  -H "Authorization: Bearer wyrm-hackathon-demo-2026"
+  -H "Authorization: Bearer example-bearer-token"
 
 # Read current state
 curl "localhost:3000/api/agent/cycle" \
-  -H "Authorization: Bearer wyrm-hackathon-demo-2026"
+  -H "Authorization: Bearer example-bearer-token"
 
 # Update strategy
 curl -X POST "localhost:3000/api/agent/strategy" \
-  -H "Authorization: Bearer wyrm-hackathon-demo-2026" \
+  -H "Authorization: Bearer example-bearer-token" \
   -H "Content-Type: application/json" \
   -d '{"persona":"Aggressive scalper","customInstructions":"...","circuitBreakerThresholdPct":10}'
 
 # Reset circuit breaker
 curl -X POST "localhost:3000/api/agent/breaker" \
-  -H "Authorization: Bearer wyrm-hackathon-demo-2026" \
+  -H "Authorization: Bearer example-bearer-token" \
   -H "Content-Type: application/json" \
   -d '{"action":"reset"}'
 
 # Run backtest
 curl -X POST "localhost:3000/api/agent/backtest" \
-  -H "Authorization: Bearer wyrm-hackathon-demo-2026" \
+  -H "Authorization: Bearer example-bearer-token" \
   -H "Content-Type: application/json" \
   -d '{"initialEquity":1000}'
 
 # Reset all state
 curl -X POST "localhost:3000/api/agent/reset" \
-  -H "Authorization: Bearer wyrm-hackathon-demo-2026"
+  -H "Authorization: Bearer example-bearer-token"
 ```
 
 ### API Reference
