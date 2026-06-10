@@ -219,12 +219,46 @@ export class BacktestService {
       }
 
       const finalEquity = equityCurve[equityCurve.length - 1]?.equity ?? initialEquity;
+      const losses = tradeCount - wins;
+
+      // Sharpe ratio (annualized, assuming daily returns)
+      const returns = equityCurve.map((p, i) => {
+        const prev = i === 0 ? initialEquity : equityCurve[i - 1].equity;
+        return prev > 0 ? (p.equity - prev) / prev : 0;
+      });
+      const avgReturn = returns.reduce((a, b) => a + b, 0) / (returns.length || 1);
+      const variance = returns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) / (returns.length || 1);
+      const sharpe = variance > 0 ? (avgReturn / Math.sqrt(variance)) * Math.sqrt(365) : 0;
+
+      // Average win/loss
+      const winTrades = trades.filter(t => t.pnl > 0);
+      const lossTrades = trades.filter(t => t.pnl < 0);
+      const avgWin = winTrades.length > 0 ? winTrades.reduce((s, t) => s + t.pnl, 0) / winTrades.length : 0;
+      const avgLoss = lossTrades.length > 0 ? Math.abs(lossTrades.reduce((s, t) => s + t.pnl, 0) / lossTrades.length) : 0;
+
+      // Max consecutive losses
+      let maxConsecutiveLosses = 0;
+      let currentStreak = 0;
+      for (const t of trades) {
+        if (t.pnl < 0) {
+          currentStreak++;
+          maxConsecutiveLosses = Math.max(maxConsecutiveLosses, currentStreak);
+        } else if (t.pnl > 0) {
+          currentStreak = 0;
+        }
+      }
 
       return {
         totalReturn: ((finalEquity - initialEquity) / initialEquity) * 100,
         maxDrawdown,
         winRate: tradeCount > 0 ? (wins / tradeCount) * 100 : 0,
         totalTrades: tradeCount,
+        sharpeRatio: Number(sharpe.toFixed(2)),
+        avgWin: Number(avgWin.toFixed(2)),
+        avgLoss: Number(avgLoss.toFixed(2)),
+        wins,
+        losses,
+        maxConsecutiveLosses,
         equityCurve,
         trades
       };

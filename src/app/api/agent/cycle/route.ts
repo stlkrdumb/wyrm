@@ -163,6 +163,11 @@ export async function GET(request: NextRequest) {
     circuitBreakerThresholdPct: currentState.circuitBreakerThresholdPct,
     peakEquity: currentState.peakEquity,
     watchlist: currentState.watchlist || [],
+    logs: (currentState.logs || []).map(l => ({
+      timestamp: l.timestamp instanceof Date ? l.timestamp.toISOString() : l.timestamp,
+      level: l.level,
+      message: l.message,
+    })),
   });
 }
 

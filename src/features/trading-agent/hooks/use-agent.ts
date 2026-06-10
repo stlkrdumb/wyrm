@@ -54,6 +54,7 @@ interface AgentState {
   modelName: string;
   watchlist: string[];
   equityHistory: { timestamp: string; equity: number }[];
+  logs: { timestamp: string; level: string; message: string }[];
 }
 
 let lastKnownState: AgentState | null = null;
@@ -72,6 +73,7 @@ export function useAgent() {
     modelName: "qwen3.6-plus",
     watchlist: [],
     equityHistory: [],
+    logs: [],
   });
 
   // Stable fetch function — only recreates if URL changes
@@ -106,6 +108,7 @@ export function useAgent() {
         modelName: data.modelName || "qwen3.6-plus",
         watchlist: data.watchlist || [],
         equityHistory: data.equityHistory || [],
+        logs: data.logs || [],
       };
 
       lastKnownState = normalized;

@@ -13,7 +13,7 @@ interface RawTicker {
   change24hPercent: number;
 }
 
-const MAX_SCREEN_POOL = 60;
+const MAX_SCREEN_POOL = 30;
 
 function isRealCrypto(symbol: string): boolean {
   // Exclude Bitget stock tokens (R-prefixed: RSOXLUSDT, RMUUSDT, etc.)

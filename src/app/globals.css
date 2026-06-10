@@ -91,6 +91,21 @@ body {
 
 /* ─── Ticker Flash Animations ──────────────────────── */
 
+@keyframes slide-in-right {
+  0% {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
 @keyframes tick-up-glow {
   0% { 
     border-color: rgba(16, 185, 129, 0.4); 

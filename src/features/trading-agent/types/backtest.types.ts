@@ -19,6 +19,12 @@ export interface BacktestResult {
   maxDrawdown: number;
   winRate: number;
   totalTrades: number;
+  sharpeRatio: number;
+  avgWin: number;
+  avgLoss: number;
+  wins: number;
+  losses: number;
+  maxConsecutiveLosses: number;
   equityCurve: {
     timestamp: Date;
     equity: number;

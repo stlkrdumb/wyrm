@@ -37,6 +37,16 @@ function setS(v: Partial<AgentState>): void {
   if (state) Object.assign(state, v);
 }
 
+const MAX_LOGS = 100;
+
+function pushLog(level: "info" | "action" | "warning" | "error", message: string): void {
+  if (!state) return;
+  state.logs.push({ timestamp: new Date(), level, message });
+  if (state.logs.length > MAX_LOGS) {
+    state.logs = state.logs.slice(-MAX_LOGS);
+  }
+}
+
 /** Build initial state — prefer saved balance over fresh default */
 function buildInitialState(): AgentState {
   const saved = loadBalanceState();
@@ -82,6 +92,7 @@ function buildInitialState(): AgentState {
     modelName: process.env.LLM_MODEL || "qwen3.6-plus",
     watchlist: [],
     equityHistory: [],
+    logs: [],
   };
 }
 
@@ -144,6 +155,7 @@ export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ ticker
 
   llmProgress = { text: "", tokensReceived: 0 };
   st.lastCycleAt = new Date();
+  pushLog("info", "Cycle started — scanning market...");
 
   // Stage 1: Screen the wider market for trade candidates
   const screenResult = await runScreening(st.positions);
@@ -174,6 +186,7 @@ export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ ticker
 
   if (screenSelected.length > 0) {
     console.log(`[Agent] Screening selected: ${screenSelected.join(", ")} — ${screenResult.reason}`);
+    pushLog("info", `Screening: ${screenSelected.join(", ")} — ${screenResult.reason}`);
   }
 
   // Stage 2: Deep TA + sentiment analysis on selected + held symbols
@@ -211,6 +224,11 @@ export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ ticker
   }
 
   setS({ decision: best, signals: er.allSignals });
+  if (best && best.action !== "hold") {
+    pushLog("action", `${best.action.toUpperCase()} signal — strength ${(best.strength * 100).toFixed(0)}% — ${best.reason?.slice(0, 80)}`);
+  } else {
+    pushLog("info", "No actionable signal — holding position");
+  }
   executeTrades(st, validated, prices, displayTicker);
 
   // Sync watchlist: keep position symbols + add freshly screened picks

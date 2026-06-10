@@ -15,17 +15,20 @@ import { BacktestPanel } from "./backtest-panel";
 import { StrategyPanel } from "./strategy-panel";
 import { CircuitBreakerPanel } from "./circuit-breaker-panel";
 import { NewsPanel } from "./news-panel";
+import { TerminalLog } from "./terminal-log";
+import { TradeToast } from "./trade-toast";
 import { Tabs } from "@/shared/ui";
-import { Brain, Newspaper, ChevronLeft } from "lucide-react";
+import { Brain, ChevronLeft, ChevronRight } from "lucide-react";
 
 export function Dashboard() {
   const agent = useAgent();
-  const [activeLogTab, setActiveLogTab] = useState<"execution" | "decision">("execution");
+  const [activeLogTab, setActiveLogTab] = useState<"execution" | "decision" | "console">("execution");
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
   const [activeSidebarTab, setActiveSidebarTab] = useState<"intel" | "config">("intel");
 
   return (
     <div className="flex flex-col min-h-screen bg-zinc-950/20 text-zinc-100">
+      <TradeToast trades={agent.state.trades} />
       <StatusHeader agent={agent} />
 
       {/* Watchlist */}
@@ -58,15 +61,18 @@ export function Dashboard() {
                 tabs={[
                   { key: "execution", label: "Execution Log" },
                   { key: "decision", label: "Decision Log" },
+                  { key: "console", label: "Console" },
                 ]}
                 active={activeLogTab}
-                onChange={(key) => setActiveLogTab(key as "execution" | "decision")}
+                onChange={(key) => setActiveLogTab(key as "execution" | "decision" | "console")}
               />
               <div className="flex-grow overflow-hidden flex flex-col">
                 {activeLogTab === "execution" ? (
                   <TradeLog trades={agent.state.trades} portfolio={agent.state.portfolio} isTabMode={true} />
-                ) : (
+                ) : activeLogTab === "decision" ? (
                   <DecisionHistory isTabMode={true} />
+                ) : (
+                  <TerminalLog logs={agent.state.logs} />
                 )}
               </div>
             </div>
@@ -74,7 +80,7 @@ export function Dashboard() {
         </div>
 
         {/* Collapsible Right Sidebar */}
-        <div className={`flex-shrink-0 transition-all duration-300 ease-in-out flex flex-col gap-4 ${
+        <div className={`flex-shrink-0 transition-all duration-300 ease-in-out flex flex-col gap-4 overflow-hidden ${
           isSidebarOpen ? "w-full lg:w-[380px]" : "w-full lg:w-[48px]"
         }`}>
           {isSidebarOpen ? (
@@ -83,7 +89,8 @@ export function Dashboard() {
                 onClick={() => setIsSidebarOpen(false)}
                 className="w-full py-2 bg-zinc-950/40 hover:bg-zinc-900 border border-zinc-800/80 rounded flex items-center justify-center text-zinc-500 hover:text-zinc-300 font-mono text-[9px] uppercase tracking-widest gap-2 cursor-pointer transition-colors"
               >
-                <span>COLLAPSE SIDEBAR</span>
+                <ChevronRight className="w-3 h-3" />
+                <span>COLLAPSE</span>
               </button>
 
               {/* Sidebar Tab Switcher */}
@@ -111,27 +118,29 @@ export function Dashboard() {
                 </button>
               </div>
 
-              {activeSidebarTab === "intel" ? (
-                <>
-                  <SentimentPanel />
-                  <NewsPanel />
-                </>
-              ) : (
-                <>
-                  <BacktestPanel />
-                  <CircuitBreakerPanel
-                    circuitBreakerTripped={agent.state.circuitBreakerTripped}
-                    circuitBreakerThresholdPct={agent.state.circuitBreakerThresholdPct}
-                    peakEquity={agent.state.peakEquity}
-                    currentEquity={agent.state.portfolio?.equity ?? 0}
-                    resetBreaker={agent.resetBreaker}
-                  />
-                  <StrategyPanel />
-                </>
-              )}
+              <div className="flex flex-col gap-4 overflow-y-auto scrollbar-none flex-grow">
+                {activeSidebarTab === "intel" ? (
+                  <>
+                    <SentimentPanel />
+                    <NewsPanel />
+                  </>
+                ) : (
+                  <>
+                    <BacktestPanel />
+                    <CircuitBreakerPanel
+                      circuitBreakerTripped={agent.state.circuitBreakerTripped}
+                      circuitBreakerThresholdPct={agent.state.circuitBreakerThresholdPct}
+                      peakEquity={agent.state.peakEquity}
+                      currentEquity={agent.state.portfolio?.equity ?? 0}
+                      resetBreaker={agent.resetBreaker}
+                    />
+                    <StrategyPanel />
+                  </>
+                )}
+              </div>
             </>
           ) : (
-            <div className="flex flex-col items-center gap-6 pt-2 h-full border border-zinc-800/80 bg-zinc-950/20 rounded py-4">
+            <div className="flex flex-col items-center gap-4 pt-2 h-full border border-zinc-800/80 bg-zinc-950/20 rounded py-4">
               <button
                 onClick={() => setIsSidebarOpen(true)}
                 className="p-2 bg-zinc-950/40 hover:bg-zinc-900 border border-zinc-800/80 rounded flex items-center justify-center text-zinc-500 hover:text-zinc-300 cursor-pointer transition-colors"
@@ -139,16 +148,11 @@ export function Dashboard() {
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
-              <div className="flex flex-col gap-5 items-center text-zinc-600 mt-2">
-                <div className="hover:text-zinc-400 cursor-pointer transition-colors" onClick={() => setIsSidebarOpen(true)} title="Market Intelligence">
-                  <Brain className="w-4 h-4" />
-                </div>
-              </div>
               <div
-                className="text-[9px] font-mono tracking-widest text-zinc-600 font-bold uppercase select-none pointer-events-none mt-6 whitespace-nowrap"
+                className="text-[9px] font-mono tracking-widest text-zinc-600 font-bold uppercase select-none pointer-events-none whitespace-nowrap"
                 style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
               >
-                SIDEBAR // TOOLS
+                SIDEBAR
               </div>
             </div>
           )}
