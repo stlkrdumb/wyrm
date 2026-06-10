@@ -56,6 +56,8 @@ interface AgentState {
   watchlist: string[];
   equityHistory: { timestamp: string; equity: number }[];
   logs: { timestamp: string; level: string; message: string }[];
+  decisionSource: "llm" | "heuristic" | null;
+  lastFetchAt: number;
 }
 
 let lastKnownState: AgentState | null = null;
@@ -75,6 +77,8 @@ export function useAgent() {
     watchlist: [],
     equityHistory: [],
     logs: [],
+    decisionSource: null,
+    lastFetchAt: 0,
   });
 
   // Stable fetch function — only recreates if URL changes
@@ -110,6 +114,8 @@ export function useAgent() {
         watchlist: data.watchlist || [],
         equityHistory: data.equityHistory || [],
         logs: data.logs || [],
+        decisionSource: data.decisionSource || null,
+        lastFetchAt: Date.now(),
       };
 
       lastKnownState = normalized;

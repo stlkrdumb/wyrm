@@ -56,13 +56,13 @@ export const TradeLog = memo(function TradeLog({ trades, portfolio, isTabMode }:
           </strong></span>
         </div>
         <span className={`text-[12px] font-bold tabular-nums ${portfolio.totalPnL >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-          {portfolio.totalPnL >= 0 ? "+" : ""}${portfolio.totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+          {portfolio.totalPnL >= 0 ? "+" : ""}${portfolio.totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </span>
       </div>
     </>
   );
 
-  if (isTabMode) return <div className="flex flex-col h-full">{content}</div>;
+  if (isTabMode) return <div className="flex flex-col flex-1 min-h-0">{content}</div>;
 
   return (
     <div className="flex flex-col gap-4 p-5 rounded border border-zinc-900 bg-zinc-950/40 backdrop-blur-md relative overflow-hidden">

@@ -50,7 +50,9 @@ async function fetchAllTickers(): Promise<RawTicker[]> {
   }
 
   tickers.sort((a, b) => b.volume24h - a.volume24h);
-  return tickers.slice(0, MAX_SCREEN_POOL);
+  const liquid = tickers.slice(0, 50);
+  liquid.sort((a, b) => Math.abs(b.change24hPercent) - Math.abs(a.change24hPercent));
+  return liquid.slice(0, MAX_SCREEN_POOL);
 }
 
 export async function runScreening(
@@ -63,7 +65,7 @@ export async function runScreening(
     return { selected: [], reason: "No ticker data" };
   }
 
-  console.log(`[Screening] Fetched ${tickers.length} coins from Bitget (top by volume)`);
+  console.log(`[Screening] Fetched ${tickers.length} coins from Bitget (top volatility by volume)`);
 
   const strategy = strategyService.getStrategy();
   const prompt = buildScreeningPrompt(tickers, activePositions, strategy.persona, strategy.customInstructions);

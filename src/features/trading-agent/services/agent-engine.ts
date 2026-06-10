@@ -93,6 +93,7 @@ function buildInitialState(): AgentState {
     watchlist: positions.map(p => p.symbol),
     equityHistory: [],
     logs: [],
+    decisionSource: null,
   };
 }
 
@@ -205,6 +206,7 @@ export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ ticker
     llmProgress.tokensReceived += 1;
   });
   if (isStopped()) { console.warn("[Agent] Stop requested during evaluation — aborting cycle"); return { tickerPrice: 0, tickers: {} }; }
+  setS({ decisionSource: er.source });
 
   const validated: Record<string, TradingDecision> = {};
   let best: TradingDecision | null = null;

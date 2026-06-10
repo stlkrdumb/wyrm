@@ -29,6 +29,7 @@ export interface AgentState {
   watchlist: string[];
   equityHistory: Array<{ timestamp: Date; equity: number }>;
   logs: Array<{ timestamp: Date; level: "info" | "action" | "warning" | "error"; message: string }>;
+  decisionSource: "llm" | "heuristic" | null;
 }
 
 export const config = {

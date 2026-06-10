@@ -14,9 +14,10 @@ function tickerFromSignalName(name: string): string {
 interface Props {
   signals: SignalData[];
   decision: DecisionData | null;
+  decisionSource?: "llm" | "heuristic" | null;
 }
 
-export const SignalPanel = memo(function SignalPanel({ signals, decision }: Props) {
+export const SignalPanel = memo(function SignalPanel({ signals, decision, decisionSource }: Props) {
   if (signals.length === 0 && !decision) {
     return (
       <Card>
@@ -44,7 +45,14 @@ export const SignalPanel = memo(function SignalPanel({ signals, decision }: Prop
     <Card>
       <CardHeader>
         <CardTitle>Decision Signals</CardTitle>
-        <div className="flex items-center gap-2 font-mono">{actionBadge()}</div>
+        <div className="flex items-center gap-2 font-mono">
+          {decisionSource === "heuristic" && (
+            <span className="text-[9px] font-bold tracking-widest uppercase text-yellow-400 bg-yellow-400/10 px-1.5 py-0.5 rounded border border-yellow-400/30">
+              FALLBACK
+            </span>
+          )}
+          {actionBadge()}
+        </div>
       </CardHeader>
       <CardContent>
         <DecisionPipeline
@@ -128,6 +136,7 @@ export const SignalPanel = memo(function SignalPanel({ signals, decision }: Prop
   return (
     prev.signals.length === next.signals.length &&
     JSON.stringify(prev.decision) === JSON.stringify(next.decision) &&
-    prev.signals.every((s, i) => s.strength === next.signals[i]?.strength && s.direction === next.signals[i]?.direction)
+    prev.signals.every((s, i) => s.strength === next.signals[i]?.strength && s.direction === next.signals[i]?.direction) &&
+    prev.decisionSource === next.decisionSource
   );
 });

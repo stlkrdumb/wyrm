@@ -25,6 +25,7 @@ const ANALYSIS_SCRIPT = path.join(
 export interface MultiPairResult {
   decisions: Record<string, TradingDecision>; // { BTCUSDT: {...}, ETHUSDT: {...} }
   allSignals: Signal[];
+  source: "llm" | "heuristic";
 }
 
 // ─── Technical Analysis ──────────────────────────────
@@ -162,7 +163,7 @@ export async function evaluateMultiPair(
 ): Promise<MultiPairResult> {
   const symbols = Array.from(priceMap.keys());
   if (symbols.length === 0) {
-    return { decisions: {}, allSignals: [] };
+    return { decisions: {}, allSignals: [], source: "llm" };
   }
 
   console.log(`[DecisionEngine] Running multi-timeframe TA + sentiment on ${symbols.length} symbol(s):`, symbols.join(", "));
@@ -217,11 +218,11 @@ Analyze the provided market data and generate concise, actionable decisions for 
       onToken,
     });
 
-    return parseMultiResponse(response, symbols);
+    const result = parseMultiResponse(response, symbols);
+    return { ...result, source: "llm" };
   } catch (error) {
     console.error(`[DecisionEngine] LLM multi-pair analysis failed: ${error}`);
-    // Fallback: heuristic per-symbol analysis
     const { decisions, allSignals } = fallbackMultiAnalysis(symbolData);
-    return { decisions, allSignals };
+    return { decisions, allSignals, source: "heuristic" };
   }
 }

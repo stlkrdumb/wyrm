@@ -129,7 +129,7 @@ export function EquityChart({ portfolio, ticker, equityCurve, equityHistory, tra
           <div className="flex flex-col gap-0.5">
             <span className="text-[10px] font-mono font-bold tracking-widest uppercase text-zinc-500">Total PnL</span>
             <span className={`text-[13px] font-black font-mono tabular-nums ${isProfitTotal ? "text-emerald-400" : "text-rose-400"}`}>
-              {isProfitTotal ? "+" : ""}${portfolio.totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              {isProfitTotal ? "+" : ""}${portfolio.totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </div>
           <div className="flex flex-col gap-0.5">

@@ -78,7 +78,7 @@ export function DecisionHistory({ onBack, isTabMode }: Props) {
         />
       </div>
 
-      <div className="flex-grow overflow-y-auto scrollbar-none max-h-[280px]">
+      <div className={`flex-grow overflow-y-auto scrollbar-none ${isTabMode ? "" : "max-h-[280px]"}`}>
         {filteredHistory.length > 0 ? (
           <div className="flex flex-col gap-2 font-mono">
             {filteredHistory.reverse().map((record) => (

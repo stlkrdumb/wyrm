@@ -134,8 +134,8 @@ function repairJSON(raw: string): string {
   let cleaned = raw.replace(/,(\s*[}\]])/g, "$1");
   // Remove comments (// and /* */)
   cleaned = cleaned.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
-  // Replace single quotes with double quotes (but not inside already-double-quoted strings)
-  cleaned = cleaned.replace(/(?<!\\)'(?=[^"]*"(?:[^"]*"[^"]*")*[^"]*$)/g, '"');
+  // Replace single-quoted strings with double-quoted strings
+  cleaned = cleaned.replace(/'([^'\\]*(?:\\.[^'\\]*)*)'/g, '"$1"');
   // Wrap unquoted keys (word before colon, not already quoted)
   cleaned = cleaned.replace(/([{,]\s*)(\w+)(\s*:)/g, '$1"$2"$3');
   // Insert missing commas between properties at newlines — } or ] followed by newline+quote
@@ -148,13 +148,14 @@ export function parseMultiResponse(
   response: string,
   symbols: string[]
 ): { decisions: Record<string, TradingDecision>; allSignals: Signal[] } {
-  const jsonMatch = response.match(/\{[\s\S]*\}/);
+  let cleaned = response.replace(/```(?:json)?\s*/gi, "").replace(/\s*```/g, "").trim();
+  const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
     console.error(`[DecisionHelper] LLM raw response (no JSON found):\n${response.slice(0, 2000)}`);
     throw new Error("Failed to extract JSON from LLM multi-pair response");
   }
 
-  const cleaned = repairJSON(jsonMatch[0]);
+  cleaned = repairJSON(jsonMatch[0]);
   let parsed: Record<string, any>;
   try {
     parsed = JSON.parse(cleaned);
