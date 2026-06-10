@@ -53,6 +53,7 @@ interface AgentState {
   llmProgress?: { text: string; tokensReceived: number } | null;
   modelName: string;
   watchlist: string[];
+  equityHistory: { timestamp: string; equity: number }[];
 }
 
 let lastKnownState: AgentState | null = null;
@@ -70,6 +71,7 @@ export function useAgent() {
     peakEquity: 1000,
     modelName: "qwen3.6-plus",
     watchlist: [],
+    equityHistory: [],
   });
 
   // Stable fetch function — only recreates if URL changes
@@ -103,6 +105,7 @@ export function useAgent() {
         llmProgress: data.llmProgress || null,
         modelName: data.modelName || "qwen3.6-plus",
         watchlist: data.watchlist || [],
+        equityHistory: data.equityHistory || [],
       };
 
       lastKnownState = normalized;

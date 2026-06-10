@@ -220,30 +220,31 @@ export function buildScreeningPrompt(
 Persona: ${persona}
 Instructions: ${instructions}
 
-From the list below, select up to 2 coins that are MOST likely to have a strong directional move in the next hour.
-We already hold: ${positionsSection || "none"}
+Select up to 2 coins MOST likely to have a strong directional move in the next hour.
+We hold: ${positionsSection || "none"}
 
-Coins (price | 24h change | volume):
 ${lines.join("\n")}
 
-Return ONLY valid JSON without markdown formatting:
-{"selected":["SYMBOL1","SYMBOL2"],"reason":"<20 word rationale using specific values>"}`;
+Respond ONLY with this exact JSON, no markdown, no explanation:
+{"selected":["SYMBOL1","SYMBOL2"],"reason":"<20 words>"}`;
 }
 
 /** Parse screening LLM response — returns selected symbols */
 export function parseScreeningResponse(response: string, validSymbols: Set<string>): { selected: string[]; reason: string } {
-  const jsonMatch = response.match(/\{[\s\S]*\}/);
+  // Strip markdown code fences if present
+  let cleaned = response.replace(/```(?:json)?\s*/gi, "").replace(/\s*```/g, "").trim();
+  const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
-    console.error(`[Screening] No JSON in response:\n${response.slice(0, 1000)}`);
+    console.error(`[Screening] No JSON in response:\n${response.slice(0, 1500)}`);
     return { selected: [], reason: "Parse failure" };
   }
 
-  const cleaned = repairJSON(jsonMatch[0]);
+  cleaned = repairJSON(jsonMatch[0]);
   let parsed: any;
   try {
     parsed = JSON.parse(cleaned);
-  } catch {
-    console.error(`[Screening] JSON parse error:\n${jsonMatch[0].slice(0, 1000)}`);
+  } catch (e) {
+    console.error(`[Screening] JSON parse error: ${e}\nRaw:\n${jsonMatch[0].slice(0, 1500)}`);
     return { selected: [], reason: "JSON parse failure" };
   }
 

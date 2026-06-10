@@ -4,7 +4,7 @@ import { buildScreeningPrompt, parseScreeningResponse } from "./decision-helper"
 import { strategyService } from "./strategy.service";
 import type { Position } from "@/features/trading-agent/types";
 
-interface ScreeningTicker {
+interface RawTicker {
   symbol: string;
   lastPrice: number;
   high24h: number;
@@ -13,60 +13,62 @@ interface ScreeningTicker {
   change24hPercent: number;
 }
 
-async function fetchBulkTickers(monitorSymbols: string[]): Promise<ScreeningTicker[]> {
-  const batchSize = 50;
-  const results: ScreeningTicker[] = [];
+const MAX_SCREEN_POOL = 60;
 
-  for (let i = 0; i < monitorSymbols.length; i += batchSize) {
-    const batch = monitorSymbols.slice(i, i + batchSize);
-    const fetched = await Promise.all(
-      batch.map(async (symbol) => {
-        try {
-          const resp = await optionalFetch<{
-            code: string; msg: string; data: Array<Record<string, string>>;
-          }>(`https://api.bitget.com/api/v2/spot/market/tickers?symbol=${symbol}`);
-          const raw = resp.data?.find(t => t.symbol === symbol || t.instId === symbol);
-          if (!raw) return null;
-          const lastPrice = Number(raw.lastPrice ?? raw.lastPr ?? raw.close ?? "0");
-          if (lastPrice <= 0) return null;
-          return {
-            symbol: symbol.toUpperCase(),
-            lastPrice,
-            high24h: Number(raw.high24h ?? raw.high ?? "0"),
-            low24h: Number(raw.low24h ?? raw.low ?? "0"),
-            volume24h: Number(raw.volValue24h ?? raw.quoteVolume ?? raw.volumeValue24h ?? "0"),
-            change24hPercent: Number((Number(raw.changeUtc24h ?? raw.priceRate ?? raw.changingPercent24h ?? "0") * 100).toFixed(2)),
-          };
-        } catch {
-          return null;
-        }
-      })
-    );
-    results.push(...fetched.filter((t): t is ScreeningTicker => t !== null));
+function isRealCrypto(symbol: string): boolean {
+  // Exclude Bitget stock tokens (R-prefixed: RSOXLUSDT, RMUUSDT, etc.)
+  if (/^R[A-Z]{2,}USDT$/.test(symbol)) return false;
+  // Exclude stablecoin pairs
+  if (symbol === "USDCUSDT" || symbol === "DAIUSDT" || symbol === "FDUSDUSDT" || symbol === "TUSDUSDT" || symbol === "USDDUSDT") return false;
+  return true;
+}
+
+async function fetchAllTickers(): Promise<RawTicker[]> {
+  const resp = await optionalFetch<{
+    code: string; msg: string; data: Array<Record<string, string>>;
+  }>("https://api.bitget.com/api/v2/spot/market/tickers");
+
+  const raw = resp.data ?? [];
+  const tickers: RawTicker[] = [];
+
+  for (const t of raw) {
+    const symbol = (t.symbol ?? "").toUpperCase();
+    if (!symbol.endsWith("USDT")) continue;
+    if (!isRealCrypto(symbol)) continue;
+
+    const lastPrice = Number(t.lastPrice ?? t.lastPr ?? t.close ?? "0");
+    if (lastPrice <= 0) continue;
+
+    tickers.push({
+      symbol,
+      lastPrice,
+      high24h: Number(t.high24h ?? t.high ?? "0"),
+      low24h: Number(t.low24h ?? t.low ?? "0"),
+      volume24h: Number(t.volValue24h ?? t.quoteVolume ?? t.volumeValue24h ?? "0"),
+      change24hPercent: Number((Number(t.changeUtc24h ?? t.priceRate ?? t.changingPercent24h ?? "0") * 100).toFixed(2)),
+    });
   }
 
-  return results;
+  tickers.sort((a, b) => b.volume24h - a.volume24h);
+  return tickers.slice(0, MAX_SCREEN_POOL);
 }
 
 export async function runScreening(
-  monitorSymbols: string[],
   activePositions: Position[],
 ): Promise<{ selected: string[]; reason: string }> {
-  const tickers = await fetchBulkTickers(monitorSymbols);
+  const tickers = await fetchAllTickers();
 
   if (tickers.length === 0) {
     console.warn("[Screening] No ticker data available");
     return { selected: [], reason: "No ticker data" };
   }
 
-  tickers.sort((a, b) => b.volume24h - a.volume24h);
+  console.log(`[Screening] Fetched ${tickers.length} coins from Bitget (top by volume)`);
 
   const strategy = strategyService.getStrategy();
   const prompt = buildScreeningPrompt(tickers, activePositions, strategy.persona, strategy.customInstructions);
 
   const systemPrompt = `You are a coin screening AI. Your task is to select up to 2 coins most likely to have a strong directional move in the next hour based on 24h price action and volume. Be concise and specific.`;
-
-  console.log(`[Screening] Running LLM screening on ${tickers.length} coins (top by volume)`);
 
   try {
     const response = await chatCompletion({
@@ -80,6 +82,16 @@ export async function runScreening(
 
     const validSymbols = new Set(tickers.map(t => t.symbol));
     const result = parseScreeningResponse(response, validSymbols);
+
+    if (result.selected.length === 0) {
+      // Fallback: pick top 2 by volume that aren't already positions
+      const posSyms = new Set(activePositions.map(p => p.symbol));
+      const topByVolume = tickers.filter(t => !posSyms.has(t.symbol)).slice(0, 2);
+      const fallbackSelected = topByVolume.map(t => t.symbol);
+      console.log(`[Screening] LLM returned nothing — fallback to top volume: ${fallbackSelected.join(", ")}`);
+      return { selected: fallbackSelected, reason: `Volume fallback: ${fallbackSelected.join(", ")}` };
+    }
+
     console.log(`[Screening] Selected: ${result.selected.join(", ") || "none"} — ${result.reason}`);
     return result;
   } catch (error) {

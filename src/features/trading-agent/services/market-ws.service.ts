@@ -1,5 +1,5 @@
 import type { PriceSnapshot } from "./price-store";
-import { updatePositionUnrealizedPnL } from "./agent-engine";
+import { updatePositionUnrealizedPnL, getAgentState } from "./agent-engine";
 import { priceStore, type PriceStore } from "./price-store";
 import { config } from "./agent-engine";
 import { WebSocket as WSClient } from "ws";
@@ -291,26 +291,29 @@ export class MarketWebSocketService {
     }
   }
 
-  /** Build subscription channels for all configured trading + monitoring symbols */
+  /** Build subscription channels for all configured trading symbols */
   buildSubscriptions(): WSSubscription[] {
-    const monitorSymbols = (process.env.MONITOR_SYMBOLS || "")
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
+    return config.tradingSymbols.map((symbol): WSSubscription => ({
+      instType: "SPOT",
+      channel: "ticker",
+      instId: symbol.toUpperCase(),
+    }));
+  }
 
-    return [
-    ...config.tradingSymbols.map((symbol): WSSubscription => ({
+  /** Subscribe to TRADING_SYMBOLS + current position symbols */
+  syncSubscriptionsForPositions(): void {
+    const st = getAgentState();
+    const posSymbols = st.positions.map(p => p.symbol);
+    const all = [...new Set([...config.tradingSymbols, ...posSymbols])];
+    const channels = all.map((symbol): WSSubscription => ({
       instType: "SPOT",
       channel: "ticker",
       instId: symbol.toUpperCase(),
-    })),
-    ...monitorSymbols.map((symbol): WSSubscription => ({
-      instType: "SPOT",
-      channel: "ticker",
-      instId: symbol.toUpperCase(),
-    })),
-  ];
-}
+    }));
+    this.subscribe(channels).catch(err =>
+      console.warn("[WS] syncSubscriptions failed:", err instanceof Error ? err.message : String(err))
+    );
+  }
 
 /** Initialize WebSocket connection — call once on app startup */
   async initialize(): Promise<{ type: "direct" | "proxy" | "fallback"; proxy: string | null }> {

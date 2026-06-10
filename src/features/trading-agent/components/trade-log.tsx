@@ -1,6 +1,7 @@
 "use client";
 
 import { memo } from "react";
+import { Badge } from "@/shared/ui";
 import type { TradeData, PortfolioData } from "@/features/trading-agent/hooks/use-agent";
 
 function formatRelative(dateStr: string): string {
@@ -11,33 +12,25 @@ function formatRelative(dateStr: string): string {
   return `${Math.floor(diff / 86400_000)}d ago`;
 }
 
-function ActionBadge({ action }: { action: string }) {
-  const label: Record<string, string> = {
-    entry: "Buy",
-    exit: "Sell",
-    add: "Buy More",
-    reduce: "Partial Sell",
-  };
-  const style: Record<string, string> = {
-    entry: "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20",
-    add: "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20",
-    exit: "bg-rose-500/10 text-rose-400 border border-rose-500/20",
-    reduce: "bg-amber-500/10 text-amber-400 border border-amber-500/20",
-  };
+const actionBadgeVariant = (action: string): "success" | "danger" | "warning" | "neutral" => {
+  switch (action) {
+    case "entry": return "success";
+    case "add": return "success";
+    case "exit": return "danger";
+    case "reduce": return "warning";
+    default: return "neutral";
+  }
+};
 
-  return (
-    <span className={`px-1.5 py-0.2 rounded text-[8px] font-bold uppercase tracking-widest ${style[action] || "bg-zinc-900 text-zinc-500 border border-zinc-800"}`}>
-      {label[action] ?? action}
-    </span>
-  );
-}
+const actionLabel: Record<string, string> = {
+  entry: "Buy", exit: "Sell", add: "Buy More", reduce: "Partial Sell",
+};
 
 export const TradeLog = memo(function TradeLog({ trades, portfolio, isTabMode }: { trades: TradeData[]; portfolio: PortfolioData; isTabMode?: boolean }) {
   const hasTrades = trades.length > 0;
 
   const content = (
     <>
-      {/* Logs list */}
       <div className="flex-grow overflow-y-auto scrollbar-none pr-1 -mr-1 mt-2">
         {hasTrades ? (
           <div className="flex flex-col gap-2 font-mono">
@@ -52,105 +45,51 @@ export const TradeLog = memo(function TradeLog({ trades, portfolio, isTabMode }:
         )}
       </div>
 
-      {portfolio.totalTrades > 0 && (
-        <Summary portfolio={portfolio} />
-      )}
+      <div className="flex items-center justify-between pt-2.5 border-t border-zinc-800/60 mt-1 flex-shrink-0 font-mono">
+        <div className="flex gap-3 text-[10px] text-zinc-500">
+          <span>TOTAL: <strong className="text-zinc-300">{portfolio.totalTrades}</strong></span>
+          <span>WIN RATE: <strong className={portfolio.winRate >= 50 ? "text-emerald-400" : "text-rose-400"}>
+            {portfolio.winRate.toFixed(1)}%
+          </strong></span>
+        </div>
+        <span className={`text-[10px] font-bold tabular-nums ${portfolio.totalPnL >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+          {portfolio.totalPnL >= 0 ? "+" : ""}${portfolio.totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+        </span>
+      </div>
     </>
   );
 
-  if (isTabMode) {
-    return <div className="flex-grow flex flex-col justify-between overflow-hidden">{content}</div>;
-  }
+  if (isTabMode) return <div className="flex flex-col h-full">{content}</div>;
 
   return (
-    <div className="flex flex-col gap-4 p-5 rounded border border-zinc-900 bg-zinc-950/40 backdrop-blur-md relative overflow-hidden h-full">
-      {/* Header */}
+    <div className="flex flex-col gap-4 p-5 rounded border border-zinc-900 bg-zinc-950/40 backdrop-blur-md relative overflow-hidden">
       <div className="flex items-center justify-between border-b border-zinc-900/50 pb-3">
-        <span className="text-[10px] tracking-widest text-zinc-500 font-bold uppercase">Activity Logs</span>
-        <span className="text-[10px] tracking-widest text-zinc-500 font-mono">
-          COUNT: {portfolio.totalTrades}
-        </span>
+        <span className="text-[10px] tracking-widest text-zinc-500 font-bold uppercase">Execution Log</span>
       </div>
       {content}
     </div>
   );
-}, (prev, next) => {
-  return (
-    prev.trades.length === next.trades.length &&
-    prev.portfolio.totalTrades === next.portfolio.totalTrades &&
-    prev.portfolio.totalPnL === next.portfolio.totalPnL &&
-    prev.portfolio.winRate === next.portfolio.winRate
-  );
 });
 
 function TradeRow({ trade }: { trade: TradeData }) {
-  const pnlDisplay = trade.pnl !== null;
-  const pnl = trade.pnl ?? 0;
-  const pnlPositive = pnl > 0;
-
-  const quoteCurrency = trade.symbol.replace(/[A-Z]{4}$/, "") || "USD";
-
+  const pnlDisplay = trade.pnl !== null && trade.pnl !== undefined;
   return (
-    <div className="group rounded border border-zinc-900 bg-zinc-950 p-2.5 hover:border-zinc-800 transition-all duration-150">
-      <div className="flex items-center justify-between mb-1.5">
-        <div className="flex items-center gap-2">
-          <span className="font-bold text-zinc-100 text-[11px]">{trade.symbol}</span>
-          <ActionBadge action={trade.action} />
-        </div>
-        <span className="text-[9px] text-zinc-550">{formatRelative(trade.timestamp)}</span>
+    <div className="flex items-center justify-between py-1.5 border-b border-zinc-800/30 last:border-0">
+      <div className="flex items-center gap-2.5 min-w-0">
+        <Badge variant={actionBadgeVariant(trade.action)} className="text-[8px] px-1.5">
+          {actionLabel[trade.action] ?? trade.action}
+        </Badge>
+        <span className="text-[11px] text-zinc-200 font-semibold font-mono">{trade.symbol}</span>
       </div>
-
-      <div className="flex items-center justify-between text-[10px]">
-        <div className="flex items-center gap-1.5 tabular-nums text-zinc-450">
-          <span className="text-[9px] font-bold uppercase text-zinc-550">Qty</span>
-          <span className="text-zinc-200 font-bold">{trade.size.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</span>
-          <span className="text-zinc-650">@</span>
-          <span className="text-zinc-200">${trade.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-        </div>
-
+      <div className="flex items-center gap-3 text-[10px] font-mono tabular-nums flex-shrink-0">
+        <span className="text-zinc-500">{trade.size.toFixed(4)}</span>
+        <span className="text-zinc-400">${trade.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
         {pnlDisplay && (
-          <span className={`font-bold tabular-nums ${pnlPositive ? "text-emerald-400" : pnl < 0 ? "text-rose-400" : "text-zinc-400"}`}>
-            {pnl === 0 ? "$0.00" : (pnl > 0 ? "+" : "-") + "$" + Math.abs(pnl).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          <span className={`font-bold min-w-[4.5rem] text-right ${trade.pnl! >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+            {trade.pnl! >= 0 ? "+" : ""}${trade.pnl!.toFixed(2)}
           </span>
         )}
-      </div>
-    </div>
-  );
-}
-
-function Summary({ portfolio }: { portfolio: PortfolioData }) {
-  const pnl = portfolio.totalPnL;
-  const pnlPositive = pnl > 0;
-
-  const winRateColor = portfolio.totalTrades === 0 
-    ? "text-zinc-500" 
-    : portfolio.winRate >= 50 
-      ? "text-emerald-400" 
-      : "text-rose-400";
-
-  const pnlColor = pnl > 0 
-    ? "text-emerald-400" 
-    : pnl < 0 
-      ? "text-rose-400" 
-      : "text-zinc-400";
-
-  return (
-    <div className="mt-3 pt-3.5 border-t border-zinc-900/50 grid grid-cols-3 gap-2.5 text-center text-[10px] font-mono flex-shrink-0">
-      <div className="bg-zinc-950/50 py-2 rounded border border-zinc-900/80 hover:bg-zinc-900/10 hover:border-zinc-800 transition-all duration-200 flex flex-col gap-1">
-        <span className="text-zinc-500 text-[8px] uppercase tracking-widest font-bold block">Trades</span>
-        <span className="font-bold text-zinc-200 tabular-nums text-[12px]">{portfolio.totalTrades}</span>
-      </div>
-      <div className="bg-zinc-950/50 py-2 rounded border border-zinc-900/80 hover:bg-zinc-900/10 hover:border-zinc-800 transition-all duration-200 flex flex-col gap-1">
-        <span className="text-zinc-500 text-[8px] uppercase tracking-widest font-bold block">Win Rate</span>
-        <span className={`font-bold tabular-nums text-[12px] ${winRateColor}`}>
-          {portfolio.winRate.toFixed(0)}%
-        </span>
-      </div>
-      <div className="bg-zinc-950/50 py-2 rounded border border-zinc-900/80 hover:bg-zinc-900/10 hover:border-zinc-800 transition-all duration-200 flex flex-col gap-1">
-        <span className="text-zinc-500 text-[8px] uppercase tracking-widest font-bold block">Realized PnL</span>
-        <span className={`font-bold tabular-nums text-[12px] ${pnlColor}`}>
-          {pnl === 0 ? "$0.00" : (pnl > 0 ? "+" : "-") + "$" + Math.abs(pnl).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-        </span>
+        <span className="text-zinc-600 min-w-[4rem] text-right">{formatRelative(trade.timestamp)}</span>
       </div>
     </div>
   );

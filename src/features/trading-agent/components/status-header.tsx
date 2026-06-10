@@ -1,6 +1,7 @@
 "use client";
 
 import { memo, useState, useCallback } from "react";
+import { Button } from "@/shared/ui";
 import type { useAgent } from "@/features/trading-agent/hooks/use-agent";
 
 interface Props {
@@ -23,24 +24,20 @@ export const StatusHeader = memo(function StatusHeader({ agent }: Props) {
   }, [isPending, status, setAgentStatus]);
 
   return (
-    <header className="flex items-center justify-between px-6 py-4 border-b border-zinc-900 bg-zinc-950/70 backdrop-blur-md">
+    <header className="flex items-center justify-between px-6 py-4 border-b border-zinc-800/80 bg-zinc-950/70 backdrop-blur-md">
       <div className="flex items-center gap-4">
-        <h1 className="text-sm font-black tracking-widest text-zinc-100 uppercase font-mono">
+        <img src="/logo.svg" alt="Wyrm" className="h-12 w-auto" />
+        <h1 className="text-sm font-black tracking-widest text-zinc-100 uppercase font-display">
           WYRM // <span className="text-zinc-500 font-normal">TRADING CONSOLE</span>
         </h1>
       </div>
 
       <div className="flex items-center gap-2">
-        <button
+        <Button
           onClick={handleToggle}
           disabled={isPending || (status !== "running" && state.circuitBreakerTripped)}
-          className={`inline-flex items-center justify-center rounded border px-4 py-1.5 text-xs font-semibold tracking-wider uppercase transition-all duration-300 cursor-pointer ${
-            isPending
-              ? "border-zinc-700 text-zinc-500 bg-zinc-900/50 cursor-wait"
-              : status === "running"
-              ? "border-rose-500/30 hover:border-rose-500 text-rose-400 hover:bg-rose-500/5"
-              : "border-emerald-500/30 hover:border-emerald-500 text-emerald-400 hover:bg-emerald-500/5"
-          } disabled:opacity-40 disabled:cursor-not-allowed`}
+          variant={status === "running" ? "danger" : "emerald"}
+          size="sm"
         >
           {isPending ? (
             <>
@@ -55,7 +52,7 @@ export const StatusHeader = memo(function StatusHeader({ agent }: Props) {
           ) : (
             <>&#9654; START</>
           )}
-        </button>
+        </Button>
       </div>
     </header>
   );

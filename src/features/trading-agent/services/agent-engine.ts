@@ -81,6 +81,7 @@ function buildInitialState(): AgentState {
     peakEquity: peakEq,
     modelName: process.env.LLM_MODEL || "qwen3.6-plus",
     watchlist: [],
+    equityHistory: [],
   };
 }
 
@@ -98,34 +99,34 @@ function recalcEquity(st: AgentState): void {
 /** Called by market-ws.service.ts when a ticker update arrives */
 export function updatePositionUnrealizedPnL(symbol: string, currentPrice: number): void {
   const st = getState();
-  if (!config.tradingSymbols.includes(symbol)) return;
 
   const idx = st.positions.findIndex((p) => p.symbol === symbol);
-  if (idx >= 0 && st.positions[idx].entryPrice > 0) {
-    const pos = st.positions[idx];
-    const unrealizedPnL = (currentPrice - pos.entryPrice) * pos.size;
-    st.positions[idx] = { ...pos, unrealizedPnL };
+  if (idx < 0 || st.positions[idx].entryPrice <= 0) return;
 
-    // Check Stop Loss & Take Profit
-    const isStopLoss = currentPrice <= pos.entryPrice * (1 - config.stopLossPct / 100);
-    const isTakeProfit = currentPrice >= pos.entryPrice * (1 + config.takeProfitPct / 100);
+  const pos = st.positions[idx];
+  const unrealizedPnL = (currentPrice - pos.entryPrice) * pos.size;
+  st.positions[idx] = { ...pos, unrealizedPnL };
+  recalcEquity(st);
 
-    if (isStopLoss || isTakeProfit) {
-      const reason = isStopLoss ? "Stop Loss" : "Take Profit";
-      console.log(`[Auto-Bracket] ${symbol} exit: ${reason} ($${currentPrice.toLocaleString()}/entry $${pos.entryPrice.toLocaleString()})`);
+  // Check Stop Loss & Take Profit
+  const isStopLoss = currentPrice <= pos.entryPrice * (1 - config.stopLossPct / 100);
+  const isTakeProfit = currentPrice >= pos.entryPrice * (1 + config.takeProfitPct / 100);
 
-      const pnl = unrealizedPnL;
-      const tc = getTradeCounter() + 1;
-      setTradeCounter(tc);
+  if (isStopLoss || isTakeProfit) {
+    const reason = isStopLoss ? "Stop Loss" : "Take Profit";
+    console.log(`[Auto-Bracket] ${symbol} exit: ${reason} ($${currentPrice.toLocaleString()}/entry $${pos.entryPrice.toLocaleString()})`);
 
-      st.trades.push({ id: `T${tc}`, timestamp: new Date(), symbol, side: "sell", action: "exit", size: pos.size, price: currentPrice, pnl });
-      st.portfolio.cash += currentPrice * pos.size - (currentPrice * pos.size) * config.feePct;
-      st.positions.splice(idx, 1);
-      st.portfolio.totalPnL += pnl;
-      st.portfolio.totalTrades++;
+    const pnl = unrealizedPnL;
+    const tc = getTradeCounter() + 1;
+    setTradeCounter(tc);
 
-      recalcEquity(st);
-    }
+    st.trades.push({ id: `T${tc}`, timestamp: new Date(), symbol, side: "sell", action: "exit", size: pos.size, price: currentPrice, pnl });
+    st.portfolio.cash += currentPrice * pos.size - (currentPrice * pos.size) * config.feePct;
+    st.positions.splice(idx, 1);
+    st.portfolio.totalPnL += pnl;
+    st.portfolio.totalTrades++;
+
+    recalcEquity(st);
   }
 }
 
@@ -144,8 +145,8 @@ export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ ticker
   llmProgress = { text: "", tokensReceived: 0 };
   st.lastCycleAt = new Date();
 
-  // Stage 1: Screen the wider monitor universe for trade candidates
-  const screenResult = await runScreening(config.monitorSymbols, st.positions);
+  // Stage 1: Screen the wider market for trade candidates
+  const screenResult = await runScreening(st.positions);
   const screenSelected = screenResult.selected;
 
   // Always include existing positions + screening picks
@@ -219,6 +220,11 @@ export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ ticker
     if (!posSyms.has(s) && !kept.includes(s)) kept.push(s);
   }
   st.watchlist = kept;
+
+  // Record equity snapshot for chart history
+  recalcEquity(st);
+  st.equityHistory.push({ timestamp: new Date(), equity: st.portfolio.equity });
+  if (st.equityHistory.length > 500) st.equityHistory.splice(0, st.equityHistory.length - 500);
 
   return { tickerPrice: displayTicker.lastPrice, tickers: Object.fromEntries(prices) };
 }

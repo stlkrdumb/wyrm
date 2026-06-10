@@ -2,7 +2,8 @@
 
 @theme inline {
   --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --font-mono: "Fira Code", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --font-mono: "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --font-display: "Azeret Mono", "JetBrains Mono", ui-monospace, monospace;
 }
 
 body {
@@ -10,9 +11,33 @@ body {
   font-family: var(--font-sans);
 }
 
-/* Swiss Industrial Dark Grid layout styles */
+/* ─── Animated Grid Background ─────────────────────── */
 
-/* Glowing text highlights - kept for compatibility but softened */
+.matrix-grid {
+  background-color: #090a0c;
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.012) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.012) 1px, transparent 1px);
+  background-size: 40px 40px;
+  position: relative;
+  animation: grid-pulse 8s ease-in-out infinite;
+}
+
+.matrix-grid::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 0%, rgba(24, 24, 27, 0.5) 0%, transparent 75%);
+  pointer-events: none;
+}
+
+@keyframes grid-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.85; }
+}
+
+/* ─── Glow Utilities ──────────────────────────────── */
+
 .glow-green {
   text-shadow: 0 0 8px rgba(16, 185, 129, 0.15);
 }
@@ -25,34 +50,28 @@ body {
   text-shadow: 0 0 8px rgba(244, 63, 94, 0.15);
 }
 
-/* Swiss Industrial Grid Background */
-.matrix-grid {
-  background-color: #090a0c;
-  background-image: 
-    linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
-  background-size: 40px 40px;
-  position: relative;
+/* Amber pulse glow for active state */
+@keyframes pulse-amber {
+  0%, 100% { box-shadow: 0 0 4px rgba(245, 158, 11, 0.2); }
+  50% { box-shadow: 0 0 12px rgba(245, 158, 11, 0.4); }
 }
 
-.matrix-grid::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at 50% 0%, rgba(24, 24, 27, 0.4) 0%, transparent 75%);
-  pointer-events: none;
+.animate-pulse-amber {
+  animation: pulse-amber 2s ease-in-out infinite;
 }
 
-/* Hide scrollbar utility */
+/* ─── Hide Scrollbar ───────────────────────────────── */
+
 .scrollbar-none::-webkit-scrollbar {
   display: none;
 }
 .scrollbar-none {
-  -ms-overflow-style: none;  /* IE/Edge */
-  scrollbar-width: none;  /* Firefox */
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
-/* Custom premium scrollbar */
+/* ─── Custom Scrollbar ─────────────────────────────── */
+
 ::-webkit-scrollbar {
   width: 4px;
   height: 4px;
@@ -70,7 +89,8 @@ body {
   @apply bg-zinc-700;
 }
 
-/* Premium Ticker Glow Price Animations */
+/* ─── Ticker Flash Animations ──────────────────────── */
+
 @keyframes tick-up-glow {
   0% { 
     border-color: rgba(16, 185, 129, 0.4); 
@@ -108,20 +128,3 @@ body {
 .animate-tick-down {
   animation: tick-down-glow 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
-
-/* Financial Marquee ticker animation */
-@keyframes marquee {
-  0% { transform: translate3d(0, 0, 0); }
-  100% { transform: translate3d(-50%, 0, 0); }
-}
-
-.animate-marquee {
-  display: flex;
-  width: max-content;
-  animation: marquee 25s linear infinite;
-}
-
-.animate-marquee:hover {
-  animation-play-state: paused;
-}
-

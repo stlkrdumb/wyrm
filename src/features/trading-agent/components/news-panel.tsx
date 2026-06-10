@@ -2,6 +2,7 @@
 
 import { useEffect, useState, memo, useCallback } from "react";
 import { Newspaper, TrendingUp, TrendingDown, Minus, ExternalLink, Loader2 } from "lucide-react";
+import { Card, CardHeader, CardTitle, CardContent, Badge } from "@/shared/ui";
 
 interface NewsArticle {
   id: string;
@@ -35,108 +36,81 @@ export const NewsPanel = memo(function NewsPanel() {
 
   useEffect(() => {
     fetchNews();
-    // Refresh news every 3 minutes
     const id = setInterval(fetchNews, 3 * 60 * 1000);
     return () => clearInterval(id);
   }, [fetchNews]);
 
   const getSentimentIcon = (sentiment: NewsArticle["sentiment"]) => {
     switch (sentiment) {
-      case "BULLISH":
-        return <TrendingUp className="w-3 h-3 text-emerald-400" />;
-      case "BEARISH":
-        return <TrendingDown className="w-3 h-3 text-rose-400" />;
-      default:
-        return <Minus className="w-3 h-3 text-zinc-500" />;
+      case "BULLISH": return <TrendingUp className="w-3 h-3 text-emerald-400" />;
+      case "BEARISH": return <TrendingDown className="w-3 h-3 text-rose-400" />;
+      default: return <Minus className="w-3 h-3 text-zinc-500" />;
     }
   };
 
-  const getSentimentColorClass = (sentiment: NewsArticle["sentiment"]) => {
+  const sentimentBadge = (sentiment: NewsArticle["sentiment"]) => {
     switch (sentiment) {
-      case "BULLISH":
-        return "text-emerald-400 border-emerald-500/20 bg-emerald-500/10";
-      case "BEARISH":
-        return "text-rose-400 border-rose-500/20 bg-rose-500/10";
-      default:
-        return "text-zinc-400 border-zinc-800 bg-zinc-900/40";
+      case "BULLISH": return <Badge variant="success" className="text-[8px]">BULLISH</Badge>;
+      case "BEARISH": return <Badge variant="danger" className="text-[8px]">BEARISH</Badge>;
+      default: return <Badge variant="neutral" className="text-[8px]">NEUTRAL</Badge>;
     }
   };
 
-  const formatTimeAgo = (ts: number) => {
-    const secs = Math.floor(Date.now() / 1000 - ts);
-    if (secs < 60) return "just now";
-    const mins = Math.floor(secs / 60);
-    if (mins < 60) return `${mins}m ago`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h ago`;
-    return `${Math.floor(hrs / 24)}d ago`;
+  const timeAgo = (ts: number) => {
+    const diff = Date.now() - ts;
+    if (diff < 3600_000) return `${Math.floor(diff / 60_000)}m`;
+    if (diff < 86400_000) return `${Math.floor(diff / 3600_000)}h`;
+    return `${Math.floor(diff / 86400_000)}d`;
   };
-
-  if (isLoading && articles.length === 0) {
-    return (
-      <div className="flex flex-col gap-4 p-5 rounded border border-zinc-900 bg-zinc-950/40 backdrop-blur-md relative overflow-hidden h-[380px] justify-center items-center">
-        <Loader2 className="w-6 h-6 text-zinc-500 animate-spin" />
-        <span className="text-[10px] font-mono text-zinc-500 tracking-widest uppercase mt-2">
-          Syncing Macro News...
-        </span>
-      </div>
-    );
-  }
 
   return (
-    <div className="flex flex-col gap-4 p-5 rounded border border-zinc-900 bg-zinc-950/40 backdrop-blur-md relative overflow-hidden h-[380px]">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-zinc-900/50 pb-3 flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <Newspaper className="w-3.5 h-3.5 text-zinc-550" />
-          <span className="text-[10px] tracking-widest text-zinc-500 font-bold uppercase">
-            Macro News & Sentiment
-          </span>
-        </div>
-        <span className="text-[8px] font-mono text-zinc-650 bg-zinc-950/60 border border-zinc-900 px-1 py-0.2 rounded font-bold uppercase tracking-wider">
-          LIVE NEWS
+    <Card>
+      <CardHeader>
+        <CardTitle>Macro News</CardTitle>
+        <span className="text-[9px] font-mono text-zinc-500">
+          {articles.length > 0 ? `${articles.length} headlines` : ""}
         </span>
-      </div>
-
-      {/* News Feed */}
-      <div className="flex-grow overflow-y-auto space-y-3 pr-1.5 scrollbar-thin">
-        {articles.length > 0 ? (
-          articles.map((art) => (
-            <div
-              key={art.id}
-              className="p-3 bg-zinc-900/10 border border-zinc-900 hover:border-zinc-800 rounded flex flex-col gap-2 transition-all hover:bg-zinc-950/20 group relative"
-            >
-              {/* Metadata */}
-              <div className="flex justify-between items-center text-[8.5px] font-mono font-bold tracking-wider uppercase">
-                <div className="flex items-center gap-1.5 text-zinc-550">
-                  <span>{art.source}</span>
-                  <span className="w-1 h-1 rounded-full bg-zinc-800" />
-                  <span>{formatTimeAgo(art.publishedOn)}</span>
-                </div>
-                <div className={`flex items-center gap-1 px-1.5 py-0.2 rounded border ${getSentimentColorClass(art.sentiment)}`}>
-                  {getSentimentIcon(art.sentiment)}
-                  <span className="text-[8px] font-bold tracking-widest">{art.sentiment}</span>
-                </div>
-              </div>
-
-              {/* Title & Link */}
+      </CardHeader>
+      <CardContent>
+        {isLoading && articles.length === 0 ? (
+          <div className="flex items-center justify-center h-[200px]">
+            <Loader2 className="w-5 h-5 text-zinc-500 animate-spin" />
+          </div>
+        ) : articles.length === 0 ? (
+          <div className="text-[11px] font-mono text-zinc-500 py-8 text-center tracking-wide uppercase">
+            No headlines right now
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2 max-h-[350px] overflow-y-auto scrollbar-none pr-1 -mr-1">
+            {articles.map((a) => (
               <a
-                href={art.url}
+                key={a.id}
+                href={a.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[11px] font-sans font-semibold leading-snug text-zinc-200 hover:text-zinc-100 flex items-start gap-1 transition-all group-hover:translate-x-0.5"
+                className="block p-2.5 rounded border border-zinc-800/40 hover:border-zinc-700/60 bg-zinc-950/30 hover:bg-zinc-900/30 transition-all duration-150 group"
               >
-                <span className="line-clamp-2">{art.title}</span>
-                <ExternalLink className="w-3 h-3 text-zinc-600 group-hover:text-zinc-400 flex-shrink-0 mt-0.5 transition-colors" />
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] text-zinc-200 font-medium leading-relaxed line-clamp-2 group-hover:text-zinc-100 transition-colors font-sans">
+                      {a.title}
+                    </p>
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <span className="text-[8px] font-mono text-zinc-600 uppercase tracking-wider">{a.source}</span>
+                      <span className="text-[8px] font-mono text-zinc-700">•</span>
+                      <span className="text-[8px] font-mono text-zinc-600">{timeAgo(a.publishedOn)} ago</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    {sentimentBadge(a.sentiment)}
+                    <ExternalLink className="w-3 h-3 text-zinc-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                </div>
               </a>
-            </div>
-          ))
-        ) : (
-          <div className="text-[11px] font-mono text-zinc-500 py-12 text-center tracking-wide uppercase">
-            No recent news headlines available
+            ))}
           </div>
         )}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 });

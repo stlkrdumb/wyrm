@@ -25,6 +25,7 @@ export async function POST() {
     console.log(`[API] POST /api/agent/cycle — LLM_MODEL=${process.env.LLM_MODEL} API_KEY=${process.env.OPENAI_API_KEY ? '***' + process.env.OPENAI_API_KEY.slice(-4) : 'MISSING'}`);
 
     const result = await runAgentCycle();
+    marketWS.syncSubscriptionsForPositions();
 
     const allSnapshots = priceStore.getAll();
     const tickersMap: Record<string, any> = {};
@@ -46,7 +47,11 @@ export async function POST() {
       wsConnection: marketWS.getConnectionInfo(),
       decision: currentState.decision,
       signals: currentState.signals.map(s => ({ name: s.name, source: s.source, direction: s.direction, strength: s.strength })),
-      watchlist: currentState.watchlist || [],
+    watchlist: currentState.watchlist || [],
+    equityHistory: (currentState.equityHistory || []).map(e => ({
+      timestamp: e.timestamp instanceof Date ? e.timestamp.toISOString() : e.timestamp,
+      equity: e.equity,
+    })),
     });
   } catch (error: any) {
     console.error("[API] CRITICAL ERROR in POST /api/agent/cycle:", error);
@@ -119,6 +124,10 @@ export async function GET(request: NextRequest) {
     });
   }
 
+  // Recalculate equity live from positions × cached prices
+  const liveEquity = currentState.portfolio.cash +
+    livePositions.reduce((sum, p) => sum + p.size * p.entryPrice + p.unrealizedPnL, 0);
+
   return NextResponse.json({
     status: currentState.status,
     lastCycleAt: currentState.lastCycleAt?.toISOString() ?? null,
@@ -138,7 +147,7 @@ export async function GET(request: NextRequest) {
     })),
     portfolio: {
       cash: currentState.portfolio.cash,
-      equity: currentState.portfolio.equity,
+      equity: liveEquity,
       initialCash: currentState.portfolio.initialCash,
       totalTrades: currentState.portfolio.totalTrades,
       winRate: currentState.portfolio.winRate,
@@ -182,6 +191,7 @@ export async function PUT(request: NextRequest) {
       if (getAgentState().status === "running") {
         try {
           const initResult = await runAgentCycle();
+          marketWS.syncSubscriptionsForPositions();
           console.log("[AGENT CYCLE] LLM analysis done — ticker price:", initResult.tickerPrice,
             "signals:", getAgentState().signals.length);
         } catch (err) {
@@ -198,6 +208,7 @@ export async function PUT(request: NextRequest) {
         return;
       }
       const initResult = await runAgentCycle();
+      marketWS.syncSubscriptionsForPositions();
       console.log("[PUT /api/agent/cycle] Agent started — initial cycle done, ticker price:", initResult.tickerPrice);
     }, 20_000);
   } else {

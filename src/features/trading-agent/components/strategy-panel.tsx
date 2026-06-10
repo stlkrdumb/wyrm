@@ -2,6 +2,7 @@
 
 import { useEffect, useState, memo } from "react";
 import { Sliders, Save, CheckCircle, Loader2 } from "lucide-react";
+import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from "@/shared/ui";
 
 const STRATEGY_PRESETS = [
   {
@@ -41,9 +42,7 @@ export const StrategyPanel = memo(function StrategyPanel() {
         const data = await res.json();
         setPersona(data.persona || "");
         setInstructions(data.customInstructions || "");
-        if (data.circuitBreakerThresholdPct != null) {
-          setThreshold(data.circuitBreakerThresholdPct);
-        }
+        if (data.circuitBreakerThresholdPct != null) setThreshold(data.circuitBreakerThresholdPct);
       } catch (err) {
         console.error(err);
       } finally {
@@ -65,194 +64,160 @@ export const StrategyPanel = memo(function StrategyPanel() {
       if (!res.ok) throw new Error("Failed to save strategy");
       setStatusMsg({ type: "success", text: "STAGES MODIFIED // CORE RE-INJECTED" });
       setTimeout(() => setStatusMsg(null), 3000);
-    } catch (err) {
+    } catch {
       setStatusMsg({ type: "error", text: "SAVE FAILED // CORE FAULT" });
     } finally {
       setSaving(false);
     }
   };
 
-  // Derive profile bias from instructions
   const getStrategyBias = () => {
     const text = (persona + " " + instructions).toLowerCase();
-    if (text.includes("aggressive") || text.includes("scalp") || text.includes("high-frequency") || text.includes("momentum")) {
-      return { label: "AGGRESSIVE", color: "text-amber-500 border-amber-500/20 bg-amber-500/10" };
-    }
-    if (text.includes("conservative") || text.includes("preserve") || text.includes("safety") || text.includes("strict")) {
-      return { label: "CONSERVATIVE", color: "text-emerald-400 border-emerald-500/20 bg-emerald-500/10" };
-    }
-    return { label: "BALANCED", color: "text-zinc-400 border-zinc-800 bg-zinc-900/40" };
+    if (text.includes("aggressive") || text.includes("scalp") || text.includes("high-frequency") || text.includes("momentum")) return "AGGRESSIVE";
+    if (text.includes("conservative") || text.includes("preserve") || text.includes("safety") || text.includes("strict")) return "CONSERVATIVE";
+    return "BALANCED";
   };
 
   const bias = getStrategyBias();
-
   const THRESHOLD_PRESETS = [2, 3, 5, 8, 10, 12, 15, 20];
 
   if (loading) {
     return (
-      <div className="flex flex-col gap-4 p-5 rounded border border-zinc-900 bg-zinc-950/40 backdrop-blur-md relative overflow-hidden h-[48px] justify-center">
-        <div className="flex items-center gap-2">
-          <Loader2 className="w-3.5 h-3.5 text-zinc-550 animate-spin" />
-          <span className="text-[10px] font-mono text-zinc-550 tracking-widest uppercase">
-            Loading Cognitive Core...
-          </span>
-        </div>
-      </div>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Loader2 className="w-3.5 h-3.5 text-zinc-500 animate-spin" />
+            <CardTitle>Agent Customizer</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <span className="text-[10px] font-mono text-zinc-500 tracking-widest uppercase">Loading Cognitive Core...</span>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <div className={`flex flex-col rounded border border-zinc-900 bg-zinc-950/40 backdrop-blur-md relative overflow-hidden transition-all duration-200 ${
-      isCollapsed ? "p-4 gap-0" : "p-5 gap-5"
-    }`}>
-      {/* Header */}
-      <div 
-        onClick={() => setIsCollapsed(!isCollapsed)}
-        className={`flex items-center justify-between flex-shrink-0 cursor-pointer group select-none ${
-          isCollapsed ? "" : "border-b border-zinc-900/50 pb-3"
-        }`}
-      >
-        <div className="flex items-center gap-2">
-          <Sliders className="w-3.5 h-3.5 text-zinc-550 group-hover:text-zinc-350 transition-colors" />
-          <span className="text-[10px] tracking-widest text-zinc-550 group-hover:text-zinc-350 font-bold uppercase transition-colors">
-            Agent Customizer
-          </span>
-          <span className="text-[8px] font-mono text-zinc-650 ml-1.5 uppercase font-bold tracking-widest bg-zinc-950/60 border border-zinc-900 px-1 py-0.2 rounded group-hover:text-zinc-400 group-hover:border-zinc-800 transition-all">
-            {isCollapsed ? "[EXPAND]" : "[COLLAPSE]"}
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className={`text-[8px] font-bold px-1.5 py-0.2 rounded border font-mono tracking-wider ${bias.color}`}>
-            {bias.label}
-          </span>
-          <span className="text-[8px] font-mono text-zinc-600 border border-zinc-900 px-1.5 py-0.2 rounded tracking-wider">
-            DD {threshold}%
-          </span>
-        </div>
+    <Card>
+      <div onClick={() => setIsCollapsed(!isCollapsed)} className="cursor-pointer select-none">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Sliders className="w-3.5 h-3.5 text-zinc-500" />
+            <CardTitle>Agent Customizer</CardTitle>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge variant={bias === "AGGRESSIVE" ? "warning" : bias === "CONSERVATIVE" ? "success" : "neutral"}>
+              {bias}
+            </Badge>
+            <span className="text-[8px] font-mono text-zinc-600 border border-zinc-800 px-1.5 py-0.2 rounded tracking-wider">
+              DD {threshold}%
+            </span>
+            <span className="text-[8px] font-mono text-zinc-600 uppercase tracking-widest">
+              {isCollapsed ? "[EXPAND]" : "[COLLAPSE]"}
+            </span>
+          </div>
+        </CardHeader>
       </div>
 
       {!isCollapsed && (
-        <div className="flex flex-col gap-4 font-mono text-[11px] mt-1">
-          {/* Strategy Presets */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">
-              Cognitive Core Presets
-            </label>
-            <div className="grid grid-cols-3 gap-2">
-              {STRATEGY_PRESETS.map((preset) => (
-                <button
-                  key={preset.name}
-                  onClick={() => {
-                    setPersona(preset.persona);
-                    setInstructions(preset.instructions);
-                    setThreshold(preset.threshold);
-                  }}
-                  className="py-1.5 px-2.5 rounded border border-zinc-900 bg-zinc-950/60 text-[9px] hover:bg-zinc-900 hover:text-zinc-200 hover:border-zinc-800 transition-all cursor-pointer font-bold tracking-wider uppercase text-zinc-450 text-center"
-                >
-                  {preset.name}
-                </button>
-              ))}
+        <CardContent>
+          <div className="flex flex-col gap-4 font-mono text-[11px]">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">
+                Cognitive Core Presets
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {STRATEGY_PRESETS.map((preset) => (
+                  <button
+                    key={preset.name}
+                    onClick={() => { setPersona(preset.persona); setInstructions(preset.instructions); setThreshold(preset.threshold); }}
+                    className="py-1.5 px-2.5 rounded border border-zinc-800 bg-zinc-950/60 text-[9px] hover:bg-zinc-900 hover:text-zinc-200 hover:border-zinc-700 transition-all cursor-pointer font-bold tracking-wider uppercase text-zinc-400 text-center"
+                  >
+                    {preset.name}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
 
-          {/* Persona Input */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider">
-              Agent Trading Persona
-            </label>
-            <textarea
-              value={persona}
-              onChange={(e) => setPersona(e.target.value)}
-              rows={2}
-              placeholder="e.g. Conservative quant trading analyst focusing on long-term trends..."
-              className="w-full bg-zinc-950 border border-zinc-850 rounded p-2.5 text-zinc-200 focus:outline-none focus:border-zinc-750 transition-all font-sans leading-relaxed text-[11px] resize-none"
-            />
-          </div>
-
-          {/* Instructions Input */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider">
-              Custom Strategy Instructions
-            </label>
-            <textarea
-              value={instructions}
-              onChange={(e) => setInstructions(e.target.value)}
-              rows={4}
-              placeholder="e.g. Respect strict RSI oversold limits. Buy only on oversold and MACD confirmations. Hold is always the preferred default decision."
-              className="w-full bg-zinc-950 border border-zinc-850 rounded p-2.5 text-zinc-200 focus:outline-none focus:border-zinc-750 transition-all font-sans leading-relaxed text-[11px] resize-none"
-            />
-          </div>
-
-          {/* Drawdown Threshold */}
-          <div className="flex flex-col gap-2">
-            <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">
-              Emergency Drawdown Limit
-            </label>
-            <div className="grid grid-cols-4 gap-1.5">
-              {THRESHOLD_PRESETS.map((pct) => (
-                <button
-                  key={pct}
-                  onClick={() => setThreshold(pct)}
-                  className={`py-1.5 text-[10px] rounded border transition-all uppercase cursor-pointer ${
-                    threshold === pct
-                      ? "bg-zinc-800 text-zinc-100 border-zinc-650 font-bold"
-                      : "text-zinc-500 border-zinc-900 hover:border-zinc-850 hover:text-zinc-350"
-                  }`}
-                >
-                  {pct}%
-                </button>
-              ))}
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[9px] text-zinc-600 uppercase tracking-wider">Custom:</span>
-              <input
-                type="number"
-                min={1}
-                max={50}
-                value={threshold}
-                onChange={(e) => {
-                  const v = Math.min(50, Math.max(1, parseInt(e.target.value) || 1));
-                  setThreshold(v);
-                }}
-                className="w-20 bg-zinc-950 border border-zinc-850 rounded p-1.5 text-zinc-200 focus:outline-none focus:border-zinc-750 transition-all text-[11px] text-center"
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider">
+                Agent Trading Persona
+              </label>
+              <textarea
+                value={persona}
+                onChange={(e) => setPersona(e.target.value)}
+                rows={2}
+                placeholder="e.g. Conservative quant trading analyst focusing on long-term trends..."
+                className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-zinc-200 focus:outline-none focus:border-zinc-700 transition-all font-sans leading-relaxed text-[11px] resize-none"
               />
-              <span className="text-[9px] text-zinc-600">%</span>
             </div>
-          </div>
 
-          {/* Save Action */}
-          <div className="flex items-center gap-3 pt-2">
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="flex-grow py-2.5 rounded border border-zinc-850 bg-zinc-900/50 hover:bg-zinc-800/80 hover:border-zinc-700 transition-all text-[10px] font-bold tracking-widest uppercase flex items-center justify-center gap-2 text-zinc-200 disabled:opacity-40 cursor-pointer"
-            >
-              {saving ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  SAVING CORE...
-                </>
-              ) : (
-                <>
-                  <Save className="w-3.5 h-3.5" />
-                  COMMIT STRATEGY
-                </>
-              )}
-            </button>
-          </div>
-
-          {statusMsg && (
-            <div className={`p-2.5 rounded text-[9px] font-mono font-bold tracking-wider text-center border animate-fade-in ${
-              statusMsg.type === "success" 
-                ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" 
-                : "bg-rose-500/10 border-rose-500/20 text-rose-400"
-            }`}>
-              {statusMsg.type === "success" && <CheckCircle className="w-3.5 h-3.5 inline mr-1.5 -mt-0.5" />}
-              {statusMsg.text}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider">
+                Custom Strategy Instructions
+              </label>
+              <textarea
+                value={instructions}
+                onChange={(e) => setInstructions(e.target.value)}
+                rows={4}
+                placeholder="e.g. Respect strict RSI oversold limits..."
+                className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-zinc-200 focus:outline-none focus:border-zinc-700 transition-all font-sans leading-relaxed text-[11px] resize-none"
+              />
             </div>
-          )}
-        </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">
+                Emergency Drawdown Limit
+              </label>
+              <div className="grid grid-cols-4 gap-1.5">
+                {THRESHOLD_PRESETS.map((pct) => (
+                  <button
+                    key={pct}
+                    onClick={() => setThreshold(pct)}
+                    className={`py-1.5 text-[10px] rounded border transition-all uppercase cursor-pointer ${
+                      threshold === pct
+                        ? "bg-zinc-800 text-zinc-100 border-zinc-600 font-bold"
+                        : "text-zinc-500 border-zinc-800 hover:border-zinc-700 hover:text-zinc-300"
+                    }`}
+                  >
+                    {pct}%
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] text-zinc-600 uppercase tracking-wider">Custom:</span>
+                <input
+                  type="number" min={1} max={50} value={threshold}
+                  onChange={(e) => setThreshold(Math.min(50, Math.max(1, parseInt(e.target.value) || 1)))}
+                  className="w-20 bg-zinc-950 border border-zinc-800 rounded p-1.5 text-zinc-200 focus:outline-none focus:border-zinc-700 transition-all text-[11px] text-center"
+                />
+                <span className="text-[9px] text-zinc-600">%</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 pt-2">
+              <Button variant="primary" onClick={handleSave} disabled={saving} className="flex-1">
+                {saving ? (
+                  <><Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> SAVING CORE...</>
+                ) : (
+                  <><Save className="w-3.5 h-3.5 mr-1.5" /> COMMIT STRATEGY</>
+                )}
+              </Button>
+            </div>
+
+            {statusMsg && (
+              <div className={`p-2.5 rounded text-[9px] font-mono font-bold tracking-wider text-center border ${
+                statusMsg.type === "success"
+                  ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                  : "bg-rose-500/10 border-rose-500/20 text-rose-400"
+              }`}>
+                {statusMsg.type === "success" && <CheckCircle className="w-3.5 h-3.5 inline mr-1.5 -mt-0.5" />}
+                {statusMsg.text}
+              </div>
+            )}
+          </div>
+        </CardContent>
       )}
-    </div>
+    </Card>
   );
 });
