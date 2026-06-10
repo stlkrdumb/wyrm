@@ -34,6 +34,11 @@ export const config = {
     return Number(process.env.SIM_INITIAL_CASH) || 1000;
   },
   tradingSymbols: (process.env.TRADING_SYMBOLS || "BTCUSDT").split(",").map(s => s.trim().toUpperCase()).filter(Boolean),
+  get monitorSymbols(): string[] {
+    const trading = this.tradingSymbols;
+    const watch = (process.env.MONITOR_SYMBOLS || "").split(",").map(s => s.trim().toUpperCase()).filter(Boolean);
+    return [...new Set([...trading, ...watch])];
+  },
   maxActivePositions: Number(process.env.MAX_ACTIVE_POSITIONS) || 3,
   get stopLossPct(): number {
     return Number(process.env.SIM_STOP_LOSS_PCT) || 5;

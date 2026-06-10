@@ -58,9 +58,9 @@ export class PriceStore {
     if (!snapshot || !snapshot.lastPrice) return null;
     return {
       symbol: snapshot.symbol,
-      lastPrice: Math.round(snapshot.lastPrice),
-      high24h: Math.round(snapshot.high24h ?? snapshot.lastPrice),
-      low24h: Math.round(snapshot.low24h ?? snapshot.lastPrice),
+      lastPrice: snapshot.lastPrice,
+      high24h: snapshot.high24h ?? snapshot.lastPrice,
+      low24h: snapshot.low24h ?? snapshot.lastPrice,
       volume24h: snapshot.quoteVolume ?? 0,
       change24hPercent: snapshot.changePercent ?? 0,
     };

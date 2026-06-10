@@ -7,6 +7,7 @@ import { getLivePrice } from "./price-fetcher.service";
 import { flattenPositions, executeTrades } from "./order-executor.service";
 import { priceStore } from "./price-store";
 import { evaluateMultiPair, type MultiPairResult } from "./decision-engine.service";
+import { runScreening } from "./screening.service";
 import { riskManager } from "./risk-manager.service";
 import { historyService } from "./history-service";
 import { loadBalanceState, saveBalanceState } from "./balance-store";
@@ -139,8 +140,25 @@ export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ ticker
   if (st.circuitBreakerTripped) { st.status = "stopped"; return { tickerPrice: 0, tickers: {} }; }
   if (st.status !== "running") return { tickerPrice: 0, tickers: {} };
 
+  llmProgress = { text: "", tokensReceived: 0 };
+  st.lastCycleAt = new Date();
+
+  // Stage 1: Screen the wider monitor universe for trade candidates
+  const screenResult = await runScreening(config.monitorSymbols, st.positions);
+  const screenSelected = screenResult.selected;
+
+  // Always include existing positions + screening picks
+  const positionSymbols = st.positions.map(p => p.symbol);
+  const targetSymbols = [...new Set([...positionSymbols, ...screenSelected])];
+
+  if (targetSymbols.length === 0) {
+    console.warn("[Agent] No positions and screening picked nothing — skipping cycle");
+    return { tickerPrice: 0, tickers: {} };
+  }
+
+  // Fetch prices for target symbols
   const prices = new Map<string, TickerData>();
-  for (const symbol of config.tradingSymbols) {
+  for (const symbol of targetSymbols) {
     const t = await getLivePrice(symbol);
     if (t && t.lastPrice > 0) prices.set(symbol, t);
   }
@@ -149,11 +167,14 @@ export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ ticker
 
   const displayTicker = prices.get("BTCUSDT") ?? prices.values().next().value!;
   st.ticker = displayTicker;
-  st.lastCycleAt = new Date();
-  llmProgress = { text: "", tokensReceived: 0 };
 
   for (const [, t] of prices) { console.log(`[Agent] ${t.symbol}: $${t.lastPrice.toLocaleString()} (${t.change24hPercent >= 0 ? "+" : ""}${t.change24hPercent}%)`); }
 
+  if (screenSelected.length > 0) {
+    console.log(`[Agent] Screening selected: ${screenSelected.join(", ")} — ${screenResult.reason}`);
+  }
+
+  // Stage 2: Deep TA + sentiment analysis on selected + held symbols
   const er: MultiPairResult = await evaluateMultiPair(prices, st.positions, (token: string) => {
     if (!llmProgress) llmProgress = { text: "", tokensReceived: 0 };
     llmProgress.text += token;

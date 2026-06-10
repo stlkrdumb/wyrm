@@ -197,6 +197,65 @@ export function parseMultiResponse(
   return { decisions, allSignals };
 }
 
+/** Build a compact one-line-per-symbol prompt for Stage 1 screening */
+export function buildScreeningPrompt(
+  symbols: Array<{ symbol: string; lastPrice: number; change24hPercent: number; volume24h: number }>,
+  activePositions: Position[],
+  persona: string,
+  instructions: string,
+): string {
+  const lines = symbols.map(s => {
+    const label = s.change24hPercent >= 0 ? "positive" : "negative";
+    return `${s.symbol}: $${s.lastPrice.toLocaleString()} | ${s.change24hPercent >= 0 ? "+" : ""}${s.change24hPercent}% (${label}) | Vol: ${(s.volume24h / 1_000_000).toFixed(1)}M USDT`;
+  });
+
+  let positionsSection = "";
+  if (activePositions.length > 0) {
+    positionsSection = "\nPositions we hold:\n" + activePositions
+      .map(p => `- ${p.symbol}: ${p.size.toFixed(4)} @ $${p.entryPrice.toLocaleString()}`)
+      .join("\n");
+  }
+
+  return `You are a quantitative coin screener.
+Persona: ${persona}
+Instructions: ${instructions}
+
+From the list below, select up to 2 coins that are MOST likely to have a strong directional move in the next hour.
+We already hold: ${positionsSection || "none"}
+
+Coins (price | 24h change | volume):
+${lines.join("\n")}
+
+Return ONLY valid JSON without markdown formatting:
+{"selected":["SYMBOL1","SYMBOL2"],"reason":"<20 word rationale using specific values>"}`;
+}
+
+/** Parse screening LLM response — returns selected symbols */
+export function parseScreeningResponse(response: string, validSymbols: Set<string>): { selected: string[]; reason: string } {
+  const jsonMatch = response.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
+    console.error(`[Screening] No JSON in response:\n${response.slice(0, 1000)}`);
+    return { selected: [], reason: "Parse failure" };
+  }
+
+  const cleaned = repairJSON(jsonMatch[0]);
+  let parsed: any;
+  try {
+    parsed = JSON.parse(cleaned);
+  } catch {
+    console.error(`[Screening] JSON parse error:\n${jsonMatch[0].slice(0, 1000)}`);
+    return { selected: [], reason: "JSON parse failure" };
+  }
+
+  const raw = Array.isArray(parsed.selected) ? parsed.selected : (Array.isArray(parsed) ? parsed : []);
+  const selected = raw
+    .map((s: string) => s.toUpperCase().trim())
+    .filter((s: string) => validSymbols.has(s))
+    .slice(0, 2);
+
+  return { selected, reason: parsed.reason || "" };
+}
+
 export function fallbackMultiAnalysis(
   symbolData: Map<string, { ticker: TickerData; ta5m: any; ta1h: any; ta1d: any }>
 ): { decisions: Record<string, TradingDecision>; allSignals: Signal[] } {
