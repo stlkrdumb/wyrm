@@ -37,7 +37,7 @@ export function PositionsPanel({ positions, tickers }: Props) {
           <table className="data-table">
             <thead>
               <tr>
-                <th>Asset</th>
+                <th className="text-left">Asset</th>
                 <th className="text-right">Holdings</th>
                 <th className="text-right">Avg Price</th>
                 <th className="text-right">Value</th>

@@ -225,7 +225,6 @@ body {
   letter-spacing: 0.1em;
   color: #71717a;
   padding: 8px 12px;
-  text-align: left;
   border-bottom: 1px solid var(--color-obsidian-border);
 }
 
