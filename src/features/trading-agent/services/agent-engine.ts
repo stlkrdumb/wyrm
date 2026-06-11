@@ -257,11 +257,15 @@ export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ ticker
   if (isStopped()) { console.warn("[Agent] Stop requested before trade execution — aborting cycle"); return { tickerPrice: 0, tickers: {} }; }
   executeTrades(st, validated, prices, displayTicker);
 
-  // Sync watchlist: keep position symbols + add freshly screened picks
+  // Sync watchlist: keep position symbols + pending order symbols + add freshly screened picks
   const posSyms = new Set(st.positions.map(p => p.symbol));
-  const kept = st.watchlist.filter(s => posSyms.has(s));
+  const pendingSyms = new Set(st.pendingOrders.map(o => o.symbol));
+  const kept = st.watchlist.filter(s => posSyms.has(s) || pendingSyms.has(s));
   // Ensure all position symbols are present even if added this cycle
   for (const sym of posSyms) {
+    if (!kept.includes(sym)) kept.push(sym);
+  }
+  for (const sym of pendingSyms) {
     if (!kept.includes(sym)) kept.push(sym);
   }
   for (const s of screenSelected) {
