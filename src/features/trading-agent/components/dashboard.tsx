@@ -49,7 +49,7 @@ export function Dashboard() {
         </div>
       )}
 
-      <TradeToast trades={agent.state.trades} />
+      <TradeToast trades={agent.state.trades} pendingOrders={agent.state.pendingOrders} />
       
       {/* Header */}
       <StatusHeader agent={agent} />

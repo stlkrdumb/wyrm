@@ -105,9 +105,6 @@ export function executeTrades(
     if (typeof priceMap.get(symbol) === "undefined") continue;
     const ticker = priceMap.get(symbol)!;
 
-    // Cancel any existing pending order for this symbol if LLM issues new decision
-    cancelPendingOrder(state, symbol);
-
     if (decision.action === "buy" && uniqueSymbolsCount >= config.maxActivePositions) {
       console.log(`[Agent] ${symbol}: skipping buy — already at max open positions (${config.maxActivePositions})`);
       continue;
@@ -150,7 +147,7 @@ export function executeTrades(
         }
       }
 
-      // Merge with existing pending order for same symbol + side + limitPrice
+      // Check for mergeable order first before cancelling
       const existing = state.pendingOrders.find(
         o => o.symbol === symbol && o.side === decision.action && o.limitPrice === decision.limitPrice
       );
@@ -167,6 +164,9 @@ export function executeTrades(
         state.portfolio.totalTrades++;
         continue;
       }
+
+      // Cancel any existing pending order for this symbol (swap old for new)
+      cancelPendingOrder(state, symbol);
 
       // Create new pending order
       state.pendingOrders.push({
@@ -196,6 +196,9 @@ export function executeTrades(
       state.portfolio.totalTrades++;
       continue;
     }
+
+    // Cancel any existing pending order for this symbol before executing market order
+    cancelPendingOrder(state, symbol);
 
     const idx = state.positions.findIndex((p) => p.symbol === symbol);
     const now = new Date();
