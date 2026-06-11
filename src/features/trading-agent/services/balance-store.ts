@@ -28,6 +28,7 @@ export interface PortfolioState {
     side: "buy" | "sell";
     limitPrice: number;
     size: number;
+    reservedCash: number;
     createdAt: string;
     stopLossPct: number;
     takeProfitPct: number;

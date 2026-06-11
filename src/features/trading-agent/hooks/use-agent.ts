@@ -31,7 +31,7 @@ export interface TradeData {
 
 export interface PositionData { symbol: string; side: "long" | "short"; size: number; entryPrice: number; unrealizedPnL: number; stopLossPct: number; takeProfitPct: number; }
 
-export interface PendingOrderData { id: string; symbol: string; side: "buy" | "sell"; limitPrice: number; size: number; createdAt: string; stopLossPct: number; takeProfitPct: number; }
+export interface PendingOrderData { id: string; symbol: string; side: "buy" | "sell"; limitPrice: number; size: number; reservedCash: number; createdAt: string; stopLossPct: number; takeProfitPct: number; }
 
 export type WSConnectionStatus = "connecting" | "connected" | "reconnecting";
 

@@ -109,9 +109,15 @@ export function cancelPendingOrder(state: AgentState, symbol: string): void {
   if (idx < 0) return;
 
   const order = state.pendingOrders[idx];
+
+  // Return reserved cash for buy orders
+  if (order.side === "buy" && order.reservedCash > 0) {
+    state.portfolio.cash += order.reservedCash;
+  }
+
   state.pendingOrders.splice(idx, 1);
 
-  pushEvent(state, "info", `${symbol}: LIMIT ${order.side.toUpperCase()} @ $${order.limitPrice.toFixed(2)} cancelled`);
+  pushEvent(state, "info", `${symbol}: LIMIT ${order.side.toUpperCase()} @ $${order.limitPrice.toFixed(2)} cancelled — cash unreserved`);
   console.log(`[PendingOrder] ${symbol}: ${order.side.toUpperCase()} limit @ $${order.limitPrice.toFixed(2)} cancelled`);
 }
 

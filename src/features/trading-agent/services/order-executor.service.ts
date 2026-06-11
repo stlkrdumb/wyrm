@@ -127,17 +127,17 @@ export function executeTrades(
     if (decision.orderType === "limit" && decision.limitPrice && decision.limitPrice > 0) {
       const sltp = resolveSLTP(decision.riskProfile);
 
+      let reservedCash = 0;
+
       // For limit buys: reserve cash now
       if (decision.action === "buy") {
         const cost = ticker.lastPrice * tradeSize;
         const fee = cost * config.feePct;
-        const totalCost = cost + fee;
-        if (totalCost > liquidBalance) {
+        reservedCash = cost + fee;
+        if (reservedCash > liquidBalance) {
           console.log(`[Agent] ${symbol}: skipping limit buy — insufficient funds for reservation`);
           continue;
         }
-        liquidBalance -= totalCost;
-        state.portfolio.cash -= totalCost;
       }
 
       // For limit sells: verify position exists
@@ -149,15 +149,45 @@ export function executeTrades(
         }
       }
 
+      // Merge with existing pending order for same symbol + side + limitPrice
+      const existing = state.pendingOrders.find(
+        o => o.symbol === symbol && o.side === decision.action && o.limitPrice === decision.limitPrice
+      );
+      if (existing) {
+        existing.size += tradeSize;
+        existing.reservedCash += reservedCash;
+        if (decision.action === "buy") {
+          liquidBalance -= reservedCash;
+          state.portfolio.cash -= reservedCash;
+        }
+        const mergeMsg = `${symbol}: LIMIT ${decision.action.toUpperCase()} @ $${decision.limitPrice.toFixed(2)} — merged +${tradeSize.toFixed(4)} (total: ${existing.size.toFixed(4)})`;
+        state.logs.push({ timestamp: new Date(), level: "action", message: mergeMsg });
+        console.log(`[Agent] ${mergeMsg}`);
+        state.portfolio.totalTrades++;
+        continue;
+      }
+
+      // Create new pending order
       state.pendingOrders.push({
         id: `LO-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
         symbol,
         side: decision.action,
         limitPrice: decision.limitPrice,
         size: tradeSize,
+        reservedCash,
         createdAt: new Date(),
         ...sltp,
       });
+
+      if (decision.action === "buy") {
+        liquidBalance -= reservedCash;
+        state.portfolio.cash -= reservedCash;
+      }
+
+      // Add to watchlist + subscribe WS
+      if (!state.watchlist.includes(symbol)) {
+        state.watchlist.push(symbol);
+      }
 
       const limitMsg = `${symbol}: LIMIT ${decision.action.toUpperCase()} @ $${decision.limitPrice.toFixed(2)} (size: ${tradeSize.toFixed(4)})`;
       state.logs.push({ timestamp: new Date(), level: "action", message: limitMsg });
@@ -242,7 +272,7 @@ export function executeTrades(
   };
 
   const savedPositions = state.positions.map(p => ({ symbol: p.symbol, side: p.side as "long" | "short", size: p.size, entryPrice: p.entryPrice, stopLossPct: p.stopLossPct, takeProfitPct: p.takeProfitPct }));
-  const savedPending = state.pendingOrders.map(o => ({ id: o.id, symbol: o.symbol, side: o.side, limitPrice: o.limitPrice, size: o.size, createdAt: o.createdAt.toISOString(), stopLossPct: o.stopLossPct, takeProfitPct: o.takeProfitPct }));
+  const savedPending = state.pendingOrders.map(o => ({ id: o.id, symbol: o.symbol, side: o.side, limitPrice: o.limitPrice, size: o.size, reservedCash: o.reservedCash, createdAt: o.createdAt.toISOString(), stopLossPct: o.stopLossPct, takeProfitPct: o.takeProfitPct }));
   saveBalanceState({
     initialCash: config.initialCash,
     startCash: state.startEquity,

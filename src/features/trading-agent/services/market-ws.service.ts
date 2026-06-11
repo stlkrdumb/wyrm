@@ -300,11 +300,12 @@ export class MarketWebSocketService {
     }));
   }
 
-  /** Subscribe to TRADING_SYMBOLS + current position symbols */
+  /** Subscribe to TRADING_SYMBOLS + current position symbols + pending order symbols */
   syncSubscriptionsForPositions(): void {
     const st = getAgentState();
     const posSymbols = st.positions.map(p => p.symbol);
-    const all = [...new Set([...config.tradingSymbols, ...posSymbols])];
+    const pendingSymbols = st.pendingOrders.map(o => o.symbol);
+    const all = [...new Set([...config.tradingSymbols, ...posSymbols, ...pendingSymbols])];
     const channels = all.map((symbol): WSSubscription => ({
       instType: "SPOT",
       channel: "ticker",

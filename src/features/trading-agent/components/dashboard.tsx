@@ -61,7 +61,7 @@ export function Dashboard() {
 
       {/* Main Terminal Grid */}
       <main className="relative z-10 px-4 pb-12 pt-3 grid grid-cols-12 gap-3 flex-1 min-h-0">
-        {/* Left Column: Chart + Positions (span 5) */}
+        {/* Left Column: Chart + Positions + Pending (span 5) */}
         <div className="col-span-5 flex flex-col gap-3 min-h-0">
           <EquityChart 
             portfolio={agent.state.portfolio} 
@@ -75,6 +75,7 @@ export function Dashboard() {
               tickers={agent.state.tickers} 
             />
           </div>
+          <PendingOrdersPanel pendingOrders={agent.state.pendingOrders} />
         </div>
 
         {/* Center Column: Signals + Logs (span 4) */}
@@ -146,7 +147,6 @@ export function Dashboard() {
             {activeSidebarTab === "intel" ? (
               <>
                 <SentimentPanel />
-                <PendingOrdersPanel pendingOrders={agent.state.pendingOrders} />
                 <NewsPanel />
               </>
             ) : (

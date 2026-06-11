@@ -117,6 +117,7 @@ export async function GET(request: NextRequest) {
     side: o.side,
     limitPrice: o.limitPrice,
     size: o.size,
+    reservedCash: o.reservedCash,
     createdAt: o.createdAt.toISOString(),
     stopLossPct: o.stopLossPct,
     takeProfitPct: o.takeProfitPct,

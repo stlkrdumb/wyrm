@@ -42,6 +42,7 @@ export interface PendingOrder {
   side: "buy" | "sell";
   limitPrice: number;
   size: number;
+  reservedCash: number;
   createdAt: Date;
   stopLossPct: number;
   takeProfitPct: number;

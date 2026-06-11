@@ -37,6 +37,7 @@ export function PendingOrdersPanel({ pendingOrders }: Props) {
                 <th className="text-right">Side</th>
                 <th className="text-right">Limit</th>
                 <th className="text-right">Size</th>
+                <th className="text-right">Value</th>
                 <th className="text-right">Age</th>
               </tr>
             </thead>
@@ -58,6 +59,9 @@ export function PendingOrdersPanel({ pendingOrders }: Props) {
                     ${o.limitPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                   </td>
                   <td className="text-right tabular-nums text-zinc-500">{o.size.toFixed(4)}</td>
+                  <td className="text-right tabular-nums text-zinc-200 font-semibold">
+                    ${(o.limitPrice * o.size).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </td>
                   <td className="text-right text-zinc-500 flex items-center justify-end gap-1">
                     <Clock className="w-3 h-3" />
                     <span className="tabular-nums text-[11px]">{timeAgo(o.createdAt)}</span>
