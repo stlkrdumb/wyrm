@@ -139,17 +139,14 @@ export async function GET(_request: NextRequest) { // eslint-disable-line @types
     });
   }
 
-  // Recalculate equity live from positions × cached prices + pending buy orders
+  // Recalculate equity live from positions × cached prices (pending orders excluded)
   const positionEquity = livePositions.reduce((sum, p) => sum + p.size * p.entryPrice + p.unrealizedPnL, 0);
-  const pendingBuyEquity = currentState.pendingOrders
-    .filter(o => o.side === "buy")
-    .reduce((sum, o) => sum + o.size * o.limitPrice, 0);
-  const liveEquity = currentState.portfolio.cash + positionEquity + pendingBuyEquity;
+  const liveEquity = currentState.portfolio.cash + positionEquity;
 
   // Diagnostic breakdown when totalPnL looks suspicious
   const computedPnL = liveEquity - currentState.startEquity;
   if (Math.abs(computedPnL) > currentState.portfolio.cash * 0.02) {
-    console.log(`[API] equity debug — cash: $${currentState.portfolio.cash.toFixed(2)} | positions: $${positionEquity.toFixed(2)} | pendingBuys: $${pendingBuyEquity.toFixed(2)} | startEq: $${currentState.startEquity.toFixed(2)} => totalPnL: $${computedPnL.toFixed(2)}`);
+    console.log(`[API] equity debug — cash: $${currentState.portfolio.cash.toFixed(2)} | positions: $${positionEquity.toFixed(2)} | startEq: $${currentState.startEquity.toFixed(2)} => totalPnL: $${computedPnL.toFixed(2)}`);
   }
 
   return NextResponse.json({

@@ -106,16 +106,10 @@ function recalcEquity(st: AgentState): void {
     if (!symSnap) { posVal += p.size * p.entryPrice; continue; }
     posVal += p.size * symSnap.lastPrice;
   }
-  let pendingVal = 0;
-  for (const o of st.pendingOrders) {
-    if (o.side === "buy") {
-      pendingVal += o.size * o.limitPrice;
-    }
-  }
-  const newEquity = st.portfolio.cash + posVal + pendingVal;
+  const newEquity = st.portfolio.cash + posVal;
   const newPnL = newEquity - st.startEquity;
   if (Math.abs(newPnL) > st.portfolio.cash * 0.02) {
-    console.log(`[recalcEquity] cash: $${st.portfolio.cash.toFixed(2)} | positions: $${posVal.toFixed(2)} | pendingBuys: $${pendingVal.toFixed(2)} | startEq: $${st.startEquity.toFixed(2)} => equity: $${newEquity.toFixed(2)} / PnL: $${newPnL.toFixed(2)}`);
+    console.log(`[recalcEquity] cash: $${st.portfolio.cash.toFixed(2)} | positions: $${posVal.toFixed(2)} | startEq: $${st.startEquity.toFixed(2)} => equity: $${newEquity.toFixed(2)} / PnL: $${newPnL.toFixed(2)}`);
   }
   st.portfolio = { ...st.portfolio, equity: newEquity };
 }
