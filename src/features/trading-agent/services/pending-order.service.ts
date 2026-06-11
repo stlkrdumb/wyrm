@@ -63,9 +63,7 @@ function fillOrder(state: AgentState, orderIdx: number, order: typeof state.pend
       });
     }
 
-    const trueCost = order.size * order.limitPrice * (1 + config.feePct);
-    const surplus = Math.min(order.reservedCash, trueCost) - totalCost;
-    state.portfolio.cash += surplus;
+    state.portfolio.cash += (order.reservedCash - totalCost);
     state.trades.push({ id: `T${tc}`, timestamp: now, symbol: order.symbol, side: "buy", action: idx >= 0 ? "add" : "entry", size: order.size, price: fillPrice, fee });
 
     pushEvent(state, "action", `${order.symbol}: LIMIT BUY filled @ $${fillPrice.toFixed(2)}`);
@@ -112,10 +110,9 @@ export function cancelPendingOrder(state: AgentState, symbol: string): void {
 
   const order = state.pendingOrders[idx];
 
-  // Return reserved cash for buy orders (capped to true cost at limit price)
+  // Return reserved cash for buy orders
   if (order.side === "buy" && order.reservedCash > 0) {
-    const trueCost = order.size * order.limitPrice * (1 + config.feePct);
-    state.portfolio.cash += Math.min(order.reservedCash, trueCost);
+    state.portfolio.cash += order.reservedCash;
   }
 
   state.pendingOrders.splice(idx, 1);

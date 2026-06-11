@@ -147,6 +147,15 @@ export function executeTrades(
         }
       }
 
+      // Skip if existing pending order is already identical (avoid cancel+recreate churn)
+      const existing = state.pendingOrders.find(
+        o => o.symbol === symbol && o.side === decision.action && o.limitPrice === decision.limitPrice
+      );
+      if (existing && Math.abs(existing.size - tradeSize) / existing.size < 0.05) {
+        // same order within 5% size tolerance — keep it, skip cancel+recreate
+        continue;
+      }
+
       // Cancel any existing pending order for this symbol (replace with new)
       cancelPendingOrder(state, symbol);
       liquidBalance = state.portfolio.cash; // sync after cash return
