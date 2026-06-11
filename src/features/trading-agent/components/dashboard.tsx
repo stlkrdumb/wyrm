@@ -89,7 +89,7 @@ export function Dashboard() {
           )}
 
           {/* Logs Console */}
-          <div className="glass-panel flex flex-col gap-3 p-4 flex-grow min-h-[300px]">
+          <div className="glass-panel flex flex-col gap-3 p-4 flex-grow min-h-[300px] max-h-[calc(100vh-380px)]">
             <Tabs
               tabs={[
                 { key: "execution", label: "Execution" },
@@ -99,13 +99,13 @@ export function Dashboard() {
               active={activeLogTab}
               onChange={(key) => setActiveLogTab(key as "execution" | "decision" | "console")}
             />
-            <div className="flex-grow overflow-hidden flex flex-col">
+            <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
               {activeLogTab === "execution" ? (
                 <TradeLog trades={agent.state.trades} portfolio={agent.state.portfolio} isTabMode={true} />
               ) : activeLogTab === "decision" ? (
                 <DecisionHistory isTabMode={true} />
               ) : (
-                <TerminalLog logs={agent.state.logs} />
+                <TerminalLog logs={agent.state.logs} isTabMode={true} />
               )}
             </div>
           </div>

@@ -11,6 +11,7 @@ interface LogEntry {
 
 interface Props {
   logs: LogEntry[];
+  isTabMode?: boolean;
 }
 
 const levelColor: Record<string, string> = {
@@ -36,7 +37,7 @@ function formatTime(ts: string): string {
   }
 }
 
-export function TerminalLog({ logs }: Props) {
+export function TerminalLog({ logs, isTabMode }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -44,6 +45,35 @@ export function TerminalLog({ logs }: Props) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [logs]);
+
+  const scrollContent = (heightClass: string) => (
+    <div
+      ref={scrollRef}
+      className={`${heightClass} overflow-y-auto scrollbar-none font-mono text-[12px] leading-relaxed`}
+    >
+      {logs.length === 0 ? (
+        <div className="text-zinc-600 py-8 text-center tracking-wider uppercase">
+          Awaiting agent activity...
+        </div>
+      ) : (
+        logs.map((log, i) => (
+          <div key={i} className="flex gap-2 py-0.5">
+            <span className="text-zinc-600 tabular-nums flex-shrink-0">
+              {formatTime(log.timestamp)}
+            </span>
+            <span className={`${levelColor[log.level] || "text-zinc-500"} font-bold flex-shrink-0 w-6`}>
+              {levelTag[log.level] || "INF"}
+            </span>
+            <span className={`${levelColor[log.level] || "text-zinc-400"} break-words`}>
+              {log.message}
+            </span>
+          </div>
+        ))
+      )}
+    </div>
+  );
+
+  if (isTabMode) return <div className="flex flex-col flex-1 min-h-0">{scrollContent("flex-grow")}</div>;
 
   return (
     <Card className="h-[200px] !border-transparent">
@@ -55,30 +85,7 @@ export function TerminalLog({ logs }: Props) {
         </span>
       </CardHeader>
       <CardContent>
-        <div
-          ref={scrollRef}
-          className="h-[120px] overflow-y-auto scrollbar-none font-mono text-[12px] leading-relaxed"
-        >
-          {logs.length === 0 ? (
-            <div className="text-zinc-600 py-8 text-center tracking-wider uppercase">
-              Awaiting agent activity...
-            </div>
-          ) : (
-            logs.map((log, i) => (
-              <div key={i} className="flex gap-2 py-0.5">
-                <span className="text-zinc-600 tabular-nums flex-shrink-0">
-                  {formatTime(log.timestamp)}
-                </span>
-                <span className={`${levelColor[log.level] || "text-zinc-500"} font-bold flex-shrink-0 w-6`}>
-                  {levelTag[log.level] || "INF"}
-                </span>
-                <span className={`${levelColor[log.level] || "text-zinc-400"} break-words`}>
-                  {log.message}
-                </span>
-              </div>
-            ))
-          )}
-        </div>
+        {scrollContent("h-[120px]")}
       </CardContent>
     </Card>
   );
