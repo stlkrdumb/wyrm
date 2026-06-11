@@ -12,6 +12,7 @@ import { getActiveModel } from "./llm.service";
 import { riskManager } from "./risk-manager.service";
 import { historyService } from "./history-service";
 import { loadBalanceState, saveBalanceState } from "./balance-store";
+import { marketWS } from "./market-ws.service";
 
 // Load .env.local to ensure env vars are available
 dotenv.config({ path: path.join(process.cwd(), ".env.local"), override: false });
@@ -201,6 +202,10 @@ export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ ticker
   if (!st.lastWatchlistRefresh || now - st.lastWatchlistRefresh > WATCHLIST_REFRESH_MS) {
     st.watchlist = await refreshWatchlist(positionSymbols);
     st.lastWatchlistRefresh = now;
+    // Subscribe to WS feeds IMMEDIATELY so the WS has time to push ticks for new
+    // coins before the LLM finishes and executeTrades runs. Without this, fresh
+    // watchlist symbols trade on REST-snapshot prices instead of live WS data.
+    marketWS.syncSubscriptionsForPositions(st.watchlist);
     if (isStopped()) { console.warn("[Agent] Stop requested during watchlist refresh — aborting cycle"); return { tickerPrice: 0, tickers: {} }; }
   }
 
