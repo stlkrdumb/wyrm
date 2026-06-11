@@ -8,7 +8,9 @@ export interface TASingle {
 
 export function buildSinglePrompt(ticker: TickerData, ta: TASingle): string {
   const changeLabel = ticker.change24hPercent >= 0 ? "positive" : "negative";
-  const volatility = (((ticker.high24h - ticker.low24h) / ticker.lastPrice) * 100).toFixed(2);
+  const volatility = ticker.lastPrice > 0
+    ? (((ticker.high24h - ticker.low24h) / ticker.lastPrice) * 100).toFixed(2)
+    : "0.00";
 
   return `You are a quantitative trading analyst. Analyze ${ticker.symbol} and provide a structured decision.
 
@@ -24,12 +26,12 @@ Technical Indicators:
 - RSI(14): ${ta.rsi.toFixed(2)} (0-100, >70 overbought, <30 oversold)
 - MACD HIST: ${ta.macdHist > 0 ? "+" : ""}${ta.macdHist.toFixed(1)}
 
-Respond with ONLY valid JSON:
+Respond with ONLY valid JSON (no comments, no TypeScript union syntax):
 {
-  "action": "buy" | "sell" | "hold",
+  "action": "buy" OR "sell" OR "hold" (one of three strings, no quotes around the word OR),
   "strength": number between -1 and 1,
   "confidence": number between 0 and 1,
-  "riskProfile": "tight" | "normal" | "wide",
+  "riskProfile": "tight" OR "normal" OR "wide" (for buy actions — tight=3%SL/9%TP, normal=5%SL/10%TP, wide=8%SL/16%TP),
   "reason": "brief explanation citing specific indicator values"
 }`;
 }
@@ -42,13 +44,24 @@ export function buildMultiPrompt(
   const lines = entries
     .map(([symbol, data]) => {
       const changeLabel = data.ticker.change24hPercent >= 0 ? "positive" : "negative";
-      const volatility = (((data.ticker.high24h - data.ticker.low24h) / data.ticker.lastPrice) * 100).toFixed(1);
+      const volatility = data.ticker.lastPrice > 0
+        ? (((data.ticker.high24h - data.ticker.low24h) / data.ticker.lastPrice) * 100).toFixed(1)
+        : "0.0";
 
-      const t5m = data.ta5m ? `[5m] Close: $${data.ta5m.close.toLocaleString()} | RSI: ${data.ta5m.rsi.toFixed(1)}` : `[5m] N/A`;
-      const t1h = data.ta1h ? `[1h] Close: $${data.ta1h.close.toLocaleString()} | RSI: ${data.ta1h.rsi.toFixed(1)} | MACD: Hist ${data.ta1h.macdHist > 0 ? "+" : ""}${data.ta1h.macdHist.toFixed(1)} | BOLL: [${data.ta1h.bollLower.toLocaleString()} - ${data.ta1h.bollUpper.toLocaleString()}] (Mid: ${data.ta1h.bollMiddle.toLocaleString()}) | ATR: ${data.ta1h.atr.toFixed(2)} | EMA20: ${data.ta1h.ema20.toLocaleString()}` : `[1h] N/A`;
-      const t1d = data.ta1d ? `[1d] Close: $${data.ta1d.close.toLocaleString()} | RSI: ${data.ta1d.rsi.toFixed(1)} | EMA20: ${data.ta1d.ema20.toLocaleString()}` : `[1d] N/A`;
-      
-      const sentimentStr = data.sentiment 
+      const fmtClose = (v: any) => v?.close != null ? `$${Number(v.close).toLocaleString()}` : "N/A";
+      const fmtRSI = (v: any) => v?.rsi != null ? Number(v.rsi).toFixed(1) : "N/A";
+      const fmtMACD = (v: any) => v?.macdHist != null ? `Hist ${v.macdHist > 0 ? "+" : ""}${Number(v.macdHist).toFixed(1)}` : "MACD N/A";
+      const fmtBoll = (v: any) => v?.bollLower != null && v?.bollUpper != null && v?.bollMiddle != null
+        ? `[${Number(v.bollLower).toLocaleString()} - ${Number(v.bollUpper).toLocaleString()}] (Mid: ${Number(v.bollMiddle).toLocaleString()})`
+        : "BOLL N/A";
+      const fmtATR = (v: any) => v?.atr != null ? Number(v.atr).toFixed(2) : "N/A";
+      const fmtEMA = (v: any) => v?.ema20 != null ? Number(v.ema20).toLocaleString() : "N/A";
+
+      const t5m = data.ta5m ? `[5m] Close: ${fmtClose(data.ta5m)} | RSI: ${fmtRSI(data.ta5m)}` : `[5m] N/A`;
+      const t1h = data.ta1h ? `[1h] Close: ${fmtClose(data.ta1h)} | RSI: ${fmtRSI(data.ta1h)} | ${fmtMACD(data.ta1h)} | BOLL: ${fmtBoll(data.ta1h)} | ATR: ${fmtATR(data.ta1h)} | EMA20: ${fmtEMA(data.ta1h)}` : `[1h] N/A`;
+      const t1d = data.ta1d ? `[1d] Close: ${fmtClose(data.ta1d)} | RSI: ${fmtRSI(data.ta1d)} | EMA20: ${fmtEMA(data.ta1d)}` : `[1d] N/A`;
+
+      const sentimentStr = data.sentiment
         ? `\n  * Sentiment: Fear & Greed: ${data.sentiment.fearAndGreedValue} (${data.sentiment.fearAndGreedClassification}) | Long/Short Ratio: ${data.sentiment.longShortRatio.toFixed(2)} (Long: ${(data.sentiment.longRatio * 100).toFixed(1)}%, Short: ${(data.sentiment.shortRatio * 100).toFixed(1)}%) | Funding Rate: ${(data.sentiment.fundingRate * 100).toFixed(4)}% | Open Interest: ${data.sentiment.openInterest.toLocaleString()}`
         : "";
 
@@ -61,14 +74,15 @@ export function buildMultiPrompt(
     .join("\n\n");
 
   const exampleFormat = entries
-    .map(([symbol]) => `  "${symbol}": {"action":"buy|sell|hold","strength":-1..1,"confidence":0..1,"riskProfile":"tight|normal|wide","reason":"..."},`)
+    .map(([symbol]) => `  "${symbol}": {"action":"buy","strength":0.5,"confidence":0.7,"riskProfile":"normal","reason":"..."},`)
     .join("\n");
 
   let positionsSection = "";
   if (activePositions.length > 0) {
     positionsSection = "\nActive Positions we currently hold:\n" + activePositions
       .map(p => {
-        const pnlPct = p.entryPrice > 0 ? (((p.unrealizedPnL) / (p.entryPrice * p.size)) * 100).toFixed(2) : "0.00";
+        const costBasis = p.entryPrice * p.size;
+        const pnlPct = costBasis > 0 ? ((p.unrealizedPnL / costBasis) * 100).toFixed(2) : "0.00";
         return `- ${p.symbol}: Size ${p.size.toFixed(4)} | Avg Entry Price $${p.entryPrice.toLocaleString()} | Unrealized PnL: $${p.unrealizedPnL.toFixed(2)} (${pnlPct}%)`;
       })
       .join("\n") + "\n";
@@ -77,7 +91,7 @@ export function buildMultiPrompt(
   }
 
   return `You are a professional quantitative trader. Analyze the following cryptocurrencies and provide a decision for EACH one.
- 
+
 Analyze ONLY these symbols and return a JSON object with keys matching each symbol:
 ${lines}
 ${positionsSection}
@@ -94,7 +108,7 @@ Rules:
 - Keep reason under 40 words with specific indicator values and sentiment/funding conditions if they influence your decision
 - Make a confident call per symbol — avoid defaulting to "hold" when signals are clear
 
-Respond with ONLY valid JSON in this exact format:
+Respond with ONLY valid JSON (no comments, no TypeScript union syntax — write out the values directly):
 {
 ${exampleFormat}
 }`;
@@ -104,20 +118,37 @@ export function parseSingleResponse(response: string): { decision: TradingDecisi
   const jsonMatch = response.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error("Failed to extract JSON from LLM response");
 
-  const cleaned = repairJSON(jsonMatch[0]);
-  const parsed = JSON.parse(cleaned);
+  let parsed: any;
+  try {
+    parsed = JSON.parse(repairJSON(jsonMatch[0]));
+  } catch (_firstErr) {
+    // Second pass: aggressive repair
+    try {
+      const aggressive = repairJSON(
+        jsonMatch[0]
+          .replace(/[^\x20-\x7E{}[\],:.\-0-9a-zA-Z_" \n\r\t]/g, "")
+          .replace(/:\s*"[^"]*$/m, ': ""')
+          .replace(/:\s*[0-9.]*\s*$/m, ": 0")
+      );
+      parsed = JSON.parse(aggressive);
+    } catch (_secondErr) {
+      console.error(`[DecisionHelper] JSON parse error — raw:\n${jsonMatch[0].slice(0, 2000)}`);
+      throw _secondErr;
+    }
+  }
 
   let action: "buy" | "sell" | "hold";
-  if (["buy", "sell", "hold"].includes(parsed.action)) {
+  if (parsed.action === "buy" || parsed.action === "sell" || parsed.action === "hold") {
     action = parsed.action;
   } else {
+    console.warn(`[DecisionHelper] Single response: unknown action "${parsed.action}", defaulting to hold`);
     action = "hold";
   }
 
   const strength = Math.max(-1, Math.min(1, parseFloat(parsed.strength) || 0));
   const confidence = Math.max(0, Math.min(1, parseFloat(parsed.confidence) || 0.5));
-  const riskProfile = ["tight", "normal", "wide"].includes(parsed.riskProfile)
-    ? (parsed.riskProfile as "tight" | "normal" | "wide")
+  const riskProfile = (parsed.riskProfile === "tight" || parsed.riskProfile === "normal" || parsed.riskProfile === "wide")
+    ? parsed.riskProfile
     : undefined;
 
   return {
@@ -135,12 +166,14 @@ export function parseSingleResponse(response: string): { decision: TradingDecisi
   };
 }
 
-/** Attempt to repair common LLM JSON mistakes before parsing */
+/** Attempt to repair common LLM JSON mistakes before parsing.
+ *  String-aware — preserves // inside string values. */
 function repairJSON(raw: string): string {
   let cleaned = raw;
 
-  // Remove comments (// and /* */)
-  cleaned = cleaned.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
+  // Strip // and /* */ comments only when outside string literals
+  cleaned = stripCommentsOutsideStrings(cleaned);
+
   // Remove trailing commas before } or ]
   cleaned = cleaned.replace(/,(\s*[}\]])/g, "$1");
   // Replace bare Python/JS literals
@@ -151,22 +184,96 @@ function repairJSON(raw: string): string {
   cleaned = cleaned.replace(/\.(?=\s*[,\}\]])/g, ".0");
   // Strip unescaped control characters from JSON
   cleaned = cleaned.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
-  // Replace single-quoted strings with double-quoted strings
-  cleaned = cleaned.replace(/'([^'\\]*(?:\\.[^'\\]*)*)'/g, '"$1"');
   // Wrap unquoted keys (word before colon, not already quoted)
   cleaned = cleaned.replace(/([{,]\s*)(\w+)(\s*:)/g, '$1"$2"$3');
   // Insert missing commas between properties at newlines
   cleaned = cleaned.replace(/}\s*\n(\s*)"/g, '},\n$1"');
   cleaned = cleaned.replace(/]\s*\n(\s*)"/g, '],\n$1"');
-  // Close unbalanced braces (handle truncated LLM output)
-  const openBraces = (cleaned.match(/\{/g) || []).length;
-  const closeBraces = (cleaned.match(/\}/g) || []).length;
-  cleaned += "}".repeat(Math.max(0, openBraces - closeBraces));
-  const openBrackets = (cleaned.match(/\[/g) || []).length;
-  const closeBrackets = (cleaned.match(/\]/g) || []).length;
-  cleaned += "]".repeat(Math.max(0, openBrackets - closeBrackets));
+
+  // Close unbalanced braces/brackets with proper nesting (LIFO)
+  cleaned = closeUnbalancedDelimiters(cleaned);
 
   return cleaned;
+}
+
+/** Strip single-line and multi-line comments only when NOT inside a string literal.
+ *  Tracks string state and escaped quotes. */
+function stripCommentsOutsideStrings(input: string): string {
+  let out = "";
+  let i = 0;
+  let inString = false;
+  let stringChar = "";
+
+  while (i < input.length) {
+    const ch = input[i];
+    const next = input[i + 1];
+
+    if (inString) {
+      out += ch;
+      if (ch === "\\" && i + 1 < input.length) {
+        out += next;
+        i += 2;
+        continue;
+      }
+      if (ch === stringChar) inString = false;
+      i++;
+      continue;
+    }
+
+    if (ch === '"' || ch === "'") {
+      inString = true;
+      stringChar = ch;
+      out += ch;
+      i++;
+      continue;
+    }
+
+    if (ch === "/" && next === "/") {
+      while (i < input.length && input[i] !== "\n") i++;
+      continue;
+    }
+
+    if (ch === "/" && next === "*") {
+      i += 2;
+      while (i < input.length && !(input[i] === "*" && input[i + 1] === "/")) i++;
+      i += 2;
+      continue;
+    }
+
+    out += ch;
+    i++;
+  }
+
+  return out;
+}
+
+/** Close unbalanced braces/brackets using a stack for proper nesting (LIFO). */
+function closeUnbalancedDelimiters(input: string): string {
+  const stack: string[] = [];
+  let inString = false;
+  let stringChar = "";
+
+  for (let i = 0; i < input.length; i++) {
+    const ch = input[i];
+
+    if (inString) {
+      if (ch === "\\" && i + 1 < input.length) { i++; continue; }
+      if (ch === stringChar) inString = false;
+      continue;
+    }
+
+    if (ch === '"' || ch === "'") { inString = true; stringChar = ch; continue; }
+    if (ch === "{" || ch === "[") stack.push(ch);
+    else if (ch === "}" || ch === "]") stack.pop();
+  }
+
+  // Build closing string in LIFO order so nesting is preserved
+  let closing = "";
+  while (stack.length > 0) {
+    const opener = stack.pop()!;
+    closing += opener === "{" ? "}" : "]";
+  }
+  return input + closing;
 }
 
 export function parseMultiResponse(
@@ -180,22 +287,22 @@ export function parseMultiResponse(
     throw new Error("Failed to extract JSON from LLM multi-pair response");
   }
 
-  cleaned = repairJSON(jsonMatch[0]);
   let parsed: Record<string, any>;
   try {
-    parsed = JSON.parse(cleaned);
+    parsed = JSON.parse(repairJSON(jsonMatch[0]));
   } catch (_firstErr) {
     // Second pass: aggressive repair for stubborn LLM output patterns
-    let aggressive = cleaned
-      .replace(/[^\x20-\x7E{}[\],:.\-0-9a-zA-Z_" \n\r\t]/g, "")
-      .replace(/:\s*"[^"]*$/m, ': ""')
-      .replace(/:\s*[0-9.]*\s*$/m, ": 0");
-    aggressive = repairJSON(aggressive);
+    const aggressive = repairJSON(
+      jsonMatch[0]
+        .replace(/[^\x20-\x7E{}[\],:.\-0-9a-zA-Z_" \n\r\t]/g, "")
+        .replace(/:\s*"[^"]*$/m, ': ""')
+        .replace(/:\s*[0-9.]*\s*$/m, ": 0")
+    );
     try {
       parsed = JSON.parse(aggressive);
     } catch (_secondErr) {
       console.error(`[DecisionHelper] JSON parse error — raw:\n${jsonMatch[0].slice(0, 2000)}`);
-      throw _firstErr;
+      throw _secondErr;
     }
   }
   const decisions: Record<string, TradingDecision> = {};
@@ -204,21 +311,23 @@ export function parseMultiResponse(
   for (const symbol of symbols) {
     const raw = parsed[symbol];
     if (!raw || !raw.action) {
+      console.warn(`[DecisionHelper] Multi-response: missing decision for ${symbol} — defaulting to hold`);
       decisions[symbol] = { action: "hold", strength: 0, confidence: 0, reason: "No decision from LLM" };
       continue;
     }
 
     let action: "buy" | "sell" | "hold";
-    if (["buy", "sell", "hold"].includes(raw.action)) {
+    if (raw.action === "buy" || raw.action === "sell" || raw.action === "hold") {
       action = raw.action;
     } else {
+      console.warn(`[DecisionHelper] Multi-response ${symbol}: unknown action "${raw.action}", defaulting to hold`);
       action = "hold";
     }
 
     const strength = Math.max(-1, Math.min(1, parseFloat(raw.strength) || 0));
     const confidence = Math.max(0, Math.min(1, parseFloat(raw.confidence) || 0.5));
-    const riskProfile = ["tight", "normal", "wide"].includes(raw.riskProfile)
-      ? (raw.riskProfile as "tight" | "normal" | "wide")
+    const riskProfile = (raw.riskProfile === "tight" || raw.riskProfile === "normal" || raw.riskProfile === "wide")
+      ? raw.riskProfile
       : undefined;
 
     decisions[symbol] = { action, strength, confidence, riskProfile, reason: raw.reason || "No reasoning" };
@@ -242,23 +351,28 @@ export function fallbackMultiAnalysis(
   const decisions: Record<string, TradingDecision> = {};
   const allSignals: Signal[] = [];
 
-  for (const [symbol, { ticker, ta5m, ta1h, ta1d }] of symbolData) {
+  for (const [symbol, data] of symbolData) {
+    if (!data || !data.ticker) {
+      console.warn(`[Fallback] Missing ticker data for ${symbol} — skipping`);
+      continue;
+    }
+    const { ticker, ta5m, ta1h, ta1d } = data;
     const t5m = ta5m || { rsi: 50, close: ticker.lastPrice };
     const t1h = ta1h || { rsi: 50, macdHist: 0, bollUpper: ticker.lastPrice * 1.05, bollMiddle: ticker.lastPrice, bollLower: ticker.lastPrice * 0.95, atr: 0, ema20: ticker.lastPrice, close: ticker.lastPrice };
     const t1d = ta1d || { rsi: 50, close: ticker.lastPrice, ema20: ticker.lastPrice };
 
     let strength = 0;
 
-    // RSI oscillator checks
+    // RSI oscillator checks (different thresholds per timeframe — 5m uses tighter 25/75)
     if (t1h.rsi < 30) strength += 0.25;
     else if (t1h.rsi > 70) strength -= 0.25;
 
-    if (t5m.rsi < 30) strength += 0.15;
-    else if (t5m.rsi > 70) strength -= 0.15;
+    if (t5m.rsi < 25) strength += 0.15;
+    else if (t5m.rsi > 75) strength -= 0.15;
 
-    // Bollinger Band checks
-    if (t1h.close <= t1h.bollLower) strength += 0.25;
-    else if (t1h.close >= t1h.bollUpper) strength -= 0.25;
+    // Bollinger Band checks (strict breach required — not just touch)
+    if (t1h.close < t1h.bollLower) strength += 0.25;
+    else if (t1h.close > t1h.bollUpper) strength -= 0.25;
 
     // MACD momentum
     if (t1h.macdHist > 0) strength += 0.1;
@@ -275,7 +389,7 @@ export function fallbackMultiAnalysis(
       action,
       strength,
       confidence: Math.min(1, Math.abs(strength)),
-      reason: `Fallback Heuristic: RSI 1h(${t1h.rsi.toFixed(0)}) 5m(${t5m.rsi.toFixed(0)}) | BB ${t1h.close <= t1h.bollLower ? "below lower" : t1h.close >= t1h.bollUpper ? "above upper" : "within"} | MACD ${t1h.macdHist > 0 ? "bullish" : "bearish"}`,
+      reason: `Fallback Heuristic: RSI 1h(${t1h.rsi.toFixed(0)}) 5m(${t5m.rsi.toFixed(0)}) | BB ${t1h.close < t1h.bollLower ? "below lower" : t1h.close > t1h.bollUpper ? "above upper" : "within"} | MACD ${t1h.macdHist > 0 ? "bullish" : "bearish"}`,
     };
 
     allSignals.push({

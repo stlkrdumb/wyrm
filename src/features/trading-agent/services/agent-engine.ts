@@ -14,7 +14,7 @@ import { historyService } from "./history-service";
 import { loadBalanceState, saveBalanceState } from "./balance-store";
 
 // Load .env.local to ensure env vars are available
-dotenv.config({ path: path.join(process.cwd(), ".env.local"), override: true });
+dotenv.config({ path: path.join(process.cwd(), ".env.local"), override: false });
 
 // ─── Public API Re-exports ──────────────────
 export type { AgentState };
@@ -24,23 +24,21 @@ export { config };
 type OnTokenCallback = (token: string) => void;
 
 // ─── State Management ───────────────────────
-let state: AgentState | null = buildInitialState();
+const state: AgentState = buildInitialState();
 
 function getState(): AgentState {
-  if (!state) throw new Error("Agent not initialized");
   return state;
 }
 
 export let llmProgress: { text: string; tokensReceived: number } | null = null;
 
 function setS(v: Partial<AgentState>): void {
-  if (state) Object.assign(state, v);
+  Object.assign(state, v);
 }
 
 const MAX_LOGS = 100;
 
 function pushLog(level: "info" | "action" | "warning" | "error", message: string): void {
-  if (!state) return;
   state.logs.push({ timestamp: new Date(), level, message });
   if (state.logs.length > MAX_LOGS) {
     state.logs = state.logs.slice(-MAX_LOGS);
@@ -58,13 +56,22 @@ function buildInitialState(): AgentState {
   if (saved) {
     cash = saved.cash;
     realizedPnL = saved.accumulatedRealizedPnL;
-    positions = saved.positions.map(p => ({ ...p, unrealizedPnL: 0, stopLossPct: p.stopLossPct ?? config.stopLossPct, takeProfitPct: p.takeProfitPct ?? config.takeProfitPct }));
+    positions = saved.positions.map(p => ({
+      ...p,
+      unrealizedPnL: 0,
+      stopLossPct: p.stopLossPct ?? config.stopLossPct,
+      takeProfitPct: p.takeProfitPct ?? config.takeProfitPct,
+    }));
+    // Restore trade counter so new trade IDs don't collide with previous session
+    if (typeof saved.tradeCounter === "number") setTradeCounter(saved.tradeCounter);
   } else {
     cash = config.initialCash;
   }
 
+  // Equity = cash + mark-to-market of any open positions (use entry price as fallback)
+  const positionsValueAtEntry = positions.reduce((s, p) => s + p.size * p.entryPrice, 0);
   const startEquity = saved?.startCash ?? cash ?? config.initialCash;
-  const peakEq = saved?.peakEquity ?? startEquity;
+  const peakEq = saved?.peakEquity ?? Math.max(startEquity, cash + positionsValueAtEntry);
 
   return {
     status: "stopped",
@@ -79,7 +86,8 @@ function buildInitialState(): AgentState {
       timestamp: new Date(),
       initialCash: config.initialCash,
       cash,
-      equity: cash,
+      // Initial equity includes position value, not just cash — prevents display jump on restart
+      equity: cash + positionsValueAtEntry,
       totalTrades: saved?.totalTrades || 0,
       winRate: saved?.winRate || 0,
       totalPnL: realizedPnL,
@@ -113,9 +121,13 @@ export function updatePositionUnrealizedPnL(symbol: string, currentPrice: number
   const st = getState();
 
   const idx = st.positions.findIndex((p) => p.symbol === symbol);
-  if (idx < 0 || st.positions[idx].entryPrice <= 0) return;
-
+  if (idx < 0) return;
   const pos = st.positions[idx];
+  if (pos.entryPrice <= 0) {
+    console.warn(`[Auto-Bracket] ${symbol} has invalid entry price $${pos.entryPrice} — skipping PnL update`);
+    return;
+  }
+
   const unrealizedPnL = (currentPrice - pos.entryPrice) * pos.size;
   st.positions[idx] = { ...pos, unrealizedPnL };
   recalcEquity(st);
@@ -149,14 +161,15 @@ export function updatePositionUnrealizedPnL(symbol: string, currentPrice: number
 export async function evaluateDecision(ticker: TickerData): Promise<{ decision: TradingDecision; signals: Signal[] }> {
   const priceMap = new Map<string, TickerData>();
   priceMap.set(ticker.symbol, ticker);
-  const r = await evaluateMultiPair(priceMap, state?.positions ?? [], undefined);
+  const r = await evaluateMultiPair(priceMap, state.positions, undefined);
   return { decision: r.decisions[ticker.symbol], signals: r.allSignals };
 }
 
-/** Abort helper — returns true if agent is no longer running */
+/** Abort helper — returns true if agent is no longer running.
+ *  Side-effect free — the circuit-breaker transition happens in checkCircuitBreaker. */
 function isStopped(): boolean {
   const st = getState();
-  if (st.circuitBreakerTripped) { st.status = "stopped"; return true; }
+  if (st.circuitBreakerTripped) return true;
   return st.status !== "running";
 }
 
@@ -186,26 +199,36 @@ export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ ticker
     return { tickerPrice: 0, tickers: {} };
   }
 
-  // Fetch prices for all watchlist symbols (parallel)
+  // Fetch prices in parallel — use allSettled so a single failure doesn't abort the cycle
   const prices = new Map<string, TickerData>();
-  const priceResults = await Promise.all(targetSymbols.map(s => getLivePrice(s)));
-  for (const t of priceResults) {
-    if (t && t.lastPrice > 0) prices.set(t.symbol, t);
+  const priceResults = await Promise.allSettled(targetSymbols.map(s => getLivePrice(s)));
+  for (const result of priceResults) {
+    if (result.status === "fulfilled" && result.value && result.value.lastPrice > 0) {
+      prices.set(result.value.symbol, result.value);
+    }
   }
 
   if (prices.size === 0) { console.warn("[Agent] No price data — skipping cycle"); return { tickerPrice: 0, tickers: {} }; }
 
-  const displayTicker = prices.get("BTCUSDT") ?? prices.values().next().value!;
+  // Pick a display ticker — prefer BTCUSDT, then the highest-volume coin
+  const btcTicker = prices.get("BTCUSDT");
+  let displayTicker: TickerData;
+  if (btcTicker) {
+    displayTicker = btcTicker;
+  } else {
+    displayTicker = Array.from(prices.values())
+      .sort((a, b) => b.volume24h - a.volume24h)[0] ?? prices.values().next().value!;
+  }
   st.ticker = displayTicker;
 
   for (const [, t] of prices) { console.log(`[Agent] ${t.symbol}: $${t.lastPrice.toLocaleString()} (${t.change24hPercent >= 0 ? "+" : ""}${t.change24hPercent}%)`); }
 
   // Stage 2: Deep TA + sentiment analysis on selected + held symbols
-  const er: MultiPairResult = await evaluateMultiPair(prices, st.positions, (token: string) => {
+  const er: MultiPairResult = await evaluateMultiPair(prices, st.positions, onToken ?? ((token: string) => {
     if (!llmProgress) llmProgress = { text: "", tokensReceived: 0 };
     llmProgress.text += token;
     llmProgress.tokensReceived += 1;
-  });
+  }));
   if (isStopped()) { console.warn("[Agent] Stop requested during evaluation — aborting cycle"); return { tickerPrice: 0, tickers: {} }; }
   setS({ decisionSource: er.source });
 
@@ -222,12 +245,17 @@ export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ ticker
     }
 
     const vr = riskManager.validateDecision(decision, st.portfolio, ticker ?? undefined, st.positions);
-    await historyService.saveDecision({
-      id: `DEC-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-      timestamp: new Date(), symbol: sym, decision, riskStatus: "approved", riskReason: "",
-      originalSize: decision.size ?? 0, adjustedSize: vr.adjustedDecision?.size ?? 0,
-      marketContext: ticker ? { lastPrice: ticker.lastPrice, change24hPercent: ticker.change24hPercent } : undefined,
-    });
+    // History save is non-critical — log and continue on failure rather than aborting the cycle
+    try {
+      await historyService.saveDecision({
+        id: `DEC-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        timestamp: new Date(), symbol: sym, decision, riskStatus: "approved", riskReason: "",
+        originalSize: decision.size ?? 0, adjustedSize: vr.adjustedDecision?.size ?? 0,
+        marketContext: ticker ? { lastPrice: ticker.lastPrice, change24hPercent: ticker.change24hPercent } : undefined,
+      });
+    } catch (historyErr) {
+      console.warn(`[Agent] Failed to save decision history for ${sym}:`, historyErr instanceof Error ? historyErr.message : String(historyErr));
+    }
 
     if (vr.isAllowed) {
       const fd = vr.adjustedDecision ?? decision;
@@ -243,7 +271,7 @@ export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ ticker
     pushLog("info", "No actionable signal — holding position");
   }
   if (isStopped()) { console.warn("[Agent] Stop requested before trade execution — aborting cycle"); return { tickerPrice: 0, tickers: {} }; }
-  executeTrades(st, validated, prices, displayTicker);
+  executeTrades(st, validated, prices);
 
   // Sync watchlist: ensure all position symbols are present
   const posSyms = new Set(st.positions.map(p => p.symbol));
@@ -264,7 +292,6 @@ export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ ticker
 
 export function getAgentState(): AgentState {
   const st = getState();
-  // Deep copy preserving Date objects (JSON.stringify would convert Dates to strings)
   return {
     ...st,
     lastCycleAt: st.lastCycleAt ? new Date(st.lastCycleAt) : null,
@@ -283,41 +310,80 @@ export async function setAgentStatus(s: "running" | "stopped" | "paused"): Promi
   const st = getState();
   st.status = s;
 
-  if (s === "paused" || s === "stopped") {
-    const closePrices = await Promise.all(st.positions.map(async (p) => {
-      if (p.size <= 0) return null;
-      const live = await getLivePrice(p.symbol);
-      return live?.lastPrice ?? null;
-    }));
+  if (s !== "paused" && s !== "stopped") return {};
 
-    let closedCount = 0, totalPnlRealized = 0;
-    for (let i = 0; i < st.positions.length; i++) {
-      const p = st.positions[i];
-      if (p.size <= 0) continue;
-      const currentPrice = closePrices[i] ?? p.entryPrice;
-      if (!closePrices[i]) {
-        console.warn(`[Agent] Closing ${p.symbol} at entry price — no live data`);
-      }
-      const revenue = currentPrice * p.size;
-      const fee = revenue * config.feePct;
-      const pnl = (currentPrice - p.entryPrice) * p.size - fee;
-      const tc = getTradeCounter() + 1; setTradeCounter(tc);
-      st.trades.push({ id: `T${tc}`, timestamp: new Date(), symbol: p.symbol, side: "sell", action: "exit", size: p.size, price: currentPrice, pnl, fee });
-      st.portfolio.cash += revenue - fee;
-      totalPnlRealized += pnl; closedCount++;
+  // Snapshot positions BEFORE any await — WS ticks can splice positions during the await
+  const snapshot = st.positions.filter(p => p.size > 0).map(p => ({
+    symbol: p.symbol,
+    size: p.size,
+    entryPrice: p.entryPrice,
+    side: p.side,
+    stopLossPct: p.stopLossPct,
+    takeProfitPct: p.takeProfitPct,
+  }));
+
+  // Fetch close prices in parallel, indexed by symbol to avoid race with concurrent mutations
+  const priceMap = new Map<string, number>();
+  const priceResults = await Promise.allSettled(snapshot.map(p => getLivePrice(p.symbol)));
+  for (let i = 0; i < snapshot.length; i++) {
+    const r = priceResults[i];
+    if (r.status === "fulfilled" && r.value && r.value.lastPrice > 0) {
+      priceMap.set(snapshot[i].symbol, r.value.lastPrice);
     }
-    st.positions = [];
-    st.portfolio.totalPnL = st.portfolio.cash - st.startEquity;
-    st.portfolio.equity = st.portfolio.cash;
-      st.watchlist = [];
-      saveBalanceState({
-        initialCash: config.initialCash, startCash: state?.startEquity ?? st.startEquity, cash: st.portfolio.cash,
-        accumulatedRealizedPnL: st.portfolio.totalPnL, positions: [], totalTrades: st.portfolio.totalTrades, winRate: st.portfolio.winRate,
-      });
-      return { closed: closedCount, realizedPnl: totalPnlRealized };
-    }
-    return {};
   }
+
+  let closedCount = 0, totalPnlRealized = 0;
+  const closedSymbols = new Set<string>();
+  for (const pos of snapshot) {
+    const currentPrice = priceMap.get(pos.symbol) ?? pos.entryPrice;
+    if (!priceMap.has(pos.symbol)) {
+      console.warn(`[Agent] Closing ${pos.symbol} at entry price — no live data`);
+    }
+    const revenue = currentPrice * pos.size;
+    const fee = revenue * config.feePct;
+    const pnl = (currentPrice - pos.entryPrice) * pos.size - fee;
+    const tc = getTradeCounter() + 1;
+    setTradeCounter(tc);
+    st.trades.push({ id: `T${tc}`, timestamp: new Date(), symbol: pos.symbol, side: "sell", action: "exit", size: pos.size, price: currentPrice, pnl, fee });
+    st.portfolio.cash += revenue - fee;
+    totalPnlRealized += pnl;
+    closedCount++;
+    closedSymbols.add(pos.symbol);
+  }
+
+  // Remove closed positions, then mark-to-market any survivors with the prices we have
+  st.positions = st.positions.filter(p => !closedSymbols.has(p.symbol));
+  let survivorValue = 0;
+  for (const p of st.positions) {
+    const px = priceMap.get(p.symbol) ?? p.entryPrice;
+    survivorValue += p.size * px;
+  }
+
+  st.portfolio.equity = st.portfolio.cash + survivorValue;
+  st.portfolio.totalPnL = st.portfolio.equity - st.startEquity;
+  st.watchlist = st.watchlist.filter(s => closedSymbols.has(s) ? false : st.positions.some(p => p.symbol === s) || s === "BTCUSDT");
+
+  // Persist after in-memory state is fully updated — failure no longer creates disk/memory divergence
+  try {
+    saveBalanceState({
+      initialCash: config.initialCash,
+      startCash: st.startEquity,
+      cash: st.portfolio.cash,
+      accumulatedRealizedPnL: st.portfolio.totalPnL,
+      positions: st.positions.map(p => ({ symbol: p.symbol, side: p.side as "long" | "short", size: p.size, entryPrice: p.entryPrice, stopLossPct: p.stopLossPct, takeProfitPct: p.takeProfitPct })),
+      totalTrades: st.portfolio.totalTrades,
+      winRate: st.portfolio.winRate,
+      circuitBreakerTripped: st.circuitBreakerTripped,
+      circuitBreakerThresholdPct: st.circuitBreakerThresholdPct,
+      peakEquity: st.peakEquity,
+      tradeCounter: getTradeCounter(),
+    });
+  } catch (saveErr) {
+    console.error("[Agent] Failed to persist state on stop/pause — in-memory state may diverge from disk:", saveErr instanceof Error ? saveErr.message : String(saveErr));
+  }
+
+  return { closed: closedCount, realizedPnl: totalPnlRealized };
+}
 
 export function resetCircuitBreaker(): void {
   getState().circuitBreakerTripped = false;

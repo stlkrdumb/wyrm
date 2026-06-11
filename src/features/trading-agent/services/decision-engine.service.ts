@@ -29,32 +29,56 @@ export interface MultiPairResult {
 
 // ─── Technical Analysis ──────────────────────────────
 
-const taCache = new Map<string, { result: any; timestamp: number }>();
 const TA_CACHE_TTL_MS: Record<string, number> = {
   "5m": 30_000,   // 30 seconds — 5m candles close every 5min, recompute each cycle
   "1h": 300_000,  // 5 minutes — 1h candles close hourly
   "1d": 900_000,  // 15 minutes — daily candles close once per day
 };
+const TA_CACHE_MAX_ENTRIES = 200;
+const taCache = new Map<string, { result: any; timestamp: number }>();
+const taInflight = new Map<string, Promise<any>>();
+
+/** Evict oldest entries when cache grows beyond the limit. */
+function evictOldestTaEntries() {
+  if (taCache.size <= TA_CACHE_MAX_ENTRIES) return;
+  const overflow = taCache.size - TA_CACHE_MAX_ENTRIES;
+  const iter = taCache.keys();
+  for (let i = 0; i < overflow; i++) {
+    const k = iter.next().value;
+    if (k) taCache.delete(k);
+  }
+}
 
 async function runTAForTimeframe(symbol: string, interval: string): Promise<any> {
   const cacheKey = `${symbol}-${interval}`;
+  const now = Date.now();
+
+  // Cache hit within TTL
   const cached = taCache.get(cacheKey);
-  if (cached && Date.now() - cached.timestamp < (TA_CACHE_TTL_MS[interval] || 30_000)) {
+  if (cached && now - cached.timestamp < (TA_CACHE_TTL_MS[interval] || 30_000)) {
     return cached.result;
   }
 
+  // Coalesce concurrent requests for the same key
+  const inflight = taInflight.get(cacheKey);
+  if (inflight) return inflight;
 
-  if (priceStore.isBacktesting) {
-    const cached = priceStore.getCandles(symbol, interval);
-    if (!cached || cached.length === 0) return null;
+  const promise = computeTA(symbol, interval, cacheKey, now);
+  taInflight.set(cacheKey, promise);
+  try {
+    return await promise;
+  } finally {
+    taInflight.delete(cacheKey);
   }
+}
 
+async function computeTA(symbol: string, interval: string, cacheKey: string, now: number): Promise<any> {
   let candles: Candlestick[];
   try {
     candles = await getCandlesWithCache(symbol, interval);
   } catch (err) {
     const cached = priceStore.getCandles(symbol, interval);
-    if (cached && cached.length >= 8) candles = cached;
+    if (cached && cached.length >= 20) candles = cached;
     else { console.warn(`[DecisionEngine] REST candles fetch failed for ${symbol} (${interval}):`, err); return null; }
   }
 
@@ -97,7 +121,8 @@ async function runTAForTimeframe(symbol: string, interval: string): Promise<any>
       atr: atrObj?.series?.ATR ? Number(atrObj.series.ATR[atrObj.series.ATR.length - 1]) : 0,
       ema20: emaObj?.series?.EMA_20 ? Number(emaObj.series.EMA_20[emaObj.series.EMA_20.length - 1]) : 0,
     };
-    taCache.set(cacheKey, { result, timestamp: Date.now() });
+    taCache.set(cacheKey, { result, timestamp: now });
+    evictOldestTaEntries();
     return result;
   } catch (err) {
     console.error(`[DecisionEngine] Python TA failed for ${symbol} (${interval}):`, err);
@@ -111,17 +136,7 @@ async function runTAForTimeframe(symbol: string, interval: string): Promise<any>
  * Evaluate signals for a SINGLE symbol. Backward-compatible entry point.
  */
 export async function evaluateSignals(ticker: TickerData): Promise<{ decision: TradingDecision; signals: Signal[] }> {
-  // Run parallel TA + LLM pipeline (even for single symbol)
-  const priceMap = new Map<string, TickerData>();
-  priceMap.set(ticker.symbol, ticker);
-  const result = await evaluateMultiPair(priceMap);
-
-  // Return first (and only) decision
-  const firstSymbol = Object.keys(result.decisions)[0];
-  return {
-    decision: result.decisions[firstSymbol],
-    signals: result.allSignals,
-  };
+  return evaluateDecision(ticker);
 }
 
 export async function evaluateDecision(ticker: TickerData): Promise<{ decision: TradingDecision; signals: Signal[] }> {
@@ -150,7 +165,9 @@ export async function evaluateMultiPair(
   }
 
   console.log(`[DecisionEngine] Running multi-timeframe TA + sentiment on ${symbols.length} symbol(s):`, symbols.join(", "));
-  const taResults = await Promise.all(
+  // Per-symbol allSettled so one bad symbol doesn't abort the whole batch
+  const taResults: Array<{ symbol: string; ta5m: any; ta1h: any; ta1d: any; sentiment: any }> = [];
+  const perSymbolResults = await Promise.allSettled(
     symbols.map(async (symbol) => {
       const [ta5m, ta1h, ta1d, sentiment] = await Promise.all([
         runTAForTimeframe(symbol, "5m"),
@@ -161,6 +178,10 @@ export async function evaluateMultiPair(
       return { symbol, ta5m, ta1h, ta1d, sentiment };
     })
   );
+  for (const r of perSymbolResults) {
+    if (r.status === "fulfilled") taResults.push(r.value);
+    else console.warn("[DecisionEngine] Per-symbol TA failed:", r.reason);
+  }
 
   for (const { symbol, ta1h } of taResults) {
     if (ta1h) {
@@ -171,7 +192,15 @@ export async function evaluateMultiPair(
   // Build symbol data map for prompt
   const symbolData = new Map<string, { ticker: TickerData; ta5m: any; ta1h: any; ta1d: any; sentiment: any }>();
   for (const { symbol, ta5m, ta1h, ta1d, sentiment } of taResults) {
-    symbolData.set(symbol, { ticker: priceMap.get(symbol)!, ta5m, ta1h, ta1d, sentiment });
+    const ticker = priceMap.get(symbol);
+    if (ticker) symbolData.set(symbol, { ticker, ta5m, ta1h, ta1d, sentiment });
+  }
+
+  // If all TA failed, fall back to heuristic without calling the LLM
+  if (symbolData.size === 0) {
+    console.warn("[DecisionEngine] No valid symbol data — using heuristic fallback");
+    const { decisions, allSignals } = fallbackMultiAnalysis(new Map());
+    return { decisions, allSignals, source: "heuristic" };
   }
 
   // Step 2: Single LLM call with all symbols
@@ -201,7 +230,7 @@ Analyze the provided market data and generate concise, actionable decisions for 
       onToken,
     });
 
-    const result = parseMultiResponse(response, symbols);
+    const result = parseMultiResponse(response, Array.from(symbolData.keys()));
     return { ...result, source: "llm" };
   } catch (error) {
     console.error(`[DecisionEngine] LLM multi-pair analysis failed: ${error}`);

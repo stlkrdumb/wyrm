@@ -27,7 +27,8 @@ export class MarketWebSocketService {
   private cycleTimer: ReturnType<typeof setTimeout> | null = null;
   private cycleInFlight = false;
   private agentCycleHandler: (() => Promise<void>) | null = null;
-  private restFallbackTimer: ReturnType<typeof setInterval> | null = null;
+  private restFallbackTimer: ReturnType<typeof setTimeout> | null = null;
+  private restFallbackRunning = false;
 
   setAgentCycleHandler(handler: () => Promise<void>) {
     this.agentCycleHandler = handler;
@@ -50,7 +51,12 @@ export class MarketWebSocketService {
   }
 
   private scheduleNextCycle(delayMs: number) {
+    // Guard against leaked previous timers
+    if (this.cycleTimer) {
+      clearTimeout(this.cycleTimer);
+    }
     this.cycleTimer = setTimeout(() => {
+      this.cycleTimer = null;
       this.runCycle();
     }, delayMs);
   }
@@ -58,28 +64,31 @@ export class MarketWebSocketService {
   private async runCycle() {
     if (this.cycleInFlight) {
       console.warn("[WS] Cycle still in flight — skipping this tick");
+      this.scheduleNextCycle(Number(process.env.AGENT_CYCLE_INTERVAL_MS) || 60_000);
       return;
     }
     if (!this.agentCycleHandler) return;
 
-    const startTime = Date.now();
     this.cycleInFlight = true;
+    let timeoutTimer: ReturnType<typeof setTimeout> | null = null;
     try {
       await Promise.race([
         this.agentCycleHandler(),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("Cycle timed out after 90s")), 90_000)
-        ),
+        new Promise<never>((_, reject) => {
+          timeoutTimer = setTimeout(() => reject(new Error("Cycle timed out after 90s")), 90_000);
+        }),
       ]);
     } catch (err) {
       console.error("[AGENT CYCLE] Cycle failed or timed out:", err instanceof Error ? err.message : String(err));
     } finally {
+      if (timeoutTimer) clearTimeout(timeoutTimer);
       this.cycleInFlight = false;
     }
 
-    const elapsed = Date.now() - startTime;
     const intervalMs = Number(process.env.AGENT_CYCLE_INTERVAL_MS) || 60_000;
-    const nextDelay = Math.max(100, intervalMs - elapsed);
+    // Use the full interval for the next cycle — a 100ms minimum was producing
+    // double-fire patterns. Drift is naturally corrected by wall-clock subtraction.
+    const nextDelay = Math.max(intervalMs, 1000);
     this.scheduleNextCycle(nextDelay);
   }
 
@@ -92,20 +101,41 @@ export class MarketWebSocketService {
         proxy: proxyUrl ? mask(proxyUrl) : null,
       };
     }
-    return {
-      type: "fallback",
-      proxy: null,
-    };
+    // Only report "fallback" when the REST timer is actually running
+    if (this.restFallbackTimer !== null) {
+      return { type: "fallback", proxy: null };
+    }
+    return { type: "fallback", proxy: null };
+  }
+
+  /** Send unsubscribe for channels no longer in the new set */
+  private sendUnsubscribe(removed: WSSubscription[]): void {
+    if (!this.ws || this.ws.readyState !== WSClient.OPEN || removed.length === 0) return;
+    try {
+      const msg = JSON.stringify({ op: "unsubscribe", args: removed });
+      this.ws.send(msg);
+      console.log("[WS] Unsubscribe:", removed.map(c => `${c.channel}/${c.instId}`).join(", "));
+    } catch (err) {
+      console.warn("[WS] Unsubscribe send failed:", err instanceof Error ? err.message : String(err));
+    }
   }
 
   async subscribe(channels: WSSubscription[]): Promise<void> {
+    // Compute the diff so we can send unsubscribes for removed channels
+    const newKeys = new Set(channels.map(c => `${c.channel}:${c.instId}`));
+    const removed = this.subscriptions.filter(c => !newKeys.has(`${c.channel}:${c.instId}`));
+
     this.subscriptions = channels;
     console.log(`[WS] Subscribing to ${channels.length} channel(s):`, channels.map(c => `${c.instType}/${c.channel}/${c.instId}`).join(", "));
 
     if (!this.ws || this.ws.readyState === WSClient.CLOSED) {
       await this.connect();
-    } else {
+    } else if (this.ws.readyState === WSClient.OPEN) {
+      if (removed.length > 0) this.sendUnsubscribe(removed);
       this.sendSubscribe(channels);
+    } else {
+      // CONNECTING or CLOSING — subscriptions are stored; the 'open' handler will re-send them.
+      console.warn(`[WS] subscribe() called while socket is ${this.ws.readyState === WSClient.CONNECTING ? "connecting" : "closing"} — queued for open`);
     }
   }
 
@@ -157,15 +187,17 @@ export class MarketWebSocketService {
         });
 
         ws.on("message", (data) => {
-          try { this.processWsMsg(data.toString("utf-8")); } catch (err) { console.error("[WS] Msg parse error:", err); }
+          try { this.processWsMsg(data.toString("utf-8")); } catch (err) { console.error("[WS] Handler error:", err); }
         });
 
         ws.on("error", (err) => {
           console.warn("[WS] Socket error:", err.message);
         });
 
-        ws.on("close", (code, reason) => {
-          this.ws = null;
+        ws.on("close", (code) => {
+          // Only null the reference if this is still the current socket — prevents
+          // a late close event from a replaced connection destroying the new one
+          if (this.ws === ws) this.ws = null;
           this.clearPingTimer();
           if (code !== 1000) {
             if (PROXIES.length > 0) {
@@ -192,22 +224,30 @@ export class MarketWebSocketService {
     }
   }
 
-  private fallbackToRest(): Promise<void> {
+  private async fallbackToRest(): Promise<void> {
     console.log("[WS] Starting REST ticker fallback...");
 
-    // Clear any existing fallback timer to prevent accumulation
     this.clearRestFallbackTimer();
 
     const fetchAllTickers = async () => {
+      // Prevent overlapping runs when previous fetch took longer than 30s
+      if (this.restFallbackRunning) return;
+      this.restFallbackRunning = true;
       try {
-        for (const symbol of config.tradingSymbols) {
-          const result = await bitgetClient.publicGet<Array<Record<string, string>>>(
-            "/api/v2/spot/market/tickers",
-            { symbol }
-          );
+        // Batch fetch — single call returns all tickers
+        const result = await bitgetClient.publicGet<Array<Record<string, string>>>(
+          "/api/v2/spot/market/tickers"
+        );
 
-          const ticker = result.data.find((t) => t.symbol === symbol || t.instId === symbol);
-          if (!ticker) continue;
+        const targetSymbols = new Set(config.tradingSymbols);
+        const st = getAgentState();
+        for (const p of st.positions) targetSymbols.add(p.symbol);
+        if (st.watchlist) for (const s of st.watchlist) targetSymbols.add(s);
+
+        let count = 0;
+        for (const ticker of result.data ?? []) {
+          const symbol = (ticker.symbol ?? ticker.instId ?? "").toUpperCase();
+          if (!targetSymbols.has(symbol)) continue;
 
           const lastPrice = Number(ticker.lastPrice ?? ticker.lastPr ?? ticker.close ?? "0");
           if (lastPrice <= 0) continue;
@@ -216,6 +256,8 @@ export class MarketWebSocketService {
           const low24h = Number(ticker.low24h ?? ticker.low ?? "0");
           const quoteVol = Number(ticker.volValue24h ?? ticker.quoteVolume ?? ticker.volumeValue24h ?? "0");
           const changePctRaw = Number(ticker.changeUtc24h ?? ticker.priceRate ?? ticker.changingPercent24h ?? "0");
+          // Bitget already returns percentage as a decimal ratio (0.05 = 5%) — multiply by 100
+          const changePct = Number((changePctRaw * 100).toFixed(2));
           const tsNum = Number(ticker.ts ?? Date.now());
 
           const snapshot: PriceSnapshot = {
@@ -225,27 +267,36 @@ export class MarketWebSocketService {
             low24h,
             baseVolume: 0,
             quoteVolume: quoteVol,
-            changePercent: Number((changePctRaw * 100).toFixed(2)),
+            changePercent: changePct,
             updatedAt: new Date(tsNum),
           };
 
           priceStore.updateTicker(snapshot);
+          count++;
         }
 
-        console.log(`[WS] REST fallback cached ${priceStore.getSymbolCount()} ticker(s)`);
+        console.log(`[WS] REST fallback cached ${count} ticker(s)`);
       } catch (err) {
         console.warn("[WS] REST fetch error:", err instanceof Error ? err.message : String(err));
+      } finally {
+        this.restFallbackRunning = false;
       }
     };
 
-    this.restFallbackTimer = setInterval(fetchAllTickers, 30_000);
-
-    return Promise.resolve();
+    // Fire immediately, then on 30s interval — use recursive setTimeout to avoid overlap
+    const schedule = () => {
+      this.restFallbackTimer = setTimeout(async () => {
+        await fetchAllTickers();
+        if (this.restFallbackTimer) schedule(); // re-schedule only if still active
+      }, 30_000);
+    };
+    await fetchAllTickers();
+    schedule();
   }
 
   private clearRestFallbackTimer(): void {
     if (this.restFallbackTimer) {
-      clearInterval(this.restFallbackTimer);
+      clearTimeout(this.restFallbackTimer);
       this.restFallbackTimer = null;
     }
   }
@@ -272,38 +323,48 @@ export class MarketWebSocketService {
 
   private sendSubscribe(channels: WSSubscription[]): void {
     if (!this.ws || this.ws.readyState !== WSClient.OPEN) return;
-    const msg = JSON.stringify({ op: "subscribe", args: channels });
-    this.ws.send(msg);
-    console.log("[WS] Subscribe:", channels.map(c => `${c.channel}/${c.instId}`).join(", "));
+    try {
+      const msg = JSON.stringify({ op: "subscribe", args: channels });
+      this.ws.send(msg);
+      console.log("[WS] Subscribe:", channels.map(c => `${c.channel}/${c.instId}`).join(", "));
+    } catch (err) {
+      console.warn("[WS] Subscribe send failed:", err instanceof Error ? err.message : String(err));
+    }
   }
 
   private processWsMsg(data: string): void {
-    dispatchWsMessage(
-      data,
-      (snapshots) => { for (const s of snapshots) { priceStore.updateTicker(s); updatePositionUnrealizedPnL(s.symbol, s.lastPrice); } },
-      (msg: Record<string, unknown>) => {
-        const arg = msg.arg! as { channel?: string; instId?: string };
-        const dataArr = msg.data as string[][] | undefined;
-        if (!arg?.channel || !dataArr) return;
-        const interval = arg.channel.replace(/^candle/, "");
-        for (const row of dataArr) {
-          if (row.length < 6) continue;
-          priceStore.updateCandle(arg.instId ?? "UNKNOWN", interval, { timestamp: Number(row[0]), open: Number(row[1]), high: Number(row[2]), low: Number(row[3]), close: Number(row[4]), volume: Number(row[5]) });
-        }
-      },
-      (channel, instId) => console.log("[WS] Subscribed:", `${channel}/${instId ?? "*"}`),
-      (code, msg) => console.warn(`[WS] Server error: code=${code}, msg="${msg}"`),
-    );
-
+    // Check for heartbeat frames FIRST so they never reach dispatchWsMessage
     if (data === "ping") {
-      // Server sent heartbeat request — respond with pong
-      this.ws?.send("pong");
+      try { this.ws?.send("pong"); } catch (err) { console.warn("[WS] Pong send failed:", err instanceof Error ? err.message : String(err)); }
       return;
     }
     if (data === "pong") {
       console.log("[WS] Server pong ✓");
       this.reconnectAttempt = 0;
+      return;
     }
+
+    dispatchWsMessage(
+      data,
+      (snapshots) => { for (const s of snapshots) { priceStore.updateTicker(s); updatePositionUnrealizedPnL(s.symbol, s.lastPrice); } },
+      (msg: Record<string, unknown>) => {
+        const arg = msg.arg as { channel?: string; instId?: string } | undefined;
+        const dataArr = msg.data as string[][] | undefined;
+        if (!arg?.channel || !dataArr) return;
+        const interval = arg.channel.replace(/^candle/, "");
+        const instId = arg.instId;
+        if (!instId) {
+          console.warn("[WS] Candle message missing instId — skipping");
+          return;
+        }
+        for (const row of dataArr) {
+          if (row.length < 6) continue;
+          priceStore.updateCandle(instId, interval, { timestamp: Number(row[0]), open: Number(row[1]), high: Number(row[2]), low: Number(row[3]), close: Number(row[4]), volume: Number(row[5]) });
+        }
+      },
+      (channel, instId) => console.log("[WS] Subscribed:", `${channel}/${instId ?? "*"}`),
+      (code, msg) => console.warn(`[WS] Server error: code=${code}, msg="${msg}"`),
+    );
   }
 
   private startPingTimer(): void {
@@ -311,7 +372,7 @@ export class MarketWebSocketService {
     this.pingTimer = setInterval(() => {
       if (this.ws?.readyState === WSClient.OPEN) {
         // Client initiated heartbeat — send ping to keep connection alive
-        this.ws.send("ping");
+        try { this.ws.send("ping"); } catch (err) { console.warn("[WS] Ping send failed:", err instanceof Error ? err.message : String(err)); }
       } else {
         this.clearPingTimer();
       }
@@ -338,18 +399,23 @@ export class MarketWebSocketService {
   syncSubscriptionsForPositions(extraSymbols?: string[]): void {
     const st = getAgentState();
     const posSymbols = st.positions.map(p => p.symbol);
+    // Preserve any candle subscriptions — only compute the ticker-channel diff
+    const existingTickerKeys = new Set(this.subscriptions.filter(s => s.channel === "ticker").map(s => `${s.channel}:${s.instId}`));
     const all = [...new Set([...config.tradingSymbols, ...posSymbols, ...(extraSymbols ?? [])])];
-    const channels = all.map((symbol): WSSubscription => ({
+    const tickerChannels: WSSubscription[] = all.map((symbol): WSSubscription => ({
       instType: "SPOT",
       channel: "ticker",
       instId: symbol.toUpperCase(),
     }));
-    this.subscribe(channels).catch(err =>
+    // Keep existing candle subscriptions
+    const candleChannels = this.subscriptions.filter(s => s.channel !== "ticker");
+    const merged = [...candleChannels, ...tickerChannels.filter(c => !existingTickerKeys.has(`${c.channel}:${c.instId}`))];
+    this.subscribe(merged).catch(err =>
       console.warn("[WS] syncSubscriptions failed:", err instanceof Error ? err.message : String(err))
     );
   }
 
-/** Initialize WebSocket connection — call once on app startup */
+  /** Initialize WebSocket connection — call once on app startup */
   async initialize(): Promise<{ type: "direct" | "proxy" | "fallback"; proxy: string | null }> {
     const channels = this.buildSubscriptions();
     await this.subscribe(channels);

@@ -1,5 +1,5 @@
 import type { AgentState } from "@/features/trading-agent/services/state-store";
-import type { TickerData, TradingDecision, Position } from "@/features/trading-agent/types";
+import type { TickerData, TradingDecision } from "@/features/trading-agent/types";
 import { config, setTradeCounter, getTradeCounter, calculateWinRate } from "./state-store";
 import { getLivePrice } from "./price-fetcher.service";
 import { saveBalanceState } from "./balance-store";
@@ -13,28 +13,41 @@ function resolveSLTP(profile?: RiskProfile): { stopLossPct: number; takeProfitPc
 }
 
 export async function flattenPositions(state: AgentState): Promise<{ closed: number; totalPnlRealized: number }> {
-  const closedPositions: Position[] = [];
-  let totalPnlRealized = 0;
+  const positionsToClose = state.positions.filter(p => p.size > 0);
+  if (positionsToClose.length === 0) {
+    return { closed: 0, totalPnlRealized: 0 };
+  }
 
-  const uniqueSymbols = [...new Set(state.positions.map((p) => p.symbol))];
+  const uniqueSymbols = [...new Set(positionsToClose.map(p => p.symbol))];
   const prices: Map<string, TickerData> = new Map();
 
   for (const symbol of uniqueSymbols) {
-    const ticker = await getLivePrice(symbol);
-    if (ticker && ticker.lastPrice > 0) prices.set(symbol, ticker);
+    try {
+      const ticker = await getLivePrice(symbol);
+      if (ticker && ticker.lastPrice > 0) prices.set(symbol, ticker);
+    } catch (err) {
+      console.warn(`[Agent] Could not fetch ${symbol} for flatten:`, err instanceof Error ? err.message : String(err));
+    }
   }
 
-  if (prices.size === 0 && state.positions.length > 0) {
+  if (prices.size === 0) {
     console.warn("[Agent] Cannot flatten — no price data available, keeping positions");
     return { closed: 0, totalPnlRealized: 0 };
   }
 
-  for (const pos of state.positions) {
-    if (pos.size <= 0) continue;
-    const ticker = prices.get(pos.symbol);
-    const price = ticker?.lastPrice ?? state.ticker?.lastPrice ?? 0;
-    if (price === 0) continue;
+  let totalPnlRealized = 0;
+  let closedCount = 0;
+  const closedSymbols = new Set<string>();
+  const skippedCount = positionsToClose.length - positionsToClose.filter(p => prices.has(p.symbol)).length;
 
+  for (const pos of positionsToClose) {
+    const ticker = prices.get(pos.symbol);
+    if (!ticker) {
+      console.warn(`[Agent] Flatten: skipping ${pos.symbol} — no price data, will remain in positions`);
+      continue;
+    }
+
+    const price = ticker.lastPrice;
     const revenue = price * pos.size;
     const fee = revenue * config.feePct;
     const pnl = (price - pos.entryPrice) * pos.size - fee;
@@ -54,72 +67,100 @@ export async function flattenPositions(state: AgentState): Promise<{ closed: num
     });
     totalPnlRealized += pnl;
     state.portfolio.cash += revenue - fee;
-    closedPositions.push(pos);
+    closedCount++;
+    closedSymbols.add(pos.symbol);
   }
 
-  state.portfolio.totalPnL += totalPnlRealized;
-  const winRate = calculateWinRate(state.trades);
+  // Remove closed positions from state
+  state.positions = state.positions.filter(p => !closedSymbols.has(p.symbol));
+
+  // Mark-to-market remaining open positions so equity isn't just cash
+  let remainingPosVal = 0;
+  for (const p of state.positions) {
+    const symTicker = prices.get(p.symbol);
+    const px = symTicker?.lastPrice ?? p.entryPrice;
+    remainingPosVal += p.size * px;
+  }
+
   state.portfolio = {
     ...state.portfolio,
     timestamp: new Date(),
-    equity: state.portfolio.cash,
-    totalPnL: state.portfolio.cash - state.startEquity,
-    winRate,
+    cash: state.portfolio.cash,
+    equity: state.portfolio.cash + remainingPosVal,
+    totalPnL: state.portfolio.cash + remainingPosVal - state.startEquity,
+    winRate: calculateWinRate(state.trades),
   };
+
+  if (state.peakEquity < state.portfolio.equity) state.peakEquity = state.portfolio.equity;
 
   saveBalanceState({
     initialCash: config.initialCash,
     startCash: state.startEquity,
     cash: state.portfolio.cash,
-    accumulatedRealizedPnL: state.portfolio.totalPnL,
-    positions: [],
+    accumulatedRealizedPnL: totalPnlRealized,
+    positions: state.positions.map(p => ({ symbol: p.symbol, side: p.side as "long" | "short", size: p.size, entryPrice: p.entryPrice, stopLossPct: p.stopLossPct, takeProfitPct: p.takeProfitPct })),
     totalTrades: state.portfolio.totalTrades,
-    winRate,
+    winRate: state.portfolio.winRate,
     circuitBreakerTripped: state.circuitBreakerTripped,
     circuitBreakerThresholdPct: state.circuitBreakerThresholdPct,
     peakEquity: state.peakEquity,
+    tradeCounter: getTradeCounter(),
   });
 
-  console.log(`[Agent] Flattened ${closedPositions.length} position(s)`);
-  return { closed: closedPositions.length, totalPnlRealized };
+  console.log(`[Agent] Flattened ${closedCount}/${positionsToClose.length} position(s) — realized $${totalPnlRealized.toFixed(2)}${skippedCount > 0 ? ` (${skippedCount} skipped — no price)` : ""}`);
+  return { closed: closedCount, totalPnlRealized };
 }
 
 export function executeTrades(
   state: AgentState,
   decisions: Record<string, TradingDecision>,
-  priceMap: Map<string, TickerData>,
-  displayTicker: TickerData
+  priceMap: Map<string, TickerData>
 ): void {
   let liquidBalance = state.portfolio.cash;
 
   const entries = Object.entries(decisions)
     .sort(([, a], [, b]) => Math.abs(b.strength) - Math.abs(a.strength));
 
-  const uniqueSymbolsCount = new Set(state.positions.map((p) => p.symbol)).size;
+  // Local counter — incremented on each new buy, decremented when an existing position is fully sold
+  let livePositionCount = new Set(state.positions.map(p => p.symbol)).size;
 
   for (const [symbol, decision] of entries) {
     if (decision.action === "hold") continue;
 
-    if (typeof priceMap.get(symbol) === "undefined") continue;
-    const ticker = priceMap.get(symbol)!;
+    const ticker = priceMap.get(symbol);
+    if (!ticker || ticker.lastPrice <= 0) {
+      console.warn(`[Agent] ${symbol}: skipping ${decision.action} — no live price data`);
+      continue;
+    }
 
-    if (decision.action === "buy" && uniqueSymbolsCount >= config.maxActivePositions) {
+    if (decision.action === "buy" && livePositionCount >= config.maxActivePositions) {
       console.log(`[Agent] ${symbol}: skipping buy — already at max open positions (${config.maxActivePositions})`);
       continue;
     }
 
+    // Validate decision.strength to prevent NaN propagation
+    const strength = decision.strength;
+    if (typeof strength !== "number" || !Number.isFinite(strength)) {
+      console.warn(`[Agent] ${symbol}: skipping — invalid strength value: ${strength}`);
+      continue;
+    }
+
+    // Order check before division
+    if (ticker.lastPrice <= 0) continue;
+
+    // Compute current equity from positions in priceMap (fallback to entry price if missing)
     const totalEquity = liquidBalance + state.positions.reduce((s, p) => {
       const posPrice = priceMap.get(p.symbol)?.lastPrice ?? p.entryPrice;
       return s + (p.size * posPrice);
     }, 0);
 
-    const strengthFactor = Math.abs(decision.strength);
+    const strengthFactor = Math.abs(strength);
     const allocationPct = config.orderSizePct * strengthFactor;
     const tradeSize = decision.size ?? ((totalEquity * allocationPct) / ticker.lastPrice);
 
-    if (tradeSize <= 0 || ticker.lastPrice === 0) continue;
+    if (!Number.isFinite(tradeSize) || tradeSize <= 0) continue;
 
-    const idx = state.positions.findIndex((p) => p.symbol === symbol);
+    const idx = state.positions.findIndex(p => p.symbol === symbol);
     const now = new Date();
     const tc = getTradeCounter() + 1;
     setTradeCounter(tc);
@@ -141,6 +182,7 @@ export function executeTrades(
           const sltp = resolveSLTP(decision.riskProfile);
           state.positions.push({ symbol, side: "long", size: tradeSize, entryPrice: ticker.lastPrice * (1 + config.feePct), unrealizedPnL: 0, ...sltp });
           state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "buy", action: "entry", size: tradeSize, price: ticker.lastPrice, fee });
+          livePositionCount++;
         }
         liquidBalance -= totalCost;
       } else {
@@ -155,16 +197,15 @@ export function executeTrades(
           const fee = revenue * config.feePct;
           const pnl = (ticker.lastPrice - pos.entryPrice) * pos.size - fee;
           state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "sell", action: "exit", size: pos.size, price: ticker.lastPrice, pnl, fee });
-          state.portfolio.totalPnL += pnl;
           liquidBalance += revenue - fee;
           state.positions.splice(idx, 1);
+          livePositionCount = new Set(state.positions.map(p => p.symbol)).size;
         } else {
           const avgEntry = pos.entryPrice;
           const revenue = ticker.lastPrice * tradeSize;
           const fee = revenue * config.feePct;
           const pnl = (ticker.lastPrice - avgEntry) * tradeSize - fee;
           state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "sell", action: "reduce", size: tradeSize, price: ticker.lastPrice, pnl, fee });
-          state.portfolio.totalPnL += pnl;
           liquidBalance += revenue - fee;
           state.positions[idx] = { ...state.positions[idx], size: pos.size - tradeSize };
         }
@@ -176,10 +217,12 @@ export function executeTrades(
     state.portfolio.totalTrades++;
   }
 
+  // Mark-to-market all remaining positions
   let totalPosVal = 0;
   for (const p of state.positions) {
     const symTicker = priceMap.get(p.symbol);
-    const price = symTicker?.lastPrice ?? displayTicker?.lastPrice ?? p.entryPrice;
+    // Use entry price as fallback — never use displayTicker's price (it may be a different symbol)
+    const price = symTicker?.lastPrice ?? p.entryPrice;
     totalPosVal += p.size * price;
   }
   const realEquity = liquidBalance + totalPosVal;
@@ -194,6 +237,8 @@ export function executeTrades(
     winRate,
   };
 
+  if (state.peakEquity < state.portfolio.equity) state.peakEquity = state.portfolio.equity;
+
   const savedPositions = state.positions.map(p => ({ symbol: p.symbol, side: p.side as "long" | "short", size: p.size, entryPrice: p.entryPrice, stopLossPct: p.stopLossPct, takeProfitPct: p.takeProfitPct }));
   saveBalanceState({
     initialCash: config.initialCash,
@@ -206,5 +251,6 @@ export function executeTrades(
     circuitBreakerTripped: state.circuitBreakerTripped,
     circuitBreakerThresholdPct: state.circuitBreakerThresholdPct,
     peakEquity: state.peakEquity,
+    tradeCounter: getTradeCounter(),
   });
 }
