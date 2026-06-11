@@ -50,6 +50,7 @@ export async function flattenPositions(state: AgentState): Promise<{ closed: num
       size: pos.size,
       price,
       pnl,
+      fee,
     });
     totalPnlRealized += pnl;
     state.portfolio.cash += revenue - fee;
@@ -135,11 +136,11 @@ export function executeTrades(
             size: p.size + tradeSize,
             entryPrice: (p.entryPrice * p.size + ticker.lastPrice * tradeSize * (1 + config.feePct)) / (p.size + tradeSize),
           };
-          state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "buy", action: "add", size: tradeSize, price: ticker.lastPrice });
+          state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "buy", action: "add", size: tradeSize, price: ticker.lastPrice, fee });
         } else {
           const sltp = resolveSLTP(decision.riskProfile);
           state.positions.push({ symbol, side: "long", size: tradeSize, entryPrice: ticker.lastPrice * (1 + config.feePct), unrealizedPnL: 0, ...sltp });
-          state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "buy", action: "entry", size: tradeSize, price: ticker.lastPrice });
+          state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "buy", action: "entry", size: tradeSize, price: ticker.lastPrice, fee });
         }
         liquidBalance -= totalCost;
       } else {
@@ -153,7 +154,7 @@ export function executeTrades(
           const revenue = ticker.lastPrice * pos.size;
           const fee = revenue * config.feePct;
           const pnl = (ticker.lastPrice - pos.entryPrice) * pos.size - fee;
-          state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "sell", action: "exit", size: pos.size, price: ticker.lastPrice, pnl });
+          state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "sell", action: "exit", size: pos.size, price: ticker.lastPrice, pnl, fee });
           state.portfolio.totalPnL += pnl;
           liquidBalance += revenue - fee;
           state.positions.splice(idx, 1);
@@ -162,7 +163,7 @@ export function executeTrades(
           const revenue = ticker.lastPrice * tradeSize;
           const fee = revenue * config.feePct;
           const pnl = (ticker.lastPrice - avgEntry) * tradeSize - fee;
-          state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "sell", action: "reduce", size: tradeSize, price: ticker.lastPrice, pnl });
+          state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "sell", action: "reduce", size: tradeSize, price: ticker.lastPrice, pnl, fee });
           state.portfolio.totalPnL += pnl;
           liquidBalance += revenue - fee;
           state.positions[idx] = { ...state.positions[idx], size: pos.size - tradeSize };

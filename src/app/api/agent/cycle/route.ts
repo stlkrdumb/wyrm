@@ -158,7 +158,7 @@ export async function GET(request: NextRequest) {
     positions: livePositions,
     trades: currentState.trades.map((t) => ({
       id: t.id, timestamp: t.timestamp.toISOString(), symbol: t.symbol, side: t.side,
-      action: t.action, size: t.size, price: t.price, pnl: t.pnl ?? null,
+      action: t.action, size: t.size, price: t.price, pnl: t.pnl ?? null, fee: t.fee ?? null,
     })),
     llmProgress: llmProgress || currentState.llmProgress || null,
     circuitBreakerTripped: currentState.circuitBreakerTripped,
