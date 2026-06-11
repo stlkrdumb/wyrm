@@ -22,7 +22,7 @@ export async function POST() {
       });
     }
 
-    console.log(`[API] POST /api/agent/cycle — LLM_MODEL=${process.env.LLM_MODEL} API_KEY=${process.env.OPENAI_API_KEY ? '***' + process.env.OPENAI_API_KEY.slice(-4) : 'MISSING'}`);
+    console.log(`[API] POST /api/agent/cycle — MODEL=${process.env.LLM_MODEL} API_KEY=${process.env.OPENAI_API_KEY ? 'configured' : 'MISSING'}`);
 
     const result = await runAgentCycle();
     marketWS.syncSubscriptionsForPositions();
