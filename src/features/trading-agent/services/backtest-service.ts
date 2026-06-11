@@ -65,7 +65,6 @@ export class BacktestService {
         const timestamp = stepSnapshot.timestamp;
 
         // Populate priceMap and inject candles into priceStore up to this step
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const priceMap = new Map<string, any>();
         for (const symbol of symbols) {
           const symData = historicalData[symbol];
@@ -136,7 +135,6 @@ export class BacktestService {
             totalTrades: tradeCount,
             winRate: tradeCount > 0 ? (wins / tradeCount) * 100 : 0,
             totalPnL: startEquity - initialEquity
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any, ticker);
 
           if (validation.isAllowed) {

@@ -5,10 +5,9 @@ export async function GET() {
   try {
     const strategy = strategyService.getStrategy();
     return NextResponse.json(strategy);
-  } catch (error: unknown) {
-    const err = error as Error;
+  } catch (error: any) {
     return NextResponse.json(
-      { status: "error", message: err.message || "Failed to load strategy" },
+      { status: "error", message: error.message || "Failed to load strategy" },
       { status: 500 }
     );
   }
@@ -26,10 +25,9 @@ export async function POST(request: Request) {
       circuitBreakerThresholdPct: body.circuitBreakerThresholdPct ?? 10,
     });
     return NextResponse.json({ status: "success", message: "Strategy updated successfully" });
-  } catch (error: unknown) {
-    const err = error as Error;
+  } catch (error: any) {
     return NextResponse.json(
-      { status: "error", message: err.message || "Failed to save strategy" },
+      { status: "error", message: error.message || "Failed to save strategy" },
       { status: 500 }
     );
   }

@@ -36,18 +36,6 @@ export interface PortfolioSnapshot {
   totalPnL: number;
 }
 
-export interface PendingOrder {
-  id: string;
-  symbol: string;
-  side: "buy" | "sell";
-  limitPrice: number;
-  size: number;
-  reservedCash: number;
-  createdAt: Date;
-  stopLossPct: number;
-  takeProfitPct: number;
-}
-
 export interface SimExecutionResult {
   success: boolean;
   reason?: string;

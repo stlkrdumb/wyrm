@@ -1,5 +1,5 @@
 import { bitgetClient } from "@/lib/bitget-client";
-import { chatCompletion, getActiveModel } from "./llm.service";
+import { chatCompletion } from "./llm.service";
 import { buildScreeningPrompt, parseScreeningResponse } from "./decision-helper";
 import { strategyService } from "./strategy.service";
 import type { Position } from "@/features/trading-agent/types";
@@ -13,8 +13,7 @@ interface RawTicker {
   change24hPercent: number;
 }
 
-const MAX_SCREEN_POOL = Number(process.env.SCREEN_POOL_SIZE) || 20;
-const SCREEN_RETRY_SIZE = Number(process.env.SCREEN_RETRY_SIZE) || 15;
+const MAX_SCREEN_POOL = 20;
 
 function isRealCrypto(symbol: string): boolean {
   // Exclude Bitget stock tokens (R-prefixed: RSOXLUSDT, RMUUSDT, etc.)
@@ -70,7 +69,6 @@ export async function runScreening(
 
   const strategy = strategyService.getStrategy();
   const prompt = buildScreeningPrompt(tickers, activePositions, strategy.persona, strategy.customInstructions);
-  console.log(`[Screening] Prompt: ${prompt.length} chars for ${tickers.length} coins, model=${getActiveModel()}`);
 
   const systemPrompt = `You are a coin screening AI. Your task is to select up to 2 coins most likely to have a strong directional move in the next hour based on 24h price action and volume. Be concise and specific.`;
 
@@ -85,10 +83,10 @@ export async function runScreening(
     });
 
     if (!response || response.trim().length === 0) {
-      console.warn(`[Screening] LLM empty (model=${getActiveModel()}, prompt=${prompt.length} chars) — retrying with fewer coins`);
-      const shorterTickers = tickers.slice(0, SCREEN_RETRY_SIZE);
+      console.warn("[Screening] LLM returned empty response — retrying with fewer coins");
+      // Retry with top 15 only — smaller prompt for local models
+      const shorterTickers = tickers.slice(0, 15);
       const retryPrompt = buildScreeningPrompt(shorterTickers, activePositions, strategy.persona, strategy.customInstructions);
-      console.log(`[Screening] Retry prompt: ${retryPrompt.length} chars for ${shorterTickers.length} coins`);
       const retryResponse = await chatCompletion({
         messages: [
           { role: "system", content: systemPrompt },
@@ -105,14 +103,6 @@ export async function runScreening(
           return retryResult;
         }
       }
-
-      // Both original and retry failed — fallback to volume
-      console.warn("[Screening] LLM returned empty — falling back to volume-based selection");
-      const posSyms = new Set(activePositions.map(p => p.symbol));
-      const topByVolume = tickers.filter(t => !posSyms.has(t.symbol)).slice(0, 2);
-      const fallbackSelected = topByVolume.map(t => t.symbol);
-      console.log(`[Screening] Volume fallback: ${fallbackSelected.join(", ")}`);
-      return { selected: fallbackSelected, reason: `Volume fallback: ${fallbackSelected.join(", ")}` };
     }
 
     const validSymbols = new Set(tickers.map(t => t.symbol));

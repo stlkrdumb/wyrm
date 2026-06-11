@@ -43,7 +43,6 @@ export interface Trade {
   size: number;
   price: number;
   pnl?: number;
-  fee?: number;
 }
 
 export interface TradingDecision {
@@ -54,6 +53,4 @@ export interface TradingDecision {
   riskStatus?: "approved" | "blocked" | "adjusted";
   size?: number;
   riskProfile?: "tight" | "normal" | "wide";
-  orderType?: "market" | "limit";
-  limitPrice?: number;
 }

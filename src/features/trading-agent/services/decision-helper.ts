@@ -34,12 +34,9 @@ Respond with ONLY valid JSON:
 }`;
 }
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 export function buildMultiPrompt(
   symbolData: Map<string, { ticker: TickerData; ta5m: any; ta1h: any; ta1d: any; sentiment?: any }>,
-/* eslint-enable @typescript-eslint/no-explicit-any */
-  activePositions: Position[] = [],
-  pendingOrders: Array<{ symbol: string; side: "buy" | "sell"; limitPrice: number }> = []
+  activePositions: Position[] = []
 ): string {
   const entries = Array.from(symbolData.entries());
   const lines = entries
@@ -64,7 +61,7 @@ export function buildMultiPrompt(
     .join("\n\n");
 
   const exampleFormat = entries
-    .map(([symbol]) => `  "${symbol}": {"action":"buy|sell|hold","strength":-1..1,"confidence":0..1,"riskProfile":"tight|normal|wide","orderType":"market|limit","limitPrice":<price>,"reason":"..."},`)
+    .map(([symbol]) => `  "${symbol}": {"action":"buy|sell|hold","strength":-1..1,"confidence":0..1,"riskProfile":"tight|normal|wide","reason":"..."},`)
     .join("\n");
 
   let positionsSection = "";
@@ -79,19 +76,11 @@ export function buildMultiPrompt(
     positionsSection = "\nNo active positions currently held.\n";
   }
 
-  let pendingSection = "";
-  if (pendingOrders.length > 0) {
-    pendingSection = "\nPending Limit Orders:\n" + pendingOrders
-      .map(o => `- ${o.symbol}: LIMIT ${o.side.toUpperCase()} @ $${o.limitPrice.toFixed(2)}`)
-      .join("\n") + "\n";
-  }
-
   return `You are a professional quantitative trader. Analyze the following cryptocurrencies and provide a decision for EACH one.
  
 Analyze ONLY these symbols and return a JSON object with keys matching each symbol:
 ${lines}
 ${positionsSection}
-${pendingSection}
 Rules:
 - For EACH symbol, decide: buy, sell, or hold
 - If we hold a position for a symbol and you want to take profit, stop loss, or close it, output "action": "sell".
@@ -101,8 +90,6 @@ Rules:
 - Confidence: 0-1
 - riskProfile (for buy actions only): "tight" (3% SL / 9% TP) | "normal" (5% SL / 10% TP) | "wide" (8% SL / 16% TP)
 - Pick riskProfile based on volatility and conviction — tighter for calm markets / high conviction, wider for volatile / uncertain trades
-- orderType: "market" (executes immediately at current price) or "limit" (waits for limitPrice)
-- limitPrice: ONLY set when orderType is "limit". For limit buys, set below current price (dip entry). For limit sells, set above current price (pump exit).
 - You can still exit early with "sell" regardless of the SL/TP auto-bracket levels
 - Keep reason under 40 words with specific indicator values and sentiment/funding conditions if they influence your decision
 - Make a confident call per symbol — avoid defaulting to "hold" when signals are clear
@@ -132,11 +119,9 @@ export function parseSingleResponse(response: string): { decision: TradingDecisi
   const riskProfile = ["tight", "normal", "wide"].includes(parsed.riskProfile)
     ? (parsed.riskProfile as "tight" | "normal" | "wide")
     : undefined;
-  const orderType = parsed.orderType === "limit" ? "limit" as const : undefined;
-  const limitPrice = orderType ? (parseFloat(parsed.limitPrice) || undefined) : undefined;
 
   return {
-    decision: { action, strength, confidence, riskProfile, orderType, limitPrice, reason: parsed.reason || "No reasoning provided" },
+    decision: { action, strength, confidence, riskProfile, reason: parsed.reason || "No reasoning provided" },
     signals: [
       {
         id: crypto.randomUUID(),
@@ -196,7 +181,6 @@ export function parseMultiResponse(
   }
 
   cleaned = repairJSON(jsonMatch[0]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let parsed: Record<string, any>;
   try {
     parsed = JSON.parse(cleaned);
@@ -209,7 +193,7 @@ export function parseMultiResponse(
     aggressive = repairJSON(aggressive);
     try {
       parsed = JSON.parse(aggressive);
-    } catch (_secondErr) { // eslint-disable-line @typescript-eslint/no-unused-vars
+    } catch (_secondErr) {
       console.error(`[DecisionHelper] JSON parse error — raw:\n${jsonMatch[0].slice(0, 2000)}`);
       throw _firstErr;
     }
@@ -236,10 +220,8 @@ export function parseMultiResponse(
     const riskProfile = ["tight", "normal", "wide"].includes(raw.riskProfile)
       ? (raw.riskProfile as "tight" | "normal" | "wide")
       : undefined;
-    const orderType = raw.orderType === "limit" ? "limit" as const : undefined;
-    const limitPrice = orderType ? (parseFloat(raw.limitPrice) || undefined) : undefined;
 
-    decisions[symbol] = { action, strength, confidence, riskProfile, orderType, limitPrice, reason: raw.reason || "No reasoning" };
+    decisions[symbol] = { action, strength, confidence, riskProfile, reason: raw.reason || "No reasoning" };
 
     allSignals.push({
       id: crypto.randomUUID(),
@@ -298,7 +280,7 @@ export function parseScreeningResponse(response: string, validSymbols: Set<strin
   }
 
   cleaned = repairJSON(jsonMatch[0]);
-  let parsed: Record<string, unknown>;
+  let parsed: any;
   try {
     parsed = JSON.parse(cleaned);
   } catch (e) {
@@ -312,13 +294,11 @@ export function parseScreeningResponse(response: string, validSymbols: Set<strin
     .filter((s: string) => validSymbols.has(s))
     .slice(0, 2);
 
-  return { selected, reason: String(parsed.reason || "") };
+  return { selected, reason: parsed.reason || "" };
 }
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 export function fallbackMultiAnalysis(
   symbolData: Map<string, { ticker: TickerData; ta5m: any; ta1h: any; ta1d: any }>
-/* eslint-enable @typescript-eslint/no-explicit-any */
 ): { decisions: Record<string, TradingDecision>; allSignals: Signal[] } {
   const decisions: Record<string, TradingDecision> = {};
   const allSignals: Signal[] = [];

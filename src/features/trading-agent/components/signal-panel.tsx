@@ -57,7 +57,8 @@ export const SignalPanel = memo(function SignalPanel({ signals, decision, decisi
       <CardContent>
         <DecisionPipeline
           decision={decision}
-          riskStatus={decision ? (decision as unknown as { riskStatus: string }).riskStatus : undefined}
+          signalCount={signals.length}
+          riskStatus={decision ? (decision as any).riskStatus : undefined}
         />
 
         {(() => {

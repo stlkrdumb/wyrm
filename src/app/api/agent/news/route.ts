@@ -12,8 +12,7 @@ export async function GET(request: Request) {
       data: news,
       timestamp: new Date().toISOString(),
     });
-  } catch (_error: unknown) {
-    const error = _error as Error;
+  } catch (error: any) {
     return NextResponse.json(
       { status: "error", message: error.message || "Failed to load news" },
       { status: 500 }

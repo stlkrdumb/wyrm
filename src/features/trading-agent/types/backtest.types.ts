@@ -1,3 +1,4 @@
+import type { TradingDecision } from "./signal.types";
 
 /**
  * Represents a single snapshot of market data at a specific point in time.

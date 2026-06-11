@@ -47,9 +47,9 @@ export class HistoryService {
       const rawHistory = JSON.parse(data);
 
       // Convert timestamp strings back to Date objects
-      return rawHistory.map((h: Record<string, unknown>) => ({
+      return rawHistory.map((h: any) => ({
         ...h,
-        timestamp: new Date(String(h.timestamp)),
+        timestamp: new Date(h.timestamp),
       }));
     } catch (err) {
       console.error("[History] Failed to read history:", err);

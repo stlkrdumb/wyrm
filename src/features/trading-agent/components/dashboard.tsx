@@ -15,7 +15,6 @@ import { BacktestPanel } from "./backtest-panel";
 import { StrategyPanel } from "./strategy-panel";
 import { CircuitBreakerPanel } from "./circuit-breaker-panel";
 import { NewsPanel } from "./news-panel";
-import { PendingOrdersPanel } from "./pending-orders-panel";
 import { TerminalLog } from "./terminal-log";
 import { TradeToast } from "./trade-toast";
 import { Tabs } from "@/shared/ui";
@@ -49,7 +48,7 @@ export function Dashboard() {
         </div>
       )}
 
-      <TradeToast trades={agent.state.trades} pendingOrders={agent.state.pendingOrders} />
+      <TradeToast trades={agent.state.trades} />
       
       {/* Header */}
       <StatusHeader agent={agent} />
@@ -61,7 +60,7 @@ export function Dashboard() {
 
       {/* Main Terminal Grid */}
       <main className="relative z-10 px-4 pb-12 pt-3 grid grid-cols-12 gap-3 flex-1 min-h-0">
-        {/* Left Column: Chart + Positions + Pending (span 5) */}
+        {/* Left Column: Chart + Positions (span 5) */}
         <div className="col-span-5 flex flex-col gap-3 min-h-0">
           <EquityChart 
             portfolio={agent.state.portfolio} 
@@ -69,14 +68,11 @@ export function Dashboard() {
             equityHistory={agent.state.equityHistory}
             trades={agent.state.trades}
           />
-          <div className="flex-1 min-h-0 flex flex-col gap-3">
-            <div className="flex-1 min-h-0">
-              <PositionsPanel 
-                positions={agent.state.positions} 
-                tickers={agent.state.tickers} 
-              />
-            </div>
-            <PendingOrdersPanel pendingOrders={agent.state.pendingOrders} />
+          <div className="flex-1 min-h-0">
+            <PositionsPanel 
+              positions={agent.state.positions} 
+              tickers={agent.state.tickers} 
+            />
           </div>
         </div>
 
@@ -88,7 +84,7 @@ export function Dashboard() {
             decisionSource={agent.state.decisionSource}
           />
           
-          {agent.state.decision && (agent.state.decision as unknown as { riskStatus: string }).riskStatus === "blocked" && (
+          {agent.state.decision && (agent.state.decision as any).riskStatus === "blocked" && (
             <div className="glass-panel border-rose-500/30 bg-rose-950/20 p-3 text-[11px] text-rose-400 font-mono animate-pulse">
               <span className="font-bold mr-2">RISK ALERT:</span> {agent.state.decision.reason}
             </div>

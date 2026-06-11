@@ -7,7 +7,7 @@ import { EquityChart } from "./equity-chart";
 import type { BacktestResult } from "@/features/trading-agent/types/backtest.types";
 import { apiFetch } from "@/shared/utils/api-fetch";
 
-export function BacktestPanel() {
+export function BacktestPanel({ onBack }: { onBack?: () => void }) {
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [result, setResult] = useState<BacktestResult | null>(null);
   const [loading, setLoading] = useState(false);

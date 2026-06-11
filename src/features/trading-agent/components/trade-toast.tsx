@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { Badge } from "@/shared/ui";
-import type { TradeData, PendingOrderData } from "@/features/trading-agent/hooks/use-agent";
+import type { TradeData } from "@/features/trading-agent/hooks/use-agent";
 
 interface ToastTrade {
   id: string;
@@ -16,21 +16,19 @@ interface ToastTrade {
 
 interface Props {
   trades: TradeData[];
-  pendingOrders: PendingOrderData[];
 }
 
-const tradeActionLabel: Record<string, string> = {
+const actionLabel: Record<string, string> = {
   entry: "BOUGHT", exit: "SOLD", add: "ADDED", reduce: "REDUCED",
 };
 
-export function TradeToast({ trades, pendingOrders }: Props) {
+export function TradeToast({ trades }: Props) {
   const [toasts, setToasts] = useState<ToastTrade[]>([]);
   const lastTradeCountRef = useRef(trades.length);
-  const lastPendingCountRef = useRef(pendingOrders.length);
 
-  // Toast for filled trades
   useEffect(() => {
     if (trades.length > lastTradeCountRef.current) {
+      // New trades appeared
       const newTrades = trades.slice(lastTradeCountRef.current);
       for (const t of newTrades) {
         const toast: ToastTrade = {
@@ -44,6 +42,7 @@ export function TradeToast({ trades, pendingOrders }: Props) {
         };
         setToasts(prev => [...prev, toast]);
 
+        // Auto-remove after 4 seconds
         setTimeout(() => {
           setToasts(prev => prev.filter(to => to.id !== toast.id));
         }, 4000);
@@ -51,30 +50,6 @@ export function TradeToast({ trades, pendingOrders }: Props) {
     }
     lastTradeCountRef.current = trades.length;
   }, [trades]);
-
-  // Toast for new pending limit orders
-  useEffect(() => {
-    if (pendingOrders.length > lastPendingCountRef.current) {
-      const newOrders = pendingOrders.slice(lastPendingCountRef.current);
-      for (const o of newOrders) {
-        const toast: ToastTrade = {
-          id: o.id + "-" + Date.now(),
-          symbol: o.symbol,
-          action: "limit_" + o.side,
-          side: o.side,
-          price: o.limitPrice,
-          size: o.size,
-          timestamp: Date.now(),
-        };
-        setToasts(prev => [...prev, toast]);
-
-        setTimeout(() => {
-          setToasts(prev => prev.filter(to => to.id !== toast.id));
-        }, 4000);
-      }
-    }
-    lastPendingCountRef.current = pendingOrders.length;
-  }, [pendingOrders]);
 
   if (toasts.length === 0) return null;
 
@@ -87,16 +62,15 @@ export function TradeToast({ trades, pendingOrders }: Props) {
         >
           <div className="flex items-center gap-3">
             <Badge
-              variant={toast.action.startsWith("limit_") ? (toast.side === "buy" ? "success" : "danger") : toast.side === "buy" ? "success" : "danger"}
+              variant={toast.side === "buy" ? "success" : "danger"}
               className="text-[11px] px-2"
             >
-              {toast.action === "limit_buy" ? "LIMIT BUY" : toast.action === "limit_sell" ? "LIMIT SELL" : (tradeActionLabel[toast.action] ?? toast.action)}
+              {actionLabel[toast.action] ?? toast.action}
             </Badge>
             <span className="text-[13px] font-mono font-bold text-zinc-100">{toast.symbol}</span>
           </div>
           <div className="flex items-center gap-3 mt-1.5 text-[12px] font-mono text-zinc-400">
             <span>{toast.size.toFixed(4)} @ ${toast.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-            {toast.action.startsWith("limit_") && <span className="text-amber-400/70 font-semibold">LIMIT</span>}
           </div>
         </div>
       ))}

@@ -6,10 +6,11 @@ import type { DecisionRecord } from "@/features/trading-agent/types/history.type
 import { apiFetch } from "@/shared/utils/api-fetch";
 
 interface Props {
+  onBack?: () => void;
   isTabMode?: boolean;
 }
 
-export function DecisionHistory({ isTabMode }: Props) {
+export function DecisionHistory({ onBack, isTabMode }: Props) {
   const [history, setHistory] = useState<DecisionRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -95,7 +96,7 @@ export function DecisionHistory({ isTabMode }: Props) {
                     (record.decision?.strength ?? 0) > 0 ? "text-emerald-400" :
                     (record.decision?.strength ?? 0) < 0 ? "text-rose-400" : "text-zinc-500"
                   }`}>
-                    {(record.decision?.strength ?? 0) > 0 ? "+" : ""}{((record.decision?.strength ?? 0) * 100).toFixed(0)}%
+                    {(record.decision?.strength ?? 0) > 0 ? "+" : ""}{(record.decision?.strength ?? 0 * 100).toFixed(0)}%
                   </span>
                 </div>
               </div>

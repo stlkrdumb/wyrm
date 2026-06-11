@@ -4,7 +4,6 @@ import { config, setTradeCounter, getTradeCounter, calculateWinRate } from "./st
 import { getLivePrice } from "./price-fetcher.service";
 import { saveBalanceState } from "./balance-store";
 import { RISK_PROFILES, type RiskProfile } from "../constants/risk.constants";
-import { cancelPendingOrder } from "./pending-order.service";
 
 function resolveSLTP(profile?: RiskProfile): { stopLossPct: number; takeProfitPct: number } {
   if (profile && RISK_PROFILES[profile]) {
@@ -51,7 +50,6 @@ export async function flattenPositions(state: AgentState): Promise<{ closed: num
       size: pos.size,
       price,
       pnl,
-      fee,
     });
     totalPnlRealized += pnl;
     state.portfolio.cash += revenue - fee;
@@ -74,8 +72,6 @@ export async function flattenPositions(state: AgentState): Promise<{ closed: num
     cash: state.portfolio.cash,
     accumulatedRealizedPnL: state.portfolio.totalPnL,
     positions: [],
-    pendingOrders: [],
-    trades: [],
     totalTrades: state.portfolio.totalTrades,
     winRate,
     circuitBreakerTripped: state.circuitBreakerTripped,
@@ -122,78 +118,6 @@ export function executeTrades(
 
     if (tradeSize <= 0 || ticker.lastPrice === 0) continue;
 
-    // Handle limit orders — create pending order instead of executing immediately
-    if (decision.orderType === "limit" && decision.limitPrice && decision.limitPrice > 0) {
-      const sltp = resolveSLTP(decision.riskProfile);
-
-      let reservedCash = 0;
-
-      // For limit buys: reserve cash now
-      if (decision.action === "buy") {
-        const cost = ticker.lastPrice * tradeSize;
-        const fee = cost * config.feePct;
-        reservedCash = cost + fee;
-        if (reservedCash > liquidBalance) {
-          console.log(`[Agent] ${symbol}: skipping limit buy — insufficient funds for reservation`);
-          continue;
-        }
-      }
-
-      // For limit sells: verify position exists
-      if (decision.action === "sell") {
-        const posIdx = state.positions.findIndex(p => p.symbol === symbol);
-        if (posIdx < 0) {
-          console.log(`[Agent] ${symbol}: skipping limit sell — no position held`);
-          continue;
-        }
-      }
-
-      // Skip if existing pending order is already identical (avoid cancel+recreate churn)
-      const existing = state.pendingOrders.find(
-        o => o.symbol === symbol && o.side === decision.action && o.limitPrice === decision.limitPrice
-      );
-      if (existing && Math.abs(existing.size - tradeSize) / existing.size < 0.05) {
-        // same order within 5% size tolerance — keep it, skip cancel+recreate
-        continue;
-      }
-
-      // Cancel any existing pending order for this symbol (replace with new)
-      cancelPendingOrder(state, symbol);
-      liquidBalance = state.portfolio.cash; // sync after cash return
-
-      // Create new pending order
-      state.pendingOrders.push({
-        id: `LO-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-        symbol,
-        side: decision.action,
-        limitPrice: decision.limitPrice,
-        size: tradeSize,
-        reservedCash,
-        createdAt: new Date(),
-        ...sltp,
-      });
-
-      if (decision.action === "buy") {
-        liquidBalance -= reservedCash;
-        state.portfolio.cash -= reservedCash;
-      }
-
-      // Add to watchlist + subscribe WS
-      if (!state.watchlist.includes(symbol)) {
-        state.watchlist.push(symbol);
-      }
-
-      const limitMsg = `${symbol}: LIMIT ${decision.action.toUpperCase()} @ $${decision.limitPrice.toFixed(2)} (size: ${tradeSize.toFixed(4)})`;
-      state.logs.push({ timestamp: new Date(), level: "action", message: limitMsg });
-      console.log(`[Agent] ${limitMsg}`);
-      state.portfolio.totalTrades++;
-      continue;
-    }
-
-    // Cancel any existing pending order for this symbol before executing market order
-    cancelPendingOrder(state, symbol);
-    liquidBalance = state.portfolio.cash; // sync after cash return
-
     const idx = state.positions.findIndex((p) => p.symbol === symbol);
     const now = new Date();
     const tc = getTradeCounter() + 1;
@@ -211,11 +135,11 @@ export function executeTrades(
             size: p.size + tradeSize,
             entryPrice: (p.entryPrice * p.size + ticker.lastPrice * tradeSize * (1 + config.feePct)) / (p.size + tradeSize),
           };
-          state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "buy", action: "add", size: tradeSize, price: ticker.lastPrice, fee });
+          state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "buy", action: "add", size: tradeSize, price: ticker.lastPrice });
         } else {
           const sltp = resolveSLTP(decision.riskProfile);
           state.positions.push({ symbol, side: "long", size: tradeSize, entryPrice: ticker.lastPrice * (1 + config.feePct), unrealizedPnL: 0, ...sltp });
-          state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "buy", action: "entry", size: tradeSize, price: ticker.lastPrice, fee });
+          state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "buy", action: "entry", size: tradeSize, price: ticker.lastPrice });
         }
         liquidBalance -= totalCost;
       } else {
@@ -229,7 +153,7 @@ export function executeTrades(
           const revenue = ticker.lastPrice * pos.size;
           const fee = revenue * config.feePct;
           const pnl = (ticker.lastPrice - pos.entryPrice) * pos.size - fee;
-          state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "sell", action: "exit", size: pos.size, price: ticker.lastPrice, pnl, fee });
+          state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "sell", action: "exit", size: pos.size, price: ticker.lastPrice, pnl });
           state.portfolio.totalPnL += pnl;
           liquidBalance += revenue - fee;
           state.positions.splice(idx, 1);
@@ -238,7 +162,7 @@ export function executeTrades(
           const revenue = ticker.lastPrice * tradeSize;
           const fee = revenue * config.feePct;
           const pnl = (ticker.lastPrice - avgEntry) * tradeSize - fee;
-          state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "sell", action: "reduce", size: tradeSize, price: ticker.lastPrice, pnl, fee });
+          state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "sell", action: "reduce", size: tradeSize, price: ticker.lastPrice, pnl });
           state.portfolio.totalPnL += pnl;
           liquidBalance += revenue - fee;
           state.positions[idx] = { ...state.positions[idx], size: pos.size - tradeSize };
@@ -270,16 +194,12 @@ export function executeTrades(
   };
 
   const savedPositions = state.positions.map(p => ({ symbol: p.symbol, side: p.side as "long" | "short", size: p.size, entryPrice: p.entryPrice, stopLossPct: p.stopLossPct, takeProfitPct: p.takeProfitPct }));
-  const savedPending = state.pendingOrders.map(o => ({ id: o.id, symbol: o.symbol, side: o.side, limitPrice: o.limitPrice, size: o.size, reservedCash: o.reservedCash, createdAt: o.createdAt.toISOString(), stopLossPct: o.stopLossPct, takeProfitPct: o.takeProfitPct }));
-  const savedTrades = state.trades.map(t => ({ id: t.id, timestamp: t.timestamp.toISOString(), symbol: t.symbol, side: t.side, action: t.action, size: t.size, price: t.price, pnl: t.pnl, fee: t.fee }));
   saveBalanceState({
     initialCash: config.initialCash,
     startCash: state.startEquity,
     cash: liquidBalance,
     accumulatedRealizedPnL: state.portfolio.totalPnL,
     positions: savedPositions,
-    pendingOrders: savedPending,
-    trades: savedTrades,
     totalTrades: state.portfolio.totalTrades,
     winRate,
     circuitBreakerTripped: state.circuitBreakerTripped,

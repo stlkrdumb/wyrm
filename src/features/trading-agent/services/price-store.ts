@@ -12,6 +12,12 @@ export interface PriceSnapshot {
   updatedAt: Date;         // timestamp of last WS update
 }
 
+/** Key for candle cache */
+interface CandleKey {
+  symbol: string;
+  interval: string;        // "1m", "5m", "1h", etc.
+}
+
 /** ──────────────── Price Store ───────────────────── */
 
 export class PriceStore {

@@ -27,12 +27,9 @@ export interface TradeData {
   size: number;
   price: number;
   pnl: number | null;
-  fee?: number;
 }
 
 export interface PositionData { symbol: string; side: "long" | "short"; size: number; entryPrice: number; unrealizedPnL: number; stopLossPct: number; takeProfitPct: number; }
-
-export interface PendingOrderData { id: string; symbol: string; side: "buy" | "sell"; limitPrice: number; size: number; reservedCash: number; createdAt: string; stopLossPct: number; takeProfitPct: number; }
 
 export type WSConnectionStatus = "connecting" | "connected" | "reconnecting";
 
@@ -48,7 +45,6 @@ interface AgentState {
   signals: SignalData[];
   portfolio: PortfolioData;
   positions: PositionData[];
-  pendingOrders: PendingOrderData[];
   trades: TradeData[];
   showHistory: boolean;
   showBacktest: boolean;
@@ -71,7 +67,7 @@ export function useAgent() {
   const [state, setState] = useState<AgentState>(lastKnownState ?? {
     status: "stopped", lastCycleAt: null, ticker: null, tickers: null, wsStatus: "connecting",
     wsConnection: null, decision: null, executionReason: "",
-    signals: [], portfolio: { cash: 1000, equity: 1000, initialCash: 1000, totalTrades: 0, winRate: 0, totalPnL: 0 }, positions: [], pendingOrders: [], trades: [],
+    signals: [], portfolio: { cash: 1000, equity: 1000, initialCash: 1000, totalTrades: 0, winRate: 0, totalPnL: 0 }, positions: [], trades: [],
     showHistory: false,
     showBacktest: false,
     circuitBreakerTripped: false,
@@ -107,7 +103,6 @@ export function useAgent() {
         signals: data.signals || [],
         portfolio: data.portfolio || { cash: 1000, equity: 1000, initialCash: 1000, totalTrades: 0, winRate: 0, totalPnL: 0 },
         positions: data.positions || [],
-        pendingOrders: data.pendingOrders || [],
         trades: data.trades || [],
         showHistory: state.showHistory,
         showBacktest: state.showBacktest,
@@ -204,7 +199,6 @@ export function useAgent() {
 
   // Fetch initial state on mount to sync with persisted portfolio-state.json
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchState();
   }, [fetchState]);
 

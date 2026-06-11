@@ -8,6 +8,8 @@ import { priceStore } from "@/features/trading-agent/services/price-store";
 import { marketWS } from "@/features/trading-agent/services/market-ws.service";
 import { WS_STALENESS_THRESHOLD_MS } from "@/features/trading-agent/constants/config.constants";
 
+const INITIAL_CASH = Number(process.env.SIM_INITIAL_CASH) || 1000;
+
 export async function POST() {
   try {
     const currentState = getAgentState();
@@ -26,7 +28,6 @@ export async function POST() {
     marketWS.syncSubscriptionsForPositions();
 
     const allSnapshots = priceStore.getAll();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const tickersMap: Record<string, any> = {};
     for (const [symbol, snapshot] of allSnapshots) {
       const obj = priceStore.buildTickerObj(snapshot);
@@ -52,30 +53,28 @@ export async function POST() {
       equity: e.equity,
     })),
     });
-  } catch (error: unknown) {
-    const err = error as Error;
-    console.error("[API] CRITICAL ERROR in POST /api/agent/cycle:", err);
+  } catch (error: any) {
+    console.error("[API] CRITICAL ERROR in POST /api/agent/cycle:", error);
     return NextResponse.json({ 
       status: "error", 
-      message: err.message || "Internal Server Error",
-      stack: process.env.NODE_ENV === "development" ? err.stack : undefined
+      message: error.message || "Internal Server Error",
+      stack: process.env.NODE_ENV === "development" ? error.stack : undefined
     }, { status: 500 });
   }
 }
 
-export async function GET(_request: NextRequest) { // eslint-disable-line @typescript-eslint/no-unused-vars
+export async function GET(request: NextRequest) {
   const currentState = getAgentState();
 
   // Build multi-pair ticker map from PriceStore (WS-backed)
   const allSnapshots = priceStore.getAll();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const tickersMap: Record<string, any> = {};
-    for (const [symbol, snapshot] of allSnapshots) {
-      const obj = priceStore.buildTickerObj(snapshot);
-      if (obj) tickersMap[symbol] = obj;
-    }
+  const tickersMap: Record<string, any> = {};
+  for (const [symbol, snapshot] of allSnapshots) {
+    const obj = priceStore.buildTickerObj(snapshot);
+    if (obj) tickersMap[symbol] = obj;
+  }
 
-    // Determine WS status from store freshness
+  // Determine WS status from store freshness
   let wsStatus: "connected" | "connecting" | "reconnecting" = "connected";
   if (allSnapshots.size === 0) {
     wsStatus = currentState.lastCycleAt ? "reconnecting" : "connecting";
@@ -112,18 +111,6 @@ export async function GET(_request: NextRequest) { // eslint-disable-line @types
     };
   });
 
-  const livePendingOrders = currentState.pendingOrders.map((o) => ({
-    id: o.id,
-    symbol: o.symbol,
-    side: o.side,
-    limitPrice: o.limitPrice,
-    size: o.size,
-    reservedCash: o.reservedCash,
-    createdAt: o.createdAt.toISOString(),
-    stopLossPct: o.stopLossPct,
-    takeProfitPct: o.takeProfitPct,
-  }));
-
   // Fix the ticker mapping to handle TickerData vs PriceSnapshot correctly
   let tickerObj = null;
   if (currentState.ticker) {
@@ -139,15 +126,9 @@ export async function GET(_request: NextRequest) { // eslint-disable-line @types
     });
   }
 
-  // Recalculate equity live from positions × cached prices (pending orders excluded)
-  const positionEquity = livePositions.reduce((sum, p) => sum + p.size * p.entryPrice + p.unrealizedPnL, 0);
-  const liveEquity = currentState.portfolio.cash + positionEquity;
-
-  // Diagnostic breakdown when totalPnL looks suspicious
-  const computedPnL = liveEquity - currentState.startEquity;
-  if (Math.abs(computedPnL) > currentState.portfolio.cash * 0.02) {
-    console.log(`[API] equity debug — cash: $${currentState.portfolio.cash.toFixed(2)} | positions: $${positionEquity.toFixed(2)} | startEq: $${currentState.startEquity.toFixed(2)} => totalPnL: $${computedPnL.toFixed(2)}`);
-  }
+  // Recalculate equity live from positions × cached prices
+  const liveEquity = currentState.portfolio.cash +
+    livePositions.reduce((sum, p) => sum + p.size * p.entryPrice + p.unrealizedPnL, 0);
 
   return NextResponse.json({
     status: currentState.status,
@@ -172,13 +153,12 @@ export async function GET(_request: NextRequest) { // eslint-disable-line @types
       initialCash: currentState.portfolio.initialCash,
       totalTrades: currentState.portfolio.totalTrades,
       winRate: currentState.portfolio.winRate,
-      totalPnL: computedPnL,
+      totalPnL: liveEquity - currentState.startEquity,
     },
     positions: livePositions,
-    pendingOrders: livePendingOrders,
     trades: currentState.trades.map((t) => ({
       id: t.id, timestamp: t.timestamp.toISOString(), symbol: t.symbol, side: t.side,
-      action: t.action, size: t.size, price: t.price, pnl: t.pnl ?? null, fee: t.fee ?? null,
+      action: t.action, size: t.size, price: t.price, pnl: t.pnl ?? null,
     })),
     llmProgress: llmProgress || currentState.llmProgress || null,
     circuitBreakerTripped: currentState.circuitBreakerTripped,

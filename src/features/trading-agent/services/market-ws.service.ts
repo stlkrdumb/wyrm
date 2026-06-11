@@ -130,7 +130,7 @@ export class MarketWebSocketService {
           console.warn("[WS] Socket error:", err.message);
         });
 
-        ws.on("close", (code, _reason) => { // eslint-disable-line @typescript-eslint/no-unused-vars
+        ws.on("close", (code, reason) => {
           this.ws = null;
           this.clearPingTimer();
           if (code !== 1000) {
@@ -300,12 +300,11 @@ export class MarketWebSocketService {
     }));
   }
 
-  /** Subscribe to TRADING_SYMBOLS + current position symbols + pending order symbols */
+  /** Subscribe to TRADING_SYMBOLS + current position symbols */
   syncSubscriptionsForPositions(): void {
     const st = getAgentState();
     const posSymbols = st.positions.map(p => p.symbol);
-    const pendingSymbols = st.pendingOrders.map(o => o.symbol);
-    const all = [...new Set([...config.tradingSymbols, ...posSymbols, ...pendingSymbols])];
+    const all = [...new Set([...config.tradingSymbols, ...posSymbols])];
     const channels = all.map((symbol): WSSubscription => ({
       instType: "SPOT",
       channel: "ticker",

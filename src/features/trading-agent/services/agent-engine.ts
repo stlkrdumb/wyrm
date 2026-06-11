@@ -1,6 +1,6 @@
 import dotenv from "dotenv";
 import path from "node:path";
-import type { Signal, TickerData, TradingDecision, Position, PendingOrder } from "@/features/trading-agent/types";
+import type { Signal, TickerData, TradingDecision, Position } from "@/features/trading-agent/types";
 import type { AgentState } from "./state-store";
 import { config, setTradeCounter, getTradeCounter } from "./state-store";
 import { getLivePrice } from "./price-fetcher.service";
@@ -12,7 +12,6 @@ import { getActiveModel } from "./llm.service";
 import { riskManager } from "./risk-manager.service";
 import { historyService } from "./history-service";
 import { loadBalanceState, saveBalanceState } from "./balance-store";
-import { checkPendingOrders, cancelAllPendingOrders } from "./pending-order.service";
 
 // Load .env.local to ensure env vars are available
 dotenv.config({ path: path.join(process.cwd(), ".env.local"), override: true });
@@ -25,7 +24,7 @@ export { config };
 type OnTokenCallback = (token: string) => void;
 
 // ─── State Management ───────────────────────
-const state: AgentState | null = buildInitialState();
+let state: AgentState | null = buildInitialState();
 
 function getState(): AgentState {
   if (!state) throw new Error("Agent not initialized");
@@ -75,18 +74,7 @@ function buildInitialState(): AgentState {
     executionReason: "",
     signals: [],
     positions,
-    pendingOrders: (saved?.pendingOrders?.map((o: Record<string, unknown>) => ({ ...o, createdAt: new Date(o.createdAt as string) })) ?? []) as PendingOrder[],
-    trades: (saved?.trades?.map((t: Record<string, unknown>) => ({
-      id: t.id as string,
-      timestamp: new Date(t.timestamp as string),
-      symbol: t.symbol as string,
-      side: t.side as "buy" | "sell",
-      action: t.action as "entry" | "exit" | "add" | "reduce",
-      size: t.size as number,
-      price: t.price as number,
-      pnl: t.pnl as number | undefined,
-      fee: t.fee as number | undefined,
-    })) ?? []),
+    trades: [],
     portfolio: {
       timestamp: new Date(),
       initialCash: config.initialCash,
@@ -110,18 +98,13 @@ function buildInitialState(): AgentState {
 
 /** Recalculate portfolio equity from live positions */
 function recalcEquity(st: AgentState): void {
-  let posVal = 0;
+  let totalPosVal = 0;
   for (const p of st.positions) {
     const symSnap = priceStore.getCached(p.symbol);
-    if (!symSnap) { posVal += p.size * p.entryPrice; continue; }
-    posVal += p.size * symSnap.lastPrice;
+    if (!symSnap) { totalPosVal += p.size * p.entryPrice; continue; }
+    totalPosVal += p.size * symSnap.lastPrice;
   }
-  const newEquity = st.portfolio.cash + posVal;
-  const newPnL = newEquity - st.startEquity;
-  if (Math.abs(newPnL) > st.portfolio.cash * 0.02) {
-    console.log(`[recalcEquity] cash: $${st.portfolio.cash.toFixed(2)} | positions: $${posVal.toFixed(2)} | startEq: $${st.startEquity.toFixed(2)} => equity: $${newEquity.toFixed(2)} / PnL: $${newPnL.toFixed(2)}`);
-  }
-  st.portfolio = { ...st.portfolio, equity: newEquity };
+  st.portfolio = { ...st.portfolio, equity: st.portfolio.cash + totalPosVal };
 }
 
 /** Called by market-ws.service.ts when a ticker update arrives */
@@ -136,7 +119,7 @@ export function updatePositionUnrealizedPnL(symbol: string, currentPrice: number
   st.positions[idx] = { ...pos, unrealizedPnL };
   recalcEquity(st);
 
-  // Check auto-bracket (stop-loss / take-profit)
+  // Use per-position SL/TP with global config as fallback
   const slPct = pos.stopLossPct ?? config.stopLossPct;
   const tpPct = pos.takeProfitPct ?? config.takeProfitPct;
   const isStopLoss = currentPrice <= pos.entryPrice * (1 - slPct / 100);
@@ -151,7 +134,7 @@ export function updatePositionUnrealizedPnL(symbol: string, currentPrice: number
     const tc = getTradeCounter() + 1;
     setTradeCounter(tc);
 
-    st.trades.push({ id: `T${tc}`, timestamp: new Date(), symbol, side: "sell", action: "exit", size: pos.size, price: currentPrice, pnl, fee: exitFee });
+    st.trades.push({ id: `T${tc}`, timestamp: new Date(), symbol, side: "sell", action: "exit", size: pos.size, price: currentPrice, pnl });
     st.portfolio.cash += currentPrice * pos.size - (currentPrice * pos.size) * config.feePct;
     st.positions.splice(idx, 1);
     st.watchlist = st.watchlist.filter(s => s !== symbol);
@@ -160,9 +143,6 @@ export function updatePositionUnrealizedPnL(symbol: string, currentPrice: number
 
     recalcEquity(st);
   }
-
-  // Check pending limit orders for this symbol
-  checkPendingOrders(st, symbol, currentPrice);
 }
 
 export async function evaluateDecision(ticker: TickerData): Promise<{ decision: TradingDecision; signals: Signal[] }> {
@@ -179,7 +159,7 @@ function isStopped(): boolean {
   return st.status !== "running";
 }
 
-export async function runAgentCycle(_onToken?: OnTokenCallback): Promise<{ tickerPrice: number; tickers: Record<string, TickerData> }> { // eslint-disable-line @typescript-eslint/no-unused-vars
+export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ tickerPrice: number; tickers: Record<string, TickerData> }> {
   const st = getState();
   if (st.circuitBreakerTripped) { st.status = "stopped"; return { tickerPrice: 0, tickers: {} }; }
   if (st.status !== "running") return { tickerPrice: 0, tickers: {} };
@@ -222,7 +202,7 @@ export async function runAgentCycle(_onToken?: OnTokenCallback): Promise<{ ticke
   }
 
   // Stage 2: Deep TA + sentiment analysis on selected + held symbols
-  const er: MultiPairResult = await evaluateMultiPair(prices, st.positions, st.pendingOrders, (token: string) => {
+  const er: MultiPairResult = await evaluateMultiPair(prices, st.positions, (token: string) => {
     if (!llmProgress) llmProgress = { text: "", tokensReceived: 0 };
     llmProgress.text += token;
     llmProgress.tokensReceived += 1;
@@ -266,15 +246,11 @@ export async function runAgentCycle(_onToken?: OnTokenCallback): Promise<{ ticke
   if (isStopped()) { console.warn("[Agent] Stop requested before trade execution — aborting cycle"); return { tickerPrice: 0, tickers: {} }; }
   executeTrades(st, validated, prices, displayTicker);
 
-  // Sync watchlist: keep position symbols + pending order symbols + add freshly screened picks
+  // Sync watchlist: keep position symbols + add freshly screened picks
   const posSyms = new Set(st.positions.map(p => p.symbol));
-  const pendingSyms = new Set(st.pendingOrders.map(o => o.symbol));
-  const kept = st.watchlist.filter(s => posSyms.has(s) || pendingSyms.has(s));
+  const kept = st.watchlist.filter(s => posSyms.has(s));
   // Ensure all position symbols are present even if added this cycle
   for (const sym of posSyms) {
-    if (!kept.includes(sym)) kept.push(sym);
-  }
-  for (const sym of pendingSyms) {
     if (!kept.includes(sym)) kept.push(sym);
   }
   for (const s of screenSelected) {
@@ -306,7 +282,6 @@ export function getAgentState(): AgentState {
       timestamp: st.portfolio.timestamp instanceof Date ? st.portfolio.timestamp : new Date(st.portfolio.timestamp),
     },
     positions: st.positions.map(p => ({ ...p })),
-    pendingOrders: st.pendingOrders.map(o => ({ ...o, createdAt: o.createdAt instanceof Date ? o.createdAt : new Date(o.createdAt) })),
     trades: st.trades.map(t => ({ ...t, timestamp: t.timestamp instanceof Date ? t.timestamp : new Date(t.timestamp) })),
   };
 }
@@ -316,7 +291,6 @@ export async function setAgentStatus(s: "running" | "stopped" | "paused"): Promi
   st.status = s;
 
   if (s === "paused" || s === "stopped") {
-    cancelAllPendingOrders(st);
     let closedCount = 0, totalPnlRealized = 0;
     for (const p of st.positions) {
       if (p.size <= 0) continue;
@@ -326,7 +300,7 @@ export async function setAgentStatus(s: "running" | "stopped" | "paused"): Promi
       const fee = revenue * config.feePct;
       const pnl = (currentPrice - p.entryPrice) * p.size - fee;
       const tc = getTradeCounter() + 1; setTradeCounter(tc);
-      st.trades.push({ id: `T${tc}`, timestamp: new Date(), symbol: p.symbol, side: "sell", action: "exit", size: p.size, price: currentPrice, pnl, fee });
+      st.trades.push({ id: `T${tc}`, timestamp: new Date(), symbol: p.symbol, side: "sell", action: "exit", size: p.size, price: currentPrice, pnl });
       st.portfolio.cash += revenue - fee;
       totalPnlRealized += pnl; closedCount++;
     }
@@ -336,7 +310,7 @@ export async function setAgentStatus(s: "running" | "stopped" | "paused"): Promi
       st.watchlist = [];
       saveBalanceState({
         initialCash: config.initialCash, startCash: state?.startEquity ?? st.startEquity, cash: st.portfolio.cash,
-        accumulatedRealizedPnL: st.portfolio.totalPnL, positions: [], pendingOrders: [], trades: [], totalTrades: st.portfolio.totalTrades, winRate: st.portfolio.winRate,
+        accumulatedRealizedPnL: st.portfolio.totalPnL, positions: [], totalTrades: st.portfolio.totalTrades, winRate: st.portfolio.winRate,
       });
       return { closed: closedCount, realizedPnl: totalPnlRealized };
     }

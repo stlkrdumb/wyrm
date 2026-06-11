@@ -6,6 +6,7 @@ import type { DecisionData } from "@/features/trading-agent/hooks/use-agent";
 
 interface Props {
   decision: DecisionData | null;
+  signalCount: number;
   riskStatus?: string;
 }
 
@@ -17,15 +18,21 @@ const stages = [
   { key: "action", label: "ACTION", icon: ArrowRightCircle, description: "Execute" },
 ];
 
-export const DecisionPipeline = memo(function DecisionPipeline({ decision, riskStatus }: Props) {
+export const DecisionPipeline = memo(function DecisionPipeline({ decision, signalCount, riskStatus }: Props) {
   const action = decision?.action ?? "hold";
   const hasDecision = decision !== null;
   const isRiskBlocked = riskStatus === "blocked";
 
   const getStageStatus = (stageKey: string) => {
     if (!hasDecision) {
+      // Agent hasn't started yet or no cycle
       return stageKey === "screen" ? "active" : "pending";
     }
+
+    // Map the action to pipeline stages
+    const stageOrder = ["screen", "signals", "risk", "decision", "action"];
+    const currentIdx = stageOrder.indexOf(stageKey);
+    const actionIdx = stageOrder.indexOf("action");
 
     if (isRiskBlocked) {
       // Risk blocked at risk stage

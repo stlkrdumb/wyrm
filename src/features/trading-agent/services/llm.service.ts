@@ -89,10 +89,7 @@ export async function chatCompletion(options: {
       const result = await _generateWithProviderWith429Retry(
         provider, MODEL_FAST, options.messages, options.temperature, options.maxTokens, options.onToken
       );
-    if (result.trim().length === 0) {
-      console.warn(`[LLM] ${targetModel} returned empty response — model may be unresponsive or prompt too long`);
-    }
-    return result;
+      return result;
     } catch (fastErr) {
       console.error(`[LLM] ${MODEL_FAST} also failed:`, fastErr instanceof Error ? fastErr.message : String(fastErr));
     }
@@ -125,7 +122,6 @@ function splitMessages(
 
 /** Generate text via generateText with a timeout guard for local LLM hardware */
 async function _generateWithProviderWithTimeout(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   provider: any,
   model: string,
   messages: Array<{ role: string; content: string }>,
@@ -140,7 +136,6 @@ async function _generateWithProviderWithTimeout(
     generateText({
       model: provider(model),
       system,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       messages: userMessages as any, // cast needed for ai SDK strict typing
       temperature: temperature ?? 0.3,
       maxOutputTokens: maxTokens ?? 4096,
@@ -156,7 +151,6 @@ async function _generateWithProviderWithTimeout(
 
 /** Wrapper around generateText (no timeout — called for fast model or inside retry) */
 async function _generateWithProvider(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   provider: any,
   model: string,
   messages: Array<{ role: string; content: string }>,
@@ -169,15 +163,10 @@ async function _generateWithProvider(
   const { text } = await generateText({
     model: provider(model),
     system,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     messages: userMessages as any, // cast needed for ai SDK strict typing
     temperature: temperature ?? 0.3,
     maxOutputTokens: maxTokens ?? 4096,
   });
-
-  if (!text || text.trim().length === 0) {
-    console.warn(`[LLM] ${model} returned empty text (${messages.length} messages, ${messages.reduce((s, m) => s + m.content.length, 0)} chars total)`);
-  }
 
   if (onToken) onToken(text, text);
 
@@ -186,7 +175,6 @@ async function _generateWithProvider(
 
 /** Wrapper around generateText with 429 retry + exponential backoff */
 async function _generateWithProviderWith429Retry(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   provider: any,
   model: string,
   messages: Array<{ role: string; content: string }>,

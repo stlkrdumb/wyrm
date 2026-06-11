@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, memo, useCallback } from "react";
-import { ExternalLink, Loader2 } from "lucide-react";
+import { Newspaper, TrendingUp, TrendingDown, Minus, ExternalLink, Loader2 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent, Badge } from "@/shared/ui";
 import { apiFetch } from "@/shared/utils/api-fetch";
 
@@ -40,6 +40,14 @@ export const NewsPanel = memo(function NewsPanel() {
     const id = setInterval(fetchNews, 3 * 60 * 1000);
     return () => clearInterval(id);
   }, [fetchNews]);
+
+  const getSentimentIcon = (sentiment: NewsArticle["sentiment"]) => {
+    switch (sentiment) {
+      case "BULLISH": return <TrendingUp className="w-3 h-3 text-emerald-400" />;
+      case "BEARISH": return <TrendingDown className="w-3 h-3 text-rose-400" />;
+      default: return <Minus className="w-3 h-3 text-zinc-500" />;
+    }
+  };
 
   const sentimentBadge = (sentiment: NewsArticle["sentiment"]) => {
     switch (sentiment) {

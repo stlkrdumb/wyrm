@@ -29,8 +29,7 @@ export interface MultiPairResult {
 
 // ─── Technical Analysis ──────────────────────────────
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function runTAForTimeframe(symbol: string, interval: string): Promise<any | null> {
+async function runTAForTimeframe(symbol: string, interval: string): Promise<any> {
   if (priceStore.isBacktesting) {
     const cached = priceStore.getCandles(symbol, interval);
     if (!cached || cached.length === 0) return null;
@@ -127,7 +126,6 @@ export async function evaluateDecision(ticker: TickerData): Promise<{ decision: 
 export async function evaluateMultiPair(
   priceMap: Map<string, TickerData>,
   activePositions: import("@/features/trading-agent/types").Position[] = [],
-  pendingOrders: import("@/features/trading-agent/types").PendingOrder[] = [],
   onToken?: (token: string) => void
 ): Promise<MultiPairResult> {
   const symbols = Array.from(priceMap.keys());
@@ -154,14 +152,14 @@ export async function evaluateMultiPair(
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const symbolData = new Map<string, { ticker: TickerData; ta5m: any; ta1h: any; ta1d: any; sentiment: import("./sentiment.service").SentimentSnapshot | null }>();
+  // Build symbol data map for prompt
+  const symbolData = new Map<string, { ticker: TickerData; ta5m: any; ta1h: any; ta1d: any; sentiment: any }>();
   for (const { symbol, ta5m, ta1h, ta1d, sentiment } of taResults) {
     symbolData.set(symbol, { ticker: priceMap.get(symbol)!, ta5m, ta1h, ta1d, sentiment });
   }
 
   // Step 2: Single LLM call with all symbols
-  const prompt = buildMultiPrompt(symbolData, activePositions, pendingOrders);
+  const prompt = buildMultiPrompt(symbolData, activePositions);
 
   let userPrompt = prompt;
   if (!priceStore.isBacktesting) {

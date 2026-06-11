@@ -46,9 +46,8 @@ class SentimentService {
       const snapshot = await this.fetchLiveSentiment(uppercaseSymbol);
       this.cache.set(uppercaseSymbol, snapshot);
       return snapshot;
-    } catch (err: unknown) {
-      const error = err as Error & { message?: string };
-      console.warn(`[SentimentService] Failed to fetch live sentiment for ${uppercaseSymbol}, falling back to cache or default: ${error?.message || err}`);
+    } catch (err: any) {
+      console.warn(`[SentimentService] Failed to fetch live sentiment for ${uppercaseSymbol}, falling back to cache or default: ${err?.message || err}`);
       if (cached) {
         return cached;
       }
@@ -74,14 +73,13 @@ class SentimentService {
     let fngValue = 50;
     let fngClass = "Neutral";
     try {
-      const fngResp = await optionalFetch<{ data: Array<{ value: string; value_classification: string }> }>("https://api.alternative.me/fng/?limit=1");
+      const fngResp = await optionalFetch<any>("https://api.alternative.me/fng/?limit=1");
       if (fngResp && fngResp.data && fngResp.data[0]) {
         fngValue = Number(fngResp.data[0].value) || 50;
         fngClass = fngResp.data[0].value_classification || "Neutral";
       }
-    } catch (err: unknown) {
-      const e = err as Error & { message?: string };
-      console.warn("[SentimentService] Fear & Greed fetch failed:", e?.message || err);
+    } catch (err: any) {
+      console.warn("[SentimentService] Fear & Greed fetch failed:", err?.message || err);
     }
 
     // Per-symbol metrics — only fetch for supported major pairs
@@ -109,9 +107,8 @@ class SentimentService {
         longRatio = Number(latest.longRatio) || 0.5;
         shortRatio = Number(latest.shortRatio) || 0.5;
       }
-    } catch (err: unknown) {
-      const e = err as Error & { message?: string };
-      console.warn(`[SentimentService] Long/Short ratio fetch failed for ${symbol}: ${e?.message || err}`);
+    } catch (err: any) {
+      console.warn(`[SentimentService] Long/Short ratio fetch failed for ${symbol}: ${err?.message || err}`);
     }
 
     // 3. Fetch Funding Rate
@@ -126,9 +123,8 @@ class SentimentService {
       if (Array.isArray(frResult.data) && frResult.data.length > 0) {
         fundingRate = Number(frResult.data[0].fundingRate) || 0.0;
       }
-    } catch (err: unknown) {
-      const e = err as Error & { message?: string };
-      console.warn(`[SentimentService] Funding rate fetch failed for ${symbol}: ${e?.message || err}`);
+    } catch (err: any) {
+      console.warn(`[SentimentService] Funding rate fetch failed for ${symbol}: ${err?.message || err}`);
     }
 
     // 4. Fetch Open Interest
@@ -141,14 +137,13 @@ class SentimentService {
         { symbol, productType }
       );
       if (oiResult.data?.openInterestList) {
-        const oiItem = oiResult.data.openInterestList.find((item: Record<string, unknown>) => item.symbol === symbol);
+        const oiItem = oiResult.data.openInterestList.find((item: any) => item.symbol === symbol);
         if (oiItem) {
           openInterest = Number(oiItem.size) || 0.0;
         }
       }
-    } catch (err: unknown) {
-      const e = err as Error & { message?: string };
-      console.warn(`[SentimentService] Open interest fetch failed for ${symbol}: ${e?.message || err}`);
+    } catch (err: any) {
+      console.warn(`[SentimentService] Open interest fetch failed for ${symbol}: ${err?.message || err}`);
     }
 
     return {
