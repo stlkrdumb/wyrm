@@ -18,9 +18,14 @@ function resolveWsPrice(symbol: string): { price: number } | null {
   return null;
 }
 
-function resolveSLTP(profile?: RiskProfile): { stopLossPct: number; takeProfitPct: number } {
-  if (profile && RISK_PROFILES[profile]) {
-    return { ...RISK_PROFILES[profile] };
+function resolveSLTP(decision: TradingDecision): { stopLossPct: number; takeProfitPct: number } {
+  // LLM_RISKPROFILE=true: LLM directly outputs slPct/tpPct — completely ignore RISK_PROFILES
+  if (process.env.LLM_RISKPROFILE === "true" && decision.slPct !== undefined && decision.tpPct !== undefined) {
+    return { stopLossPct: decision.slPct, takeProfitPct: decision.tpPct };
+  }
+  // Fallback chain: LLM-picked profile -> config defaults
+  if (decision.riskProfile && RISK_PROFILES[decision.riskProfile]) {
+    return { ...RISK_PROFILES[decision.riskProfile] };
   }
   return { stopLossPct: config.stopLossPct, takeProfitPct: config.takeProfitPct };
 }
@@ -198,7 +203,7 @@ export function executeTrades(
           };
           state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "buy", action: "add", size: tradeSize, price: execPrice, fee });
         } else {
-          const sltp = resolveSLTP(decision.riskProfile);
+          const sltp = resolveSLTP(decision);
           state.positions.push({ symbol, side: "long", size: tradeSize, entryPrice: execPrice * (1 + config.feePct), unrealizedPnL: 0, ...sltp });
           state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "buy", action: "entry", size: tradeSize, price: execPrice, fee });
           livePositionCount++;

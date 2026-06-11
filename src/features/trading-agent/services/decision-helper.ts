@@ -31,7 +31,10 @@ Respond with ONLY valid JSON (no comments, no TypeScript union syntax):
   "action": "buy" OR "sell" OR "hold" (one of three strings, no quotes around the word OR),
   "strength": number between -1 and 1,
   "confidence": number between 0 and 1,
-  "riskProfile": "tight" OR "normal" OR "wide" (for buy actions — tight=3%SL/9%TP, normal=5%SL/10%TP, wide=8%SL/16%TP),
+${process.env.LLM_RISKPROFILE === "true"
+  ? `  "slPct": number 1-50 (e.g. 5 = 5% stop loss — for buy actions only, decide based on volatility and conviction),
+  "tpPct": number 1-100 (e.g. 12 = 12% take profit — for buy actions only, decide based on volatility and conviction),`
+  : `  "riskProfile": "tight" OR "normal" OR "wide" (for buy actions — tight=3%SL/9%TP, normal=5%SL/10%TP, wide=8%SL/16%TP),`}
   "reason": "brief explanation citing specific indicator values"
 }`;
 }
@@ -74,7 +77,12 @@ export function buildMultiPrompt(
     .join("\n\n");
 
   const exampleFormat = entries
-    .map(([symbol]) => `  "${symbol}": {"action":"buy","strength":0.5,"confidence":0.7,"riskProfile":"normal","reason":"..."},`)
+    .map(([symbol]) => {
+      const slTpFields = process.env.LLM_RISKPROFILE === "true"
+        ? '"slPct":4.2,"tpPct":12,'
+        : '"riskProfile":"normal",';
+      return `  "${symbol}": {"action":"buy","strength":0.5,"confidence":0.7,${slTpFields}"reason":"..."},`;
+    })
     .join("\n");
 
   let positionsSection = "";
@@ -105,8 +113,10 @@ Rules:
 - For "hold" decisions on symbols we don't own, explain why the technical/fundamental signals don't warrant a fresh entry (e.g., weak RSI, unclear trend, low volume), NOT because you're "maintaining a position".
 - Strength: -1 (strong sell) to +1 (strong buy)
 - Confidence: 0-1
-- riskProfile (for buy actions only): "tight" (3% SL / 9% TP) | "normal" (5% SL / 10% TP) | "wide" (8% SL / 16% TP)
-- Pick riskProfile based on volatility and conviction — tighter for calm markets / high conviction, wider for volatile / uncertain trades
+${process.env.LLM_RISKPROFILE === "true"
+  ? `- LLM_RISKPROFILE MODE: For buy actions, decide your own stopLoss (slPct: number 1-50, e.g. 5 = 5%) and takeProfit (tpPct: number 1-100, e.g. 12 = 12%) based on ATR, volatility, and conviction. Output them as numbers in the JSON — do NOT use riskProfile. Tighter for calm markets / high conviction, wider for volatile / uncertain trades. NEVER leave slPct/tpPct blank for a buy action.`
+  : `- riskProfile (for buy actions only): "tight" (3% SL / 9% TP) | "normal" (5% SL / 10% TP) | "wide" (8% SL / 16% TP)
+- Pick riskProfile based on volatility and conviction — tighter for calm markets / high conviction, wider for volatile / uncertain trades`}
 - You can still exit early with "sell" regardless of the SL/TP auto-bracket levels
 - Keep reason under 40 words with specific indicator values and sentiment/funding conditions if they influence your decision
 - Make a confident call per symbol — avoid defaulting to "hold" when signals are clear
@@ -153,9 +163,11 @@ export function parseSingleResponse(response: string): { decision: TradingDecisi
   const riskProfile = (parsed.riskProfile === "tight" || parsed.riskProfile === "normal" || parsed.riskProfile === "wide")
     ? parsed.riskProfile
     : undefined;
+  const slPct = parsePercentField(parsed.slPct, 1, 50);
+  const tpPct = parsePercentField(parsed.tpPct, 1, 100);
 
   return {
-    decision: { action, strength, confidence, riskProfile, reason: parsed.reason || "No reasoning provided" },
+    decision: { action, strength, confidence, riskProfile, slPct, tpPct, reason: parsed.reason || "No reasoning provided" },
     signals: [
       {
         id: crypto.randomUUID(),
@@ -279,6 +291,13 @@ function closeUnbalancedDelimiters(input: string): string {
   return input + closing;
 }
 
+/** Parse and validate a percent field from the LLM. Returns undefined if missing/invalid. */
+function parsePercentField(raw: unknown, min: number, max: number): number | undefined {
+  if (typeof raw !== "number" || !Number.isFinite(raw)) return undefined;
+  const clamped = Math.max(min, Math.min(max, raw));
+  return Number(clamped.toFixed(2));
+}
+
 export function parseMultiResponse(
   response: string,
   symbols: string[]
@@ -332,8 +351,10 @@ export function parseMultiResponse(
     const riskProfile = (raw.riskProfile === "tight" || raw.riskProfile === "normal" || raw.riskProfile === "wide")
       ? raw.riskProfile
       : undefined;
+    const slPct = parsePercentField(raw.slPct, 1, 50);
+    const tpPct = parsePercentField(raw.tpPct, 1, 100);
 
-    decisions[symbol] = { action, strength, confidence, riskProfile, reason: raw.reason || "No reasoning" };
+    decisions[symbol] = { action, strength, confidence, riskProfile, slPct, tpPct, reason: raw.reason || "No reasoning" };
 
     allSignals.push({
       id: crypto.randomUUID(),

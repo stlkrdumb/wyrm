@@ -54,4 +54,8 @@ export interface TradingDecision {
   riskStatus?: "approved" | "blocked" | "adjusted";
   size?: number;
   riskProfile?: "tight" | "normal" | "wide";
+  /** Direct stop-loss % (1-50) — only set when LLM_RISKPROFILE=true. Overrides RISK_PROFILES. */
+  slPct?: number;
+  /** Direct take-profit % (1-100) — only set when LLM_RISKPROFILE=true. Overrides RISK_PROFILES. */
+  tpPct?: number;
 }
