@@ -1,6 +1,11 @@
 import type { AgentState } from "./state-store";
 import { config, setTradeCounter, getTradeCounter } from "./state-store";
 
+function pushEvent(state: AgentState, level: "info" | "action" | "warning" | "error", message: string): void {
+  state.logs.push({ timestamp: new Date(), level, message });
+  if (state.logs.length > 100) state.logs = state.logs.slice(-100);
+}
+
 /** Called on every WebSocket tick — checks if any pending limit orders should be filled */
 export function checkPendingOrders(state: AgentState, symbol: string, currentPrice: number): void {
   const orderIdx = state.pendingOrders.findIndex(o => o.symbol === symbol);
@@ -34,7 +39,7 @@ function fillOrder(state: AgentState, orderIdx: number, order: typeof state.pend
     const totalCost = cost + fee;
 
     if (totalCost > state.portfolio.cash) {
-      console.log(`[PendingOrder] ${order.symbol}: limit buy filled @ $${fillPrice.toFixed(2)} but insufficient cash — order cancelled`);
+      pushEvent(state, "warning", `${order.symbol}: LIMIT BUY filled @ $${fillPrice.toFixed(2)} but insufficient cash — cancelled`);
       return;
     }
 
@@ -61,16 +66,16 @@ function fillOrder(state: AgentState, orderIdx: number, order: typeof state.pend
     state.portfolio.cash -= totalCost;
     state.trades.push({ id: `T${tc}`, timestamp: now, symbol: order.symbol, side: "buy", action: idx >= 0 ? "add" : "entry", size: order.size, price: fillPrice });
 
+    pushEvent(state, "action", `${order.symbol}: LIMIT BUY filled @ $${fillPrice.toFixed(2)}`);
     console.log(`[PendingOrder] ${order.symbol}: LIMIT BUY filled @ $${fillPrice.toFixed(2)} (limit: $${order.limitPrice.toFixed(2)})`);
 
-    // Update watchlist
     if (!state.watchlist.includes(order.symbol)) {
       state.watchlist.push(order.symbol);
     }
   } else {
     const idx = state.positions.findIndex(p => p.symbol === order.symbol);
     if (idx < 0) {
-      console.log(`[PendingOrder] ${order.symbol}: limit sell filled @ $${fillPrice.toFixed(2)} but no position — order cancelled`);
+      pushEvent(state, "warning", `${order.symbol}: LIMIT SELL filled @ $${fillPrice.toFixed(2)} but no position held — cancelled`);
       return;
     }
 
@@ -91,6 +96,7 @@ function fillOrder(state: AgentState, orderIdx: number, order: typeof state.pend
     state.portfolio.cash += revenue - fee;
     state.portfolio.totalPnL += pnl;
 
+    pushEvent(state, "action", `${order.symbol}: LIMIT SELL filled @ $${fillPrice.toFixed(2)} — PnL: ${pnl >= 0 ? "+" : ""}$${pnl.toFixed(2)}`);
     console.log(`[PendingOrder] ${order.symbol}: LIMIT SELL filled @ $${fillPrice.toFixed(2)} (limit: $${order.limitPrice.toFixed(2)}) — PnL: $${pnl.toFixed(2)}`);
   }
 
@@ -105,12 +111,15 @@ export function cancelPendingOrder(state: AgentState, symbol: string): void {
   const order = state.pendingOrders[idx];
   state.pendingOrders.splice(idx, 1);
 
+  pushEvent(state, "info", `${symbol}: LIMIT ${order.side.toUpperCase()} @ $${order.limitPrice.toFixed(2)} cancelled`);
   console.log(`[PendingOrder] ${symbol}: ${order.side.toUpperCase()} limit @ $${order.limitPrice.toFixed(2)} cancelled`);
 }
 
 /** Cancel all pending orders (called on agent stop/pause) */
 export function cancelAllPendingOrders(state: AgentState): void {
   if (state.pendingOrders.length === 0) return;
-  console.log(`[PendingOrder] Cancelling ${state.pendingOrders.length} pending limit orders...`);
+  const count = state.pendingOrders.length;
   state.pendingOrders = [];
+  pushEvent(state, "warning", `${count} pending limit order(s) cancelled — agent stopped`);
+  console.log(`[PendingOrder] Cancelling ${count} pending limit orders...`);
 }

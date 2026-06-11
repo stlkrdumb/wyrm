@@ -84,7 +84,6 @@ export async function runScreening(
 
     if (!response || response.trim().length === 0) {
       console.warn("[Screening] LLM returned empty response — retrying with fewer coins");
-      // Retry with top 15 only — smaller prompt for local models
       const shorterTickers = tickers.slice(0, 15);
       const retryPrompt = buildScreeningPrompt(shorterTickers, activePositions, strategy.persona, strategy.customInstructions);
       const retryResponse = await chatCompletion({
@@ -103,6 +102,14 @@ export async function runScreening(
           return retryResult;
         }
       }
+
+      // Both original and retry failed — fallback to volume
+      console.warn("[Screening] LLM returned empty — falling back to volume-based selection");
+      const posSyms = new Set(activePositions.map(p => p.symbol));
+      const topByVolume = tickers.filter(t => !posSyms.has(t.symbol)).slice(0, 2);
+      const fallbackSelected = topByVolume.map(t => t.symbol);
+      console.log(`[Screening] Volume fallback: ${fallbackSelected.join(", ")}`);
+      return { selected: fallbackSelected, reason: `Volume fallback: ${fallbackSelected.join(", ")}` };
     }
 
     const validSymbols = new Set(tickers.map(t => t.symbol));

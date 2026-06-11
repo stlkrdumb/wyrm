@@ -159,7 +159,9 @@ export function executeTrades(
         ...sltp,
       });
 
-      console.log(`[Agent] ${symbol}: LIMIT ${decision.action.toUpperCase()} placed @ $${decision.limitPrice.toFixed(2)} (size: ${tradeSize.toFixed(4)})`);
+      const limitMsg = `${symbol}: LIMIT ${decision.action.toUpperCase()} @ $${decision.limitPrice.toFixed(2)} (size: ${tradeSize.toFixed(4)})`;
+      state.logs.push({ timestamp: new Date(), level: "action", message: limitMsg });
+      console.log(`[Agent] ${limitMsg}`);
       state.portfolio.totalTrades++;
       continue;
     }
