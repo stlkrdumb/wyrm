@@ -89,7 +89,10 @@ export async function chatCompletion(options: {
       const result = await _generateWithProviderWith429Retry(
         provider, MODEL_FAST, options.messages, options.temperature, options.maxTokens, options.onToken
       );
-      return result;
+    if (result.trim().length === 0) {
+      console.warn(`[LLM] ${targetModel} returned empty response — model may be unresponsive or prompt too long`);
+    }
+    return result;
     } catch (fastErr) {
       console.error(`[LLM] ${MODEL_FAST} also failed:`, fastErr instanceof Error ? fastErr.message : String(fastErr));
     }
@@ -167,6 +170,10 @@ async function _generateWithProvider(
     temperature: temperature ?? 0.3,
     maxOutputTokens: maxTokens ?? 4096,
   });
+
+  if (!text || text.trim().length === 0) {
+    console.warn(`[LLM] ${model} returned empty text (${messages.length} messages, ${messages.reduce((s, m) => s + m.content.length, 0)} chars total)`);
+  }
 
   if (onToken) onToken(text, text);
 
