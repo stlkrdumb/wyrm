@@ -78,10 +78,6 @@ export function Watchlist({ tickers, watchlist }: Props) {
     <div className="flex flex-col gap-1.5 overflow-hidden">
       <div className="flex items-center justify-between px-2 flex-shrink-0">
         <span className="text-[12px] tracking-widest text-zinc-500 font-bold uppercase font-display">Watchlist</span>
-        <span className="text-[11px] tracking-wider text-emerald-500 font-bold uppercase flex items-center gap-1.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          Live WebSocket
-        </span>
       </div>
       <div className="border border-obsidian-border bg-obsidian-light/40 rounded py-2.5 px-3">
         {showMarquee ? (

@@ -1,4 +1,4 @@
-import { optionalFetch } from "./proxy-client";
+import { bitgetClient } from "@/lib/bitget-client";
 import { chatCompletion } from "./llm.service";
 import { buildScreeningPrompt, parseScreeningResponse } from "./decision-helper";
 import { strategyService } from "./strategy.service";
@@ -24,11 +24,11 @@ function isRealCrypto(symbol: string): boolean {
 }
 
 async function fetchAllTickers(): Promise<RawTicker[]> {
-  const resp = await optionalFetch<{
-    code: string; msg: string; data: Array<Record<string, string>>;
-  }>("https://api.bitget.com/api/v2/spot/market/tickers");
+  const result = await bitgetClient.publicGet<Array<Record<string, string>>>(
+    "/api/v2/spot/market/tickers"
+  );
 
-  const raw = resp.data ?? [];
+  const raw = result.data ?? [];
   const tickers: RawTicker[] = [];
 
   for (const t of raw) {

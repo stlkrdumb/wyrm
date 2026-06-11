@@ -3,7 +3,8 @@ import { updatePositionUnrealizedPnL, getAgentState } from "./agent-engine";
 import { priceStore, type PriceStore } from "./price-store";
 import { config } from "./agent-engine";
 import { WebSocket as WSClient } from "ws";
-import { optionalFetch, getProxyAgentForWS, PROXIES, mask } from "./proxy-client";
+import { getProxyAgentForWS, PROXIES, mask } from "./proxy-client";
+import { bitgetClient } from "@/lib/bitget-client";
 import { dispatchWsMessage } from "./ws-helpers";
 
 export interface WSSubscription {
@@ -166,13 +167,12 @@ export class MarketWebSocketService {
     const fetchAllTickers = async () => {
       try {
         for (const symbol of config.tradingSymbols) {
-          const resp = await optionalFetch<{
-            code: string;
-            msg: string;
-            data: Array<Record<string, string>>;
-          }>(`https://api.bitget.com/api/v2/spot/market/tickers?symbol=${symbol}`);
+          const result = await bitgetClient.publicGet<Array<Record<string, string>>>(
+            "/api/v2/spot/market/tickers",
+            { symbol }
+          );
 
-          const ticker = resp.data.find((t) => t.symbol === symbol || t.instId === symbol);
+          const ticker = result.data.find((t) => t.symbol === symbol || t.instId === symbol);
           if (!ticker) continue;
 
           const lastPrice = Number(ticker.lastPrice ?? ticker.lastPr ?? ticker.close ?? "0");

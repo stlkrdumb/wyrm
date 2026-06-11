@@ -1,4 +1,5 @@
 import { optionalFetch } from "./proxy-client";
+import { bitgetClient } from "@/lib/bitget-client";
 import { priceStore } from "./price-store";
 
 export interface SentimentSnapshot {
@@ -92,10 +93,16 @@ class SentimentService {
       return { symbol, fearAndGreedValue: fngValue, fearAndGreedClassification: fngClass, longShortRatio, longRatio, shortRatio, fundingRate, openInterest, timestamp: new Date() };
     }
     try {
-      const lsUrl = `https://api.bitget.com/api/v2/mix/market/long-short?symbol=${symbol}&productType=${productType}`;
-      const lsResp = await optionalFetch<any>(lsUrl);
-      if (lsResp && lsResp.code === "00000" && Array.isArray(lsResp.data) && lsResp.data.length > 0) {
-        const latest = lsResp.data[lsResp.data.length - 1];
+      const lsResult = await bitgetClient.publicGet<Array<{
+        longShortRatio: string;
+        longRatio: string;
+        shortRatio: string;
+      }>>(
+        "/api/v2/mix/market/long-short",
+        { symbol, productType }
+      );
+      if (Array.isArray(lsResult.data) && lsResult.data.length > 0) {
+        const latest = lsResult.data[lsResult.data.length - 1];
         longShortRatio = Number(latest.longShortRatio) || 1.0;
         longRatio = Number(latest.longRatio) || 0.5;
         shortRatio = Number(latest.shortRatio) || 0.5;
@@ -107,10 +114,14 @@ class SentimentService {
     // 3. Fetch Funding Rate
     fundingRate = 0.0;
     try {
-      const frUrl = `https://api.bitget.com/api/v2/mix/market/current-fund-rate?symbol=${symbol}&productType=${productType}`;
-      const frResp = await optionalFetch<any>(frUrl);
-      if (frResp && frResp.code === "00000" && Array.isArray(frResp.data) && frResp.data.length > 0) {
-        fundingRate = Number(frResp.data[0].fundingRate) || 0.0;
+      const frResult = await bitgetClient.publicGet<Array<{
+        fundingRate: string;
+      }>>(
+        "/api/v2/mix/market/current-fund-rate",
+        { symbol, productType }
+      );
+      if (Array.isArray(frResult.data) && frResult.data.length > 0) {
+        fundingRate = Number(frResult.data[0].fundingRate) || 0.0;
       }
     } catch (err: any) {
       console.warn(`[SentimentService] Funding rate fetch failed for ${symbol}: ${err?.message || err}`);
@@ -119,10 +130,14 @@ class SentimentService {
     // 4. Fetch Open Interest
     openInterest = 0.0;
     try {
-      const oiUrl = `https://api.bitget.com/api/v2/mix/market/open-interest?symbol=${symbol}&productType=${productType}`;
-      const oiResp = await optionalFetch<any>(oiUrl);
-      if (oiResp && oiResp.code === "00000" && oiResp.data && oiResp.data.openInterestList) {
-        const oiItem = oiResp.data.openInterestList.find((item: any) => item.symbol === symbol);
+      const oiResult = await bitgetClient.publicGet<{
+        openInterestList: Array<{ symbol: string; size: string }>;
+      }>(
+        "/api/v2/mix/market/open-interest",
+        { symbol, productType }
+      );
+      if (oiResult.data?.openInterestList) {
+        const oiItem = oiResult.data.openInterestList.find((item: any) => item.symbol === symbol);
         if (oiItem) {
           openInterest = Number(oiItem.size) || 0.0;
         }

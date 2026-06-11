@@ -237,7 +237,7 @@ export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ ticker
 
   setS({ decision: best, signals: er.allSignals });
   if (best && best.action !== "hold") {
-    pushLog("action", `${best.action.toUpperCase()} signal — strength ${(best.strength * 100).toFixed(0)}% — ${best.reason?.slice(0, 80)}`);
+    pushLog("action", `${best.action.toUpperCase()} signal — strength ${(best.strength * 100).toFixed(0)}% — ${best.reason ?? ""}`);
   } else {
     pushLog("info", "No actionable signal — holding position");
   }

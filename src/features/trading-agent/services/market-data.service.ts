@@ -1,22 +1,6 @@
 import type { TickerData, OrderBook, Candlestick } from "@/features/trading-agent/types";
-import { optionalFetch } from "./proxy-client";
+import { bitgetClient } from "@/lib/bitget-client";
 import { priceStore } from "./price-store";
-
-const BITGET_API = "https://api.bitget.com/api/v2/spot/market";
-
-/** Fetch with optional proxy */
-async function bitgetDirect<T>(path: string): Promise<T> {
-  try {
-    return await optionalFetch<T>(`${BITGET_API}${path}`);
-  } catch (err) {
-    throw new Error(`Bitget ${path} failed: ${err instanceof Error ? err.message : String(err)}`);
-  }
-}
-
-/** Generic fetch — direct only */
-async function bitgetFetch<T>(path: string): Promise<T> {
-  return bitgetDirect<T>(path);
-}
 
 /** Fetch latest ticker price for a symbol. */
 /** Bitget v2 spot tickers response — supports both field naming conventions */
@@ -49,13 +33,12 @@ function parseTicker(resp: Record<string, unknown>, symbol: string): TickerData 
 }
 
 export async function getTickerPrice(symbol: string): Promise<TickerData> {
-  const resp = await bitgetFetch<{
-    code: string;
-    msg: string;
-    data: unknown;
-  }>(`/tickers?symbol=${symbol}`);
+  const result = await bitgetClient.publicGet(
+    "/api/v2/spot/market/tickers",
+    { symbol }
+  );
 
-  const ticker = parseTicker(resp, symbol);
+  const ticker = parseTicker(result.raw as Record<string, unknown>, symbol);
   if (!ticker) throw new Error(`Ticker not found for ${symbol}`);
 
   return ticker;
@@ -63,13 +46,15 @@ export async function getTickerPrice(symbol: string): Promise<TickerData> {
 
 /** Fetch order book depth for a symbol. */
 export async function getOrderBook(symbol: string, depth: number = 20): Promise<OrderBook> {
-  const resp = await bitgetFetch<{
-    code: string;
-    msg: string;
-    data: { asks: [string, string][]; bids: [string, string][] } | null;
-  }>(`/orderbook?symbol=${symbol}&type=step0&limit=${depth}`);
+  const result = await bitgetClient.publicGet<{
+    asks: [string, string][];
+    bids: [string, string][];
+  } | null>(
+    "/api/v2/spot/market/orderbook",
+    { symbol, type: "step0", limit: depth }
+  );
 
-  const book = resp.data ?? { asks: [], bids: [] };
+  const book = result.data ?? { asks: [], bids: [] };
   return {
     bids: (book.bids ?? []).slice(0, depth).map((b) => ({ price: Number(b[0]), size: Number(b[1]) })),
     asks: (book.asks ?? []).slice(0, depth).map((a) => ({ price: Number(a[0]), size: Number(a[1]) })),
@@ -90,13 +75,14 @@ export async function getCandlestickData(
   };
   const gran = granularityMap[interval] ?? "1h";
 
-  const resp = await bitgetFetch<{
-    code: string;
-    msg: string;
-    data: Array<[string, string, string, string, string, string]> | null;
-  }>(`/candles?symbol=${symbol}&granularity=${gran}`);
+  const result = await bitgetClient.publicGet<Array<
+    [string, string, string, string, string, string]
+  > | null>(
+    "/api/v2/spot/market/candles",
+    { symbol, granularity: gran }
+  );
 
-  const rows = resp.data ?? [];
+  const rows = result.data ?? [];
   return rows.slice(-limit).reverse().map(([ts, o, h, l, c, v]) => ({
     timestamp: Number(ts),
     open: Number(o),
@@ -123,10 +109,11 @@ export async function getCandlesWithCache(symbol: string, interval: string, limi
     "5m": "5min", "1h": "1h", "1d": "1day",
   };
   const gran = granularityMap[interval] ?? "1h";
-  const resp = await optionalFetch<{ code: string; data: string[][] }>(
-    `https://api.bitget.com/api/v2/spot/market/candles?symbol=${symbol}&granularity=${gran}&limit=${limit}`
+  const result = await bitgetClient.publicGet<string[][]>(
+    "/api/v2/spot/market/candles",
+    { symbol, granularity: gran, limit }
   );
-  const ohlcvs = resp.data ?? [];
+  const ohlcvs = result.data ?? [];
   candles = ohlcvs.reverse().map((c: string[]) => ({
     timestamp: Number(c[0]),
     open: Number(c[1]),

@@ -14,6 +14,7 @@
     "@types/dotenv": "^6.1.1",
     "ai": "^6.0.197",
     "bitget-client": "^1.1.1",
+    "bitget-core": "^1.1.0",
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
     "dotenv": "^17.4.2",
