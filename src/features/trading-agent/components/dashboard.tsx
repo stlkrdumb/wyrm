@@ -65,11 +65,13 @@ export function Dashboard() {
           <EquityChart
             portfolio={agent.state.portfolio}
             equityHistory={agent.state.equityHistory}
+            everConnected={agent.state.everConnected}
           />
           <div className="flex-1 min-h-0">
             <PositionsPanel
               positions={agent.state.positions}
               tickers={agent.state.tickers}
+              everConnected={agent.state.everConnected}
             />
           </div>
         </div>

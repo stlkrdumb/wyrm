@@ -59,6 +59,10 @@ interface AgentState {
   logs: { timestamp: string; level: string; message: string }[];
   decisionSource: "llm" | "heuristic" | null;
   lastFetchAt: number;
+  /** Set true the first time a poll reports wsStatus === "connected". Once true,
+   *  stays true for the session — used to gate the UI off stale data before the
+   *  first WS connection is established. */
+  everConnected: boolean;
 }
 
 let lastKnownState: AgentState | null = null;
@@ -81,51 +85,55 @@ export function useAgent() {
     logs: [],
     decisionSource: null,
     lastFetchAt: 0,
+    everConnected: false,
   });
 
   // Stable fetch function — only recreates if URL changes
   const fetchState = useCallback(async () => {
     try {
-      console.log(`[Client] Fetching state... (current local status: ${state.status})`);
+      console.log(`[Client] Fetching state...`);
       const res = await apiFetch("/api/agent/cycle");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      console.log(`[Client] Got state — status=${data.status} tickers=${Object.keys(data.tickers || {}).join(",") || "(none)"}`);
+      console.log(`[Client] Got state — status=${data.status} wsStatus=${data.wsStatus} tickers=${Object.keys(data.tickers || {}).join(",") || "(none)"}`);
 
-      // Normalize response into state shape
-      const normalized: AgentState = {
-        status: data.status,
-        lastCycleAt: data.lastCycleAt || null,
-        ticker: data.tickers?.BTCUSDT || data.ticker || null,  // Primary display ticker
-        tickers: data.tickers || null,
-        wsStatus: data.wsStatus || "connecting",
-        wsConnection: data.wsConnection || null,
-        decision: data.decision || null,
-        executionReason: data.executionReason || "",
-        signals: data.signals || [],
-        portfolio: data.portfolio || { cash: 1000, equity: 1000, initialCash: 1000, totalTrades: 0, winRate: 0, totalPnL: 0 },
-        positions: data.positions || [],
-        trades: data.trades || [],
-        showHistory: state.showHistory,
-        showBacktest: state.showBacktest,
-        circuitBreakerTripped: !!data.circuitBreakerTripped,
-        circuitBreakerThresholdPct: Number(data.circuitBreakerThresholdPct) || 5.0,
-        peakEquity: Number(data.peakEquity) || 1000,
-        llmProgress: data.llmProgress || null,
-        modelName: data.modelName || "qwen3.6-plus",
-        watchlist: data.watchlist || [],
-        equityHistory: data.equityHistory || [],
-        logs: data.logs || [],
-        decisionSource: data.decisionSource || null,
-        lastFetchAt: Date.now(),
-      };
-
-      lastKnownState = normalized;
-      setState(normalized);
+      setState((prev) => {
+        const normalized: AgentState = {
+          status: data.status,
+          lastCycleAt: data.lastCycleAt || null,
+          ticker: data.tickers?.BTCUSDT || data.ticker || null,
+          tickers: data.tickers || null,
+          wsStatus: data.wsStatus || "connecting",
+          wsConnection: data.wsConnection || null,
+          decision: data.decision || null,
+          executionReason: data.executionReason || "",
+          signals: data.signals || [],
+          portfolio: data.portfolio || { cash: 1000, equity: 1000, initialCash: 1000, totalTrades: 0, winRate: 0, totalPnL: 0 },
+          positions: data.positions || [],
+          trades: data.trades || [],
+          showHistory: prev.showHistory,
+          showBacktest: prev.showBacktest,
+          circuitBreakerTripped: !!data.circuitBreakerTripped,
+          circuitBreakerThresholdPct: Number(data.circuitBreakerThresholdPct) || 5.0,
+          peakEquity: Number(data.peakEquity) || 1000,
+          llmProgress: data.llmProgress || null,
+          modelName: data.modelName || "qwen3.6-plus",
+          watchlist: data.watchlist || [],
+          equityHistory: data.equityHistory || [],
+          logs: data.logs || [],
+          decisionSource: data.decisionSource || null,
+          lastFetchAt: Date.now(),
+          // Sticky: once flipped to true, never reset (so brief reconnects don't
+          // re-hide the UI). The dashboard gates on this.
+          everConnected: prev.everConnected || (data.wsStatus === "connected"),
+        };
+        lastKnownState = normalized;
+        return normalized;
+      });
     } catch (err) {
       console.error("[Client] Fetch error:", err);
     }
-  }, [state.status, state.showHistory, state.showBacktest]);
+  }, []);
 
   const runCycle = useCallback(async () => {
     try {

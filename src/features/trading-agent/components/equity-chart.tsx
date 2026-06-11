@@ -29,6 +29,9 @@ interface Props {
   portfolio: PortfolioData;
   equityCurve?: { timestamp: Date | string; equity: number }[];
   equityHistory?: { timestamp: string; equity: number }[];
+  /** Set true once the WS has connected at least once. While false, the chart
+   *  shows a "connecting" placeholder instead of stale pre-connection data. */
+  everConnected?: boolean;
 }
 
 interface ChartPoint {
@@ -66,7 +69,7 @@ function filterByTimeframe(equityHistory: { timestamp: string; equity: number }[
     .sort((a, b) => (a.time as number) - (b.time as number));
 }
 
-export function EquityChart({ portfolio, equityCurve, equityHistory }: Props) {
+export function EquityChart({ portfolio, equityCurve, equityHistory, everConnected = true }: Props) {
   const [mounted, setMounted] = useState(false);
   const [timeframe, setTimeframe] = useState<TimeframeKey>("1h");
 
@@ -102,6 +105,12 @@ export function EquityChart({ portfolio, equityCurve, equityHistory }: Props) {
   const displayEquity = portfolio.equity ?? portfolio.cash;
   const displayTotalPnL = portfolio.totalPnL;
   const displayCash = portfolio.cash;
+
+  // Pre-connection gate: while the WS has never connected, show "CONNECTING…"
+  // placeholders instead of stale data computed from an empty price store.
+  // After the first connection, even if WS briefly disconnects, we keep
+  // showing values (a "STALE" badge in the status bar indicates freshness).
+  const showConnecting = !everConnected;
 
   // Init the chart once
   useEffect(() => {
@@ -180,7 +189,7 @@ export function EquityChart({ portfolio, equityCurve, equityHistory }: Props) {
         {/* Main Equity Display */}
         <div className="flex items-baseline gap-4">
           <span className="text-3xl font-black font-mono tracking-tight text-zinc-100 tabular-nums">
-            ${displayEquity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {showConnecting ? "—.—" : `$${displayEquity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
           </span>
         </div>
 
@@ -189,25 +198,25 @@ export function EquityChart({ portfolio, equityCurve, equityHistory }: Props) {
           <div className="flex flex-col gap-0.5">
             <span className="text-[10px] font-mono font-bold tracking-widest uppercase text-zinc-500">Total PnL</span>
             <span className={`text-[13px] font-black font-mono tabular-nums ${isProfit ? "text-emerald-400" : "text-rose-400"}`}>
-              {isProfit ? "+" : "-"}${Math.abs(displayTotalPnL).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {showConnecting ? "—.—" : `${isProfit ? "+" : "-"}$${Math.abs(displayTotalPnL).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
             </span>
           </div>
           <div className="flex flex-col gap-0.5">
             <span className="text-[10px] font-mono font-bold tracking-widest uppercase text-zinc-500">Win Rate</span>
             <span className={`text-[13px] font-black font-mono tabular-nums ${portfolio.winRate >= 50 ? "text-emerald-400" : "text-zinc-300"}`}>
-              {portfolio.winRate.toFixed(1)}%
+              {showConnecting ? "—.—" : `${portfolio.winRate.toFixed(1)}%`}
             </span>
           </div>
           <div className="flex flex-col gap-0.5">
             <span className="text-[10px] font-mono font-bold tracking-widest uppercase text-zinc-500">Trades</span>
             <span className="text-[13px] font-black font-mono tabular-nums text-zinc-300">
-              {portfolio.totalTrades}
+              {showConnecting ? "—" : portfolio.totalTrades}
             </span>
           </div>
           <div className="flex flex-col gap-0.5">
             <span className="text-[10px] font-mono font-bold tracking-widest uppercase text-zinc-500">Cash</span>
             <span className="text-[13px] font-black font-mono tabular-nums text-zinc-300">
-              ${displayCash.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              {showConnecting ? "—.—" : `$${displayCash.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
             </span>
           </div>
         </div>
@@ -230,7 +239,12 @@ export function EquityChart({ portfolio, equityCurve, equityHistory }: Props) {
         </div>
 
         <div className="w-full h-[240px] mt-3">
-          {mounted ? (
+          {showConnecting ? (
+            <div className="flex items-center justify-center h-full text-[12px] font-mono text-zinc-500 uppercase tracking-widest">
+              <span className="w-1.5 h-1.5 rounded-full bg-zinc-500 animate-pulse mr-2" />
+              Connecting to market…
+            </div>
+          ) : mounted ? (
             <div ref={containerRef} className="w-full h-full" />
           ) : (
             <div className="flex items-center justify-center h-full text-[12px] font-mono text-zinc-600 uppercase tracking-widest animate-pulse">

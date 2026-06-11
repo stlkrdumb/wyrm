@@ -6,9 +6,13 @@ import type { PositionData, MultiTickerState } from "@/features/trading-agent/ho
 interface Props {
   positions: PositionData[];
   tickers: MultiTickerState | null;
+  /** Set true once the WS has connected at least once. While false and there
+   *  are open positions, PnL shows "—" because computed values would be stale
+   *  (price store is empty before the first tick). */
+  everConnected?: boolean;
 }
 
-export function PositionsPanel({ positions, tickers }: Props) {
+export function PositionsPanel({ positions, tickers, everConnected = true }: Props) {
   if (positions.length === 0) {
     return (
       <Card>
@@ -51,9 +55,11 @@ export function PositionsPanel({ positions, tickers }: Props) {
                 const currentValue = p.size * currentPrice;
                 const rawPnl = p.unrealizedPnL !== undefined ? p.unrealizedPnL : currentValue - (p.size * p.entryPrice);
                 const displayedPnl = Math.round(rawPnl * 100) / 100;
-                const pnlString = displayedPnl === 0
-                  ? "$0.00"
-                  : (displayedPnl > 0 ? "+" : "-") + "$" + Math.abs(displayedPnl).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                const pnlString = !everConnected
+                  ? "—"
+                  : displayedPnl === 0
+                    ? "$0.00"
+                    : (displayedPnl > 0 ? "+" : "-") + "$" + Math.abs(displayedPnl).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
                 return (
                   <tr key={p.symbol}>
@@ -67,6 +73,7 @@ export function PositionsPanel({ positions, tickers }: Props) {
                     <td className="text-right tabular-nums text-zinc-500">${p.entryPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                     <td className="text-right tabular-nums text-zinc-200 font-semibold">${currentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td className={`text-right tabular-nums font-bold ${
+                      !everConnected ? "text-zinc-600" :
                       displayedPnl === 0 ? "text-zinc-500" : displayedPnl > 0 ? "text-emerald-400" : "text-rose-400"
                     }`}>
                       {pnlString}
