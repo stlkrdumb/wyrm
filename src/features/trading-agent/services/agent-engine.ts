@@ -102,6 +102,7 @@ function buildInitialState(): AgentState {
     equityHistory: [],
     logs: [],
     decisionSource: null,
+    recentExits: new Map<string, number>(),
   };
 }
 
@@ -153,6 +154,16 @@ export function updatePositionUnrealizedPnL(symbol: string, currentPrice: number
     st.watchlist = st.watchlist.filter(s => s !== symbol);
     st.portfolio.totalPnL = st.portfolio.cash - st.startEquity;
     st.portfolio.totalTrades++;
+
+    // Record auto-bracket exit so the LLM doesn't re-enter within the cooldown window
+    st.recentExits.set(symbol, Date.now());
+    // Periodically prune stale entries (older than 24h) to keep the map small
+    if (st.recentExits.size > 50) {
+      const cutoff = Date.now() - 86_400_000;
+      for (const [sym, ts] of st.recentExits) {
+        if (ts < cutoff) st.recentExits.delete(sym);
+      }
+    }
 
     recalcEquity(st);
   }
@@ -234,8 +245,26 @@ export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ ticker
 
   const validated: Record<string, TradingDecision> = {};
   let best: TradingDecision | null = null;
+  const recentExitCooldownMs = Number(process.env.RECENT_EXIT_COOLDOWN_MS) || 600_000; // 10 min default
   for (const [sym, decision] of Object.entries(er.decisions)) {
     const ticker = prices.get(sym);
+
+    // Block re-entry for symbols recently auto-exited via stop-loss or take-profit
+    if (decision.action === "buy") {
+      const lastExit = st.recentExits.get(sym);
+      if (lastExit !== undefined) {
+        const elapsed = Date.now() - lastExit;
+        if (elapsed < recentExitCooldownMs) {
+          const secs = Math.round(elapsed / 1000);
+          console.log(`[Agent] ${sym}: skipping buy — auto-bracket cooldown (${secs}s / ${Math.round(recentExitCooldownMs / 1000)}s)`);
+          st.executionReason = `${sym}: cooldown after recent auto-exit (${secs}s ago)`;
+          continue;
+        }
+        // Cooldown expired — clean up the entry
+        st.recentExits.delete(sym);
+      }
+    }
+
     if (decision.action !== "hold" && (decision.size === undefined || decision.size === 0)) {
       if (ticker?.lastPrice) {
         const totalEquity = st.portfolio.equity;
@@ -303,6 +332,7 @@ export function getAgentState(): AgentState {
     },
     positions: st.positions.map(p => ({ ...p })),
     trades: st.trades.map(t => ({ ...t, timestamp: t.timestamp instanceof Date ? t.timestamp : new Date(t.timestamp) })),
+    recentExits: new Map(st.recentExits),
   };
 }
 

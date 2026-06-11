@@ -3,7 +3,20 @@ import type { TickerData, TradingDecision } from "@/features/trading-agent/types
 import { config, setTradeCounter, getTradeCounter, calculateWinRate } from "./state-store";
 import { getLivePrice } from "./price-fetcher.service";
 import { saveBalanceState } from "./balance-store";
+import { priceStore } from "./price-store";
 import { RISK_PROFILES, type RiskProfile } from "../constants/risk.constants";
+
+/** Resolve real-time execution price: prefer the freshest WS tick over the cycle-start snapshot.
+ *  The cycle-start priceMap can be 30+ seconds old by the time the LLM responds, while
+ *  priceStore is updated on every WS message (sub-second latency). Falls back to the
+ *  cycle-start ticker when WS data is unavailable or stale. */
+function resolveExecutionPrice(symbol: string, fallbackTicker: TickerData): { price: number; source: "ws" | "fallback" } {
+  const cached = priceStore.getCached(symbol);
+  if (cached && !priceStore.isStale(symbol, 60_000) && cached.lastPrice > 0) {
+    return { price: cached.lastPrice, source: "ws" };
+  }
+  return { price: fallbackTicker.lastPrice, source: "fallback" };
+}
 
 function resolveSLTP(profile?: RiskProfile): { stopLossPct: number; takeProfitPct: number } {
   if (profile && RISK_PROFILES[profile]) {
@@ -133,6 +146,14 @@ export function executeTrades(
       continue;
     }
 
+    // Use the freshest WS tick for execution price — the cycle-start priceMap can be
+    // 30+ seconds old by the time the LLM responds. Falls back to ticker.lastPrice.
+    const { price: execPrice, source: priceSrc } = resolveExecutionPrice(symbol, ticker);
+    if (!Number.isFinite(execPrice) || execPrice <= 0) {
+      console.warn(`[Agent] ${symbol}: skipping ${decision.action} — no valid execution price`);
+      continue;
+    }
+
     if (decision.action === "buy" && livePositionCount >= config.maxActivePositions) {
       console.log(`[Agent] ${symbol}: skipping buy — already at max open positions (${config.maxActivePositions})`);
       continue;
@@ -145,9 +166,6 @@ export function executeTrades(
       continue;
     }
 
-    // Order check before division
-    if (ticker.lastPrice <= 0) continue;
-
     // Compute current equity from positions in priceMap (fallback to entry price if missing)
     const totalEquity = liquidBalance + state.positions.reduce((s, p) => {
       const posPrice = priceMap.get(p.symbol)?.lastPrice ?? p.entryPrice;
@@ -156,7 +174,7 @@ export function executeTrades(
 
     const strengthFactor = Math.abs(strength);
     const allocationPct = config.orderSizePct * strengthFactor;
-    const tradeSize = decision.size ?? ((totalEquity * allocationPct) / ticker.lastPrice);
+    const tradeSize = decision.size ?? ((totalEquity * allocationPct) / execPrice);
 
     if (!Number.isFinite(tradeSize) || tradeSize <= 0) continue;
 
@@ -166,7 +184,7 @@ export function executeTrades(
     setTradeCounter(tc);
 
     if (decision.action === "buy") {
-      const cost = ticker.lastPrice * tradeSize;
+      const cost = execPrice * tradeSize;
       const fee = cost * config.feePct;
       const totalCost = cost + fee;
       if (totalCost <= liquidBalance) {
@@ -175,13 +193,13 @@ export function executeTrades(
           state.positions[idx] = {
             ...p,
             size: p.size + tradeSize,
-            entryPrice: (p.entryPrice * p.size + ticker.lastPrice * tradeSize * (1 + config.feePct)) / (p.size + tradeSize),
+            entryPrice: (p.entryPrice * p.size + execPrice * tradeSize * (1 + config.feePct)) / (p.size + tradeSize),
           };
-          state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "buy", action: "add", size: tradeSize, price: ticker.lastPrice, fee });
+          state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "buy", action: "add", size: tradeSize, price: execPrice, fee });
         } else {
           const sltp = resolveSLTP(decision.riskProfile);
-          state.positions.push({ symbol, side: "long", size: tradeSize, entryPrice: ticker.lastPrice * (1 + config.feePct), unrealizedPnL: 0, ...sltp });
-          state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "buy", action: "entry", size: tradeSize, price: ticker.lastPrice, fee });
+          state.positions.push({ symbol, side: "long", size: tradeSize, entryPrice: execPrice * (1 + config.feePct), unrealizedPnL: 0, ...sltp });
+          state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "buy", action: "entry", size: tradeSize, price: execPrice, fee });
           livePositionCount++;
         }
         liquidBalance -= totalCost;
@@ -193,25 +211,29 @@ export function executeTrades(
         const pos = state.positions[idx];
 
         if (pos.size <= tradeSize) {
-          const revenue = ticker.lastPrice * pos.size;
+          const revenue = execPrice * pos.size;
           const fee = revenue * config.feePct;
-          const pnl = (ticker.lastPrice - pos.entryPrice) * pos.size - fee;
-          state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "sell", action: "exit", size: pos.size, price: ticker.lastPrice, pnl, fee });
+          const pnl = (execPrice - pos.entryPrice) * pos.size - fee;
+          state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "sell", action: "exit", size: pos.size, price: execPrice, pnl, fee });
           liquidBalance += revenue - fee;
           state.positions.splice(idx, 1);
           livePositionCount = new Set(state.positions.map(p => p.symbol)).size;
         } else {
           const avgEntry = pos.entryPrice;
-          const revenue = ticker.lastPrice * tradeSize;
+          const revenue = execPrice * tradeSize;
           const fee = revenue * config.feePct;
-          const pnl = (ticker.lastPrice - avgEntry) * tradeSize - fee;
-          state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "sell", action: "reduce", size: tradeSize, price: ticker.lastPrice, pnl, fee });
+          const pnl = (execPrice - avgEntry) * tradeSize - fee;
+          state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "sell", action: "reduce", size: tradeSize, price: execPrice, pnl, fee });
           liquidBalance += revenue - fee;
           state.positions[idx] = { ...state.positions[idx], size: pos.size - tradeSize };
         }
       } else {
         console.log(`[Agent] ${symbol}: skipping sell — no position to close`);
       }
+    }
+
+    if (priceSrc === "ws") {
+      console.log(`[Agent] ${symbol}: executed at $${execPrice.toLocaleString()} (live WS tick — was $${ticker.lastPrice.toLocaleString()} at cycle start)`);
     }
 
     state.portfolio.totalTrades++;

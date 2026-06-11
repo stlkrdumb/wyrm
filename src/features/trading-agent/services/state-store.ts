@@ -31,6 +31,9 @@ export interface AgentState {
   equityHistory: Array<{ timestamp: Date; equity: number }>;
   logs: Array<{ timestamp: Date; level: "info" | "action" | "warning" | "error"; message: string }>;
   decisionSource: "llm" | "heuristic" | null;
+  /** Symbols recently exited by auto-bracket (SL/TP) with their exit timestamp.
+   *  Prevents the LLM from re-entering the same coin within the cooldown window. */
+  recentExits: Map<string, number>;
 }
 
 export const config = {
