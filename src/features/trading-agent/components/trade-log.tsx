@@ -56,7 +56,7 @@ export const TradeLog = memo(function TradeLog({ trades, portfolio, isTabMode }:
           </strong></span>
         </div>
         <span className={`text-[12px] font-bold tabular-nums ${portfolio.totalPnL >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-          {portfolio.totalPnL >= 0 ? "+" : ""}${portfolio.totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+           {portfolio.totalPnL >= 0 ? "+" : "-"}${Math.abs(portfolio.totalPnL).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </span>
       </div>
     </>
@@ -89,7 +89,7 @@ function TradeRow({ trade }: { trade: TradeData }) {
         <span className="text-zinc-400">${trade.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
         {pnlDisplay && (
           <span className={`font-bold min-w-[4.5rem] text-right ${trade.pnl! >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-            {trade.pnl! >= 0 ? "+" : ""}${trade.pnl!.toFixed(2)}
+            {trade.pnl! >= 0 ? "+" : "-"}${Math.abs(trade.pnl!).toFixed(2)}
           </span>
         )}
         <span className="text-zinc-600 min-w-[4rem] text-right">{formatRelative(trade.timestamp)}</span>
