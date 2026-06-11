@@ -96,7 +96,7 @@ export function DecisionHistory({ onBack, isTabMode }: Props) {
                     (record.decision?.strength ?? 0) > 0 ? "text-emerald-400" :
                     (record.decision?.strength ?? 0) < 0 ? "text-rose-400" : "text-zinc-500"
                   }`}>
-                    {(record.decision?.strength ?? 0) > 0 ? "+" : ""}{(record.decision?.strength ?? 0 * 100).toFixed(0)}%
+                    {(record.decision?.strength ?? 0) > 0 ? "+" : ""}{((record.decision?.strength ?? 0) * 100).toFixed(0)}%
                   </span>
                 </div>
               </div>
