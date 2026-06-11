@@ -6,16 +6,16 @@ import { saveBalanceState } from "./balance-store";
 import { priceStore } from "./price-store";
 import { RISK_PROFILES, type RiskProfile } from "../constants/risk.constants";
 
-/** Resolve real-time execution price: prefer the freshest WS tick over the cycle-start snapshot.
- *  The cycle-start priceMap can be 30+ seconds old by the time the LLM responds, while
- *  priceStore is updated on every WS message (sub-second latency). Falls back to the
- *  cycle-start ticker when WS data is unavailable or stale. */
-function resolveExecutionPrice(symbol: string, fallbackTicker: TickerData): { price: number; source: "ws" | "fallback" } {
+/** Resolve the trade execution price from the WS cache ONLY — never REST.
+ *  Trade prices are the source of truth and must be real-time from the live feed.
+ *  REST snapshots are fine for LLM analysis / TA context, but never for execution.
+ *  Returns null when no fresh WS data is available — caller should skip the trade. */
+function resolveWsPrice(symbol: string): { price: number } | null {
   const cached = priceStore.getCached(symbol);
   if (cached && !priceStore.isStale(symbol, 60_000) && cached.lastPrice > 0) {
-    return { price: cached.lastPrice, source: "ws" };
+    return { price: cached.lastPrice };
   }
-  return { price: fallbackTicker.lastPrice, source: "fallback" };
+  return null;
 }
 
 function resolveSLTP(profile?: RiskProfile): { stopLossPct: number; takeProfitPct: number } {
@@ -146,13 +146,14 @@ export function executeTrades(
       continue;
     }
 
-    // Use the freshest WS tick for execution price — the cycle-start priceMap can be
-    // 30+ seconds old by the time the LLM responds. Falls back to ticker.lastPrice.
-    const { price: execPrice, source: priceSrc } = resolveExecutionPrice(symbol, ticker);
-    if (!Number.isFinite(execPrice) || execPrice <= 0) {
-      console.warn(`[Agent] ${symbol}: skipping ${decision.action} — no valid execution price`);
+    // Trade execution price MUST come from the WS feed — never REST. If no fresh WS
+    // data is available (cold cache, stale, or WS disconnected), skip the trade.
+    const wsPrice = resolveWsPrice(symbol);
+    if (!wsPrice) {
+      console.warn(`[Agent] ${symbol}: skipping ${decision.action} — no WS price data, won't fall back to REST`);
       continue;
     }
+    const execPrice = wsPrice.price;
 
     if (decision.action === "buy" && livePositionCount >= config.maxActivePositions) {
       console.log(`[Agent] ${symbol}: skipping buy — already at max open positions (${config.maxActivePositions})`);
@@ -230,10 +231,6 @@ export function executeTrades(
       } else {
         console.log(`[Agent] ${symbol}: skipping sell — no position to close`);
       }
-    }
-
-    if (priceSrc === "ws") {
-      console.log(`[Agent] ${symbol}: executed at $${execPrice.toLocaleString()} (live WS tick — was $${ticker.lastPrice.toLocaleString()} at cycle start)`);
     }
 
     state.portfolio.totalTrades++;
