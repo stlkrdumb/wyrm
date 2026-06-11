@@ -3,6 +3,7 @@ import path from "node:path";
 import { evaluateMultiPair } from "./decision-engine.service";
 import { riskManager } from "./risk-manager.service";
 import { priceStore } from "./price-store";
+import { config } from "./state-store";
 import type { BacktestResult } from "@/features/trading-agent/types/backtest.types";
 import type { Candlestick } from "@/features/trading-agent/types";
 
@@ -50,7 +51,7 @@ export class BacktestService {
       const trades: Array<{ timestamp: Date; symbol: string; side: "buy" | "sell"; price: number; pnl: number }> = [];
 
       // Tracks open spot positions: symbol -> { size, entryPrice }
-      const currentPositions: Record<string, { size: number; entryPrice: number }> = {};
+      const currentPositions: Record<string, { size: number; entryPrice: number; stopLossPct: number; takeProfitPct: number }> = {};
 
       // Run backtest over the last 30 snapshots to keep LLM calls fast but allow a rich lookback
       const stepsToRun = 30;
@@ -110,7 +111,9 @@ export class BacktestService {
             side: "long" as const,
             size: pos.size,
             entryPrice: pos.entryPrice,
-            unrealizedPnL: pos.size * (currentPrice - pos.entryPrice)
+            unrealizedPnL: pos.size * (currentPrice - pos.entryPrice),
+            stopLossPct: pos.stopLossPct,
+            takeProfitPct: pos.takeProfitPct,
           };
         });
 
@@ -147,9 +150,9 @@ export class BacktestService {
                 if (existing) {
                   const newSize = existing.size + size;
                   const newEntryPrice = (existing.entryPrice * existing.size + price * size) / newSize;
-                  currentPositions[symbol] = { size: newSize, entryPrice: newEntryPrice };
+                  currentPositions[symbol] = { size: newSize, entryPrice: newEntryPrice, stopLossPct: existing.stopLossPct, takeProfitPct: existing.takeProfitPct };
                 } else {
-                  currentPositions[symbol] = { size, entryPrice: price };
+                  currentPositions[symbol] = { size, entryPrice: price, stopLossPct: config.stopLossPct, takeProfitPct: config.takeProfitPct };
                 }
 
                 tradeCount++;
@@ -185,7 +188,9 @@ export class BacktestService {
                 } else {
                   currentPositions[symbol] = {
                     size: existing.size - size,
-                    entryPrice: existing.entryPrice
+                    entryPrice: existing.entryPrice,
+                    stopLossPct: existing.stopLossPct,
+                    takeProfitPct: existing.takeProfitPct
                   };
                 }
               }

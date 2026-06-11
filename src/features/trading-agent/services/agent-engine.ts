@@ -58,7 +58,7 @@ function buildInitialState(): AgentState {
   if (saved) {
     cash = saved.cash;
     realizedPnL = saved.accumulatedRealizedPnL;
-    positions = saved.positions.map(p => ({ ...p, unrealizedPnL: 0 }));
+    positions = saved.positions.map(p => ({ ...p, unrealizedPnL: 0, stopLossPct: p.stopLossPct ?? config.stopLossPct, takeProfitPct: p.takeProfitPct ?? config.takeProfitPct }));
   } else {
     cash = config.initialCash;
   }
@@ -119,9 +119,11 @@ export function updatePositionUnrealizedPnL(symbol: string, currentPrice: number
   st.positions[idx] = { ...pos, unrealizedPnL };
   recalcEquity(st);
 
-  // Check Stop Loss & Take Profit
-  const isStopLoss = currentPrice <= pos.entryPrice * (1 - config.stopLossPct / 100);
-  const isTakeProfit = currentPrice >= pos.entryPrice * (1 + config.takeProfitPct / 100);
+  // Use per-position SL/TP with global config as fallback
+  const slPct = pos.stopLossPct ?? config.stopLossPct;
+  const tpPct = pos.takeProfitPct ?? config.takeProfitPct;
+  const isStopLoss = currentPrice <= pos.entryPrice * (1 - slPct / 100);
+  const isTakeProfit = currentPrice >= pos.entryPrice * (1 + tpPct / 100);
 
   if (isStopLoss || isTakeProfit) {
     const reason = isStopLoss ? "Stop Loss" : "Take Profit";

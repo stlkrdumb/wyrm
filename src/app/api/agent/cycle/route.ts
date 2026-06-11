@@ -106,6 +106,8 @@ export async function GET(request: NextRequest) {
       size: p.size,
       entryPrice: p.entryPrice,
       unrealizedPnL,
+      stopLossPct: p.stopLossPct,
+      takeProfitPct: p.takeProfitPct,
     };
   });
 

@@ -29,7 +29,7 @@ export interface TradeData {
   pnl: number | null;
 }
 
-export interface PositionData { symbol: string; side: "long" | "short"; size: number; entryPrice: number; unrealizedPnL: number; }
+export interface PositionData { symbol: string; side: "long" | "short"; size: number; entryPrice: number; unrealizedPnL: number; stopLossPct: number; takeProfitPct: number; }
 
 export type WSConnectionStatus = "connecting" | "connected" | "reconnecting";
 

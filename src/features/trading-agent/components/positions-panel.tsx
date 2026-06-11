@@ -27,13 +27,13 @@ export function PositionsPanel({ positions, tickers }: Props) {
   }
 
   return (
-    <Card>
+    <Card className="flex flex-col h-full">
       <CardHeader>
         <CardTitle>Spot Positions ({positions.length})</CardTitle>
         <span className="text-[12px] tracking-widest text-zinc-500 font-mono">PORTFOLIO ASSETS</span>
       </CardHeader>
-      <CardContent>
-        <div className="overflow-y-auto scrollbar-none max-h-[240px]">
+      <CardContent className="flex-1 min-h-0">
+        <div className="overflow-y-auto scrollbar-none h-full">
           <table className="data-table">
             <thead>
               <tr>

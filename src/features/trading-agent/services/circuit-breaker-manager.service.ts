@@ -3,8 +3,8 @@ import type { AgentState } from "@/features/trading-agent/services/state-store";
 import { saveBalanceState, type PortfolioState } from "./balance-store";
 
 function buildSavePayload(state: AgentState): PortfolioState {
-  const savedPositions: Array<{ symbol: string; side: "long" | "short"; size: number; entryPrice: number }> = 
-    state.positions.map(p => ({ symbol: p.symbol, side: p.side as "long" | "short", size: p.size, entryPrice: p.entryPrice }));
+  const savedPositions: Array<{ symbol: string; side: "long" | "short"; size: number; entryPrice: number; stopLossPct: number; takeProfitPct: number }> = 
+    state.positions.map(p => ({ symbol: p.symbol, side: p.side as "long" | "short", size: p.size, entryPrice: p.entryPrice, stopLossPct: p.stopLossPct, takeProfitPct: p.takeProfitPct }));
   return {
     initialCash: config.initialCash,
     startCash: state.startEquity,

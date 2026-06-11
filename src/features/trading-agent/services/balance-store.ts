@@ -18,6 +18,8 @@ export interface PortfolioState {
     side: "long" | "short";
     size: number;
     entryPrice: number;
+    stopLossPct: number;
+    takeProfitPct: number;
   }>;
   totalTrades: number;
   winRate: number;           // approximate — for display

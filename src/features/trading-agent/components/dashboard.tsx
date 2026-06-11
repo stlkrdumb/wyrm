@@ -68,10 +68,12 @@ export function Dashboard() {
             equityHistory={agent.state.equityHistory}
             trades={agent.state.trades}
           />
-          <PositionsPanel 
-            positions={agent.state.positions} 
-            tickers={agent.state.tickers} 
-          />
+          <div className="flex-1 min-h-0">
+            <PositionsPanel 
+              positions={agent.state.positions} 
+              tickers={agent.state.tickers} 
+            />
+          </div>
         </div>
 
         {/* Center Column: Signals + Logs (span 4) */}

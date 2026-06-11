@@ -29,6 +29,7 @@ Respond with ONLY valid JSON:
   "action": "buy" | "sell" | "hold",
   "strength": number between -1 and 1,
   "confidence": number between 0 and 1,
+  "riskProfile": "tight" | "normal" | "wide",
   "reason": "brief explanation citing specific indicator values"
 }`;
 }
@@ -60,7 +61,7 @@ export function buildMultiPrompt(
     .join("\n\n");
 
   const exampleFormat = entries
-    .map(([symbol]) => `  "${symbol}": {"action":"buy|sell|hold","strength":-1..1,"confidence":0..1,"reason":"..."},`)
+    .map(([symbol]) => `  "${symbol}": {"action":"buy|sell|hold","strength":-1..1,"confidence":0..1,"riskProfile":"tight|normal|wide","reason":"..."},`)
     .join("\n");
 
   let positionsSection = "";
@@ -87,6 +88,9 @@ Rules:
 - If we hold a position and you wish to add more (average down), output "action": "buy".
 - Strength: -1 (strong sell) to +1 (strong buy)
 - Confidence: 0-1
+- riskProfile (for buy actions only): "tight" (3% SL / 9% TP) | "normal" (5% SL / 10% TP) | "wide" (8% SL / 16% TP)
+- Pick riskProfile based on volatility and conviction — tighter for calm markets / high conviction, wider for volatile / uncertain trades
+- You can still exit early with "sell" regardless of the SL/TP auto-bracket levels
 - Keep reason under 40 words with specific indicator values and sentiment/funding conditions if they influence your decision
 - Make a confident call per symbol — avoid defaulting to "hold" when signals are clear
 
@@ -112,9 +116,12 @@ export function parseSingleResponse(response: string): { decision: TradingDecisi
 
   const strength = Math.max(-1, Math.min(1, parseFloat(parsed.strength) || 0));
   const confidence = Math.max(0, Math.min(1, parseFloat(parsed.confidence) || 0.5));
+  const riskProfile = ["tight", "normal", "wide"].includes(parsed.riskProfile)
+    ? (parsed.riskProfile as "tight" | "normal" | "wide")
+    : undefined;
 
   return {
-    decision: { action, strength, confidence, reason: parsed.reason || "No reasoning provided" },
+    decision: { action, strength, confidence, riskProfile, reason: parsed.reason || "No reasoning provided" },
     signals: [
       {
         id: crypto.randomUUID(),
@@ -210,8 +217,11 @@ export function parseMultiResponse(
 
     const strength = Math.max(-1, Math.min(1, parseFloat(raw.strength) || 0));
     const confidence = Math.max(0, Math.min(1, parseFloat(raw.confidence) || 0.5));
+    const riskProfile = ["tight", "normal", "wide"].includes(raw.riskProfile)
+      ? (raw.riskProfile as "tight" | "normal" | "wide")
+      : undefined;
 
-    decisions[symbol] = { action, strength, confidence, reason: raw.reason || "No reasoning" };
+    decisions[symbol] = { action, strength, confidence, riskProfile, reason: raw.reason || "No reasoning" };
 
     allSignals.push({
       id: crypto.randomUUID(),

@@ -3,6 +3,14 @@ import type { TickerData, TradingDecision, Position } from "@/features/trading-a
 import { config, setTradeCounter, getTradeCounter, calculateWinRate } from "./state-store";
 import { getLivePrice } from "./price-fetcher.service";
 import { saveBalanceState } from "./balance-store";
+import { RISK_PROFILES, type RiskProfile } from "../constants/risk.constants";
+
+function resolveSLTP(profile?: RiskProfile): { stopLossPct: number; takeProfitPct: number } {
+  if (profile && RISK_PROFILES[profile]) {
+    return { ...RISK_PROFILES[profile] };
+  }
+  return { stopLossPct: config.stopLossPct, takeProfitPct: config.takeProfitPct };
+}
 
 export async function flattenPositions(state: AgentState): Promise<{ closed: number; totalPnlRealized: number }> {
   const closedPositions: Position[] = [];
@@ -129,7 +137,8 @@ export function executeTrades(
           };
           state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "buy", action: "add", size: tradeSize, price: ticker.lastPrice });
         } else {
-          state.positions.push({ symbol, side: "long", size: tradeSize, entryPrice: ticker.lastPrice * (1 + config.feePct), unrealizedPnL: 0 });
+          const sltp = resolveSLTP(decision.riskProfile);
+          state.positions.push({ symbol, side: "long", size: tradeSize, entryPrice: ticker.lastPrice * (1 + config.feePct), unrealizedPnL: 0, ...sltp });
           state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "buy", action: "entry", size: tradeSize, price: ticker.lastPrice });
         }
         liquidBalance -= totalCost;
@@ -184,7 +193,7 @@ export function executeTrades(
     winRate,
   };
 
-  const savedPositions = state.positions.map(p => ({ symbol: p.symbol, side: p.side as "long" | "short", size: p.size, entryPrice: p.entryPrice }));
+  const savedPositions = state.positions.map(p => ({ symbol: p.symbol, side: p.side as "long" | "short", size: p.size, entryPrice: p.entryPrice, stopLossPct: p.stopLossPct, takeProfitPct: p.takeProfitPct }));
   saveBalanceState({
     initialCash: config.initialCash,
     startCash: state.startEquity,

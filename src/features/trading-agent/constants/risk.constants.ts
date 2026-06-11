@@ -21,3 +21,17 @@ export const RISK_CONFIG = {
   /** Minimum amount of equity required to open a new position (to avoid dust trades) */
   MIN_TRADE_VALUE: 10.0,
 };
+
+/**
+ * Agent-Decided Risk Profiles
+ * The LLM can pick a risk profile ("tight" | "normal" | "wide") per symbol
+ * instead of raw stop-loss/take-profit percentages. Values are overridable
+ * via environment variables with sensible defaults.
+ */
+export const RISK_PROFILES = {
+  tight:  { stopLossPct: Number(process.env.RISK_SL_TIGHT)  || 3,  takeProfitPct: Number(process.env.RISK_TP_TIGHT)  || 9  },
+  normal: { stopLossPct: Number(process.env.RISK_SL_NORMAL) || 5,  takeProfitPct: Number(process.env.RISK_TP_NORMAL) || 10 },
+  wide:   { stopLossPct: Number(process.env.RISK_SL_WIDE)   || 8,  takeProfitPct: Number(process.env.RISK_TP_WIDE)   || 16 },
+} as const;
+
+export type RiskProfile = keyof typeof RISK_PROFILES;
