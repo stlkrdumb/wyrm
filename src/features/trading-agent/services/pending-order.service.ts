@@ -112,9 +112,10 @@ export function cancelPendingOrder(state: AgentState, symbol: string): void {
 
   const order = state.pendingOrders[idx];
 
-  // Return reserved cash for buy orders
+  // Return reserved cash for buy orders (capped to true cost at limit price)
   if (order.side === "buy" && order.reservedCash > 0) {
-    state.portfolio.cash += order.reservedCash;
+    const trueCost = order.size * order.limitPrice * (1 + config.feePct);
+    state.portfolio.cash += Math.min(order.reservedCash, trueCost);
   }
 
   state.pendingOrders.splice(idx, 1);
