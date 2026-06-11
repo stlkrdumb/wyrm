@@ -291,11 +291,20 @@ export async function setAgentStatus(s: "running" | "stopped" | "paused"): Promi
   st.status = s;
 
   if (s === "paused" || s === "stopped") {
+    const closePrices = await Promise.all(st.positions.map(async (p) => {
+      if (p.size <= 0) return null;
+      const live = await getLivePrice(p.symbol);
+      return live?.lastPrice ?? null;
+    }));
+
     let closedCount = 0, totalPnlRealized = 0;
-    for (const p of st.positions) {
+    for (let i = 0; i < st.positions.length; i++) {
+      const p = st.positions[i];
       if (p.size <= 0) continue;
-      const snap = priceStore.getCached(p.symbol);
-      const currentPrice = snap?.lastPrice ?? p.entryPrice;
+      const currentPrice = closePrices[i] ?? p.entryPrice;
+      if (!closePrices[i]) {
+        console.warn(`[Agent] Closing ${p.symbol} at entry price — no live data`);
+      }
       const revenue = currentPrice * p.size;
       const fee = revenue * config.feePct;
       const pnl = (currentPrice - p.entryPrice) * p.size - fee;

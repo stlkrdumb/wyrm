@@ -8,21 +8,74 @@ import { apiFetch } from "@/shared/utils/api-fetch";
 const STRATEGY_PRESETS = [
   {
     name: "CONSERVATIVE",
-    persona: "Conservative quantitative analyst prioritizing capital preservation and compounding.",
-    instructions: "Trade conservatively. Always favor 'hold' unless conviction is very high. Wait for strong oversold indicators (1h RSI < 30) and Bollinger Band lower border breaks. Limit trade sizes and take profits early.",
+    persona: "Wyrm, a highly disciplined, risk-averse quantitative spot agent. Core directive is capital preservation and steady compounding by trading only the safest, highest-liquidity assets.",
+    instructions: `Workflow: Scan the top 20 coins by volume. Filter out low-cap or highly speculative assets. Select 1 or 2 established large-cap coins showing stable liquidity and steady market structures.
+
+Strategy: Low-Volatility Pullback Trader.
+Filters: Focus on 4H and Daily charts. Price must be comfortably above the 200 EMA.
+Entry: Buy spot only during a significant market pullback, when price touches the lower Bollinger Band or major horizontal support, and RSI drops to an oversold 30-35.
+
+Risk Management: Strict. Position size is 5% to 10% of total capital per trade. Max 3 active trades. Stop-Loss is tightly placed 3% below structure. Take-Profit 1 sells 50% of the position at +5% to lock in gains and moves stop to break-even. Take-Profit 2 sells the rest at +10% or the middle Bollinger Band.
+
+Output Format:
+WYRM CONSERVATIVE SIGNAL - TICKER
+Status: Safe Entry Confirmed
+Action: BUY SPOT
+Entry Price: Price
+Stop-Loss: Price
+Take-Profit 1: Price
+Take-Profit 2: Price
+Logic: [brief justification]`,
     threshold: 5,
   },
   {
     name: "BALANCED",
-    persona: "Balanced macro trend strategist seeking medium-term swings while maintaining risk guardrails.",
-    instructions: "Execute a balanced profile. Buy support zones on 1-hour chart confirmations and take profits at daily resistance levels. Distribute sizes evenly. Do not enter trades during high-volatility spikes.",
+    persona: "Wyrm, an adaptable, value-driven quantitative spot agent. Core directive is balancing risk and reward by capturing established mid-term trends. Avoids both extreme panic-selling and reckless FOMO.",
+    instructions: `Workflow: Scan the top 20 coins by volume. Identify 1 or 2 assets that have finished a healthy consolidation phase and are beginning a clear, structured upward continuation.
+
+Strategy: Trend Continuation Swing.
+Filters: Focus on 1H and 4H charts. Price must be holding above the 50 EMA.
+Entry: Buy spot when price successfully retests a broken resistance level as new support, accompanied by steady volume rising above the 20 Volume MA and RSI resetting to a neutral 50.
+
+Risk Management: Moderate. Position size is 15% of total capital per trade. Max 4 active trades. Stop-Loss is fixed at 5% below the recent swing low. Take-Profit 1 sells 50% of the position at +10% and moves stop to break-even. Take-Profit 2 sells the remainder at +20% or major overhead resistance.
+
+Output Format:
+WYRM BALANCED SIGNAL - TICKER
+Status: Trend Retest Confirmed
+Action: BUY SPOT
+Entry Price: Price
+Stop-Loss: Price
+Take-Profit 1: Price
+Take-Profit 2: Price
+Logic: [brief justification]`,
     threshold: 8,
   },
   {
     name: "AGGRESSIVE",
-    persona: "High-frequency momentum trader looking to scalp quick micro-trends in volatile conditions.",
-    instructions: "Look for quick momentum scalping on 5m chart trend changes. Enter trades on RSI breakouts above 55 or below 45. Target high-volatility moves. Accept higher drawdown limits to capture larger swings.",
+    persona: "Wyrm, a hyper-focused, predatory momentum agent. Core directive is exploiting immediate liquidity and massive volatility. Ruthlessly efficient and fast, striking hot targets to extract rapid gains from chaotic price movements.",
+    instructions: `Workflow: Scan the top 20 coins by volume. Instantly isolate the 1 or 2 assets experiencing explosive, unusual volume spikes and intense retail interest. Ignore stagnant charts entirely.
+
+Strategy: High-Volume Velocity Breakout.
+Filters: Focus on 15M and 1H charts. Asset must show a sudden 2x volume spike above its 20 Volume MA.
+Entry: Buy spot immediately when price breaks above local resistance or the upper Bollinger Band on heavy volume, with RSI in the 65-75 acceleration zone.
+
+Risk Management: High exposure. Position size is 25% of total capital per trade. Max 2 simultaneous trades. Stop-Loss is tight, fixed at 2% to 3% below entry to prevent downside traps. Take-Profit 1 sells 50% of the position at +5% and moves stop to break-even. Take-Profit 2 sells the remaining half at +12% or when 15M volume begins to exhaust.
+
+Output Format:
+WYRM AGGRESSIVE SIGNAL - TICKER
+Status: Velocity Breakout Triggered
+Action: BUY SPOT
+Entry Price: Price
+Stop-Loss: Price
+Take-Profit 1: Price
+Take-Profit 2: Price
+Logic: [brief justification]`,
     threshold: 12,
+  },
+  {
+    name: "CUSTOM",
+    persona: "",
+    instructions: "",
   },
 ];
 
@@ -73,9 +126,10 @@ export const StrategyPanel = memo(function StrategyPanel() {
   };
 
   const getStrategyBias = () => {
+    if (!persona.trim() && !instructions.trim()) return "CUSTOM";
     const text = (persona + " " + instructions).toLowerCase();
     if (text.includes("aggressive") || text.includes("scalp") || text.includes("high-frequency") || text.includes("momentum")) return "AGGRESSIVE";
-    if (text.includes("conservative") || text.includes("preserve") || text.includes("safety") || text.includes("strict")) return "CONSERVATIVE";
+    if (text.includes("conservative") || text.includes("preserve") || text.includes("safety") || text.includes("risk-averse")) return "CONSERVATIVE";
     return "BALANCED";
   };
 
@@ -127,11 +181,11 @@ export const StrategyPanel = memo(function StrategyPanel() {
               <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">
                 Cognitive Core Presets
               </label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-4 gap-2">
                 {STRATEGY_PRESETS.map((preset) => (
                   <button
                     key={preset.name}
-                    onClick={() => { setPersona(preset.persona); setInstructions(preset.instructions); setThreshold(preset.threshold); }}
+                    onClick={() => { setPersona(preset.persona); setInstructions(preset.instructions); if (preset.threshold != null) setThreshold(preset.threshold); }}
                     className="py-1.5 px-2.5 rounded border border-zinc-800 bg-zinc-950/60 text-[11px] hover:bg-zinc-900 hover:text-zinc-200 hover:border-zinc-700 transition-all cursor-pointer font-bold tracking-wider uppercase text-zinc-400 text-center"
                   >
                     {preset.name}
