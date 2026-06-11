@@ -149,6 +149,7 @@ export function executeTrades(
 
       // Cancel any existing pending order for this symbol (replace with new)
       cancelPendingOrder(state, symbol);
+      liquidBalance = state.portfolio.cash; // sync after cash return
 
       // Create new pending order
       state.pendingOrders.push({
@@ -181,6 +182,7 @@ export function executeTrades(
 
     // Cancel any existing pending order for this symbol before executing market order
     cancelPendingOrder(state, symbol);
+    liquidBalance = state.portfolio.cash; // sync after cash return
 
     const idx = state.positions.findIndex((p) => p.symbol === symbol);
     const now = new Date();
