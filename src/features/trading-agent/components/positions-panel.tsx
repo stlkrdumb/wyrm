@@ -64,7 +64,7 @@ export function PositionsPanel({ positions, tickers }: Props) {
                       </div>
                     </td>
                     <td className="text-right tabular-nums text-zinc-300">{p.size.toFixed(4)}</td>
-                    <td className="text-right tabular-nums text-zinc-500">${p.entryPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
+                    <td className="text-right tabular-nums text-zinc-500">${p.entryPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                     <td className="text-right tabular-nums text-zinc-200 font-semibold">${currentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td className={`text-right tabular-nums font-bold ${
                       displayedPnl === 0 ? "text-zinc-500" : displayedPnl > 0 ? "text-emerald-400" : "text-rose-400"

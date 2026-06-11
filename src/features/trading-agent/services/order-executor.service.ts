@@ -125,11 +125,11 @@ export function executeTrades(
           state.positions[idx] = {
             ...p,
             size: p.size + tradeSize,
-            entryPrice: (p.entryPrice * p.size + ticker.lastPrice * tradeSize) / (p.size + tradeSize),
+            entryPrice: (p.entryPrice * p.size + ticker.lastPrice * tradeSize * (1 + config.feePct)) / (p.size + tradeSize),
           };
           state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "buy", action: "add", size: tradeSize, price: ticker.lastPrice });
         } else {
-          state.positions.push({ symbol, side: "long", size: tradeSize, entryPrice: ticker.lastPrice, unrealizedPnL: 0 });
+          state.positions.push({ symbol, side: "long", size: tradeSize, entryPrice: ticker.lastPrice * (1 + config.feePct), unrealizedPnL: 0 });
           state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "buy", action: "entry", size: tradeSize, price: ticker.lastPrice });
         }
         liquidBalance -= totalCost;
