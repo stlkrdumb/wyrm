@@ -27,6 +27,7 @@ export interface AgentState {
   llmProgress?: { text: string; tokensReceived: number } | null;
   modelName: string;
   watchlist: string[];
+  lastWatchlistRefresh: number | null;
   equityHistory: Array<{ timestamp: Date; equity: number }>;
   logs: Array<{ timestamp: Date; level: "info" | "action" | "warning" | "error"; message: string }>;
   decisionSource: "llm" | "heuristic" | null;

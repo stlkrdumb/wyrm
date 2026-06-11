@@ -7,7 +7,7 @@ import { getLivePrice } from "./price-fetcher.service";
 import { executeTrades } from "./order-executor.service";
 import { priceStore } from "./price-store";
 import { evaluateMultiPair, type MultiPairResult } from "./decision-engine.service";
-import { runScreening } from "./screening.service";
+import { refreshWatchlist } from "./screening.service";
 import { getActiveModel } from "./llm.service";
 import { riskManager } from "./risk-manager.service";
 import { historyService } from "./history-service";
@@ -90,6 +90,7 @@ function buildInitialState(): AgentState {
     peakEquity: peakEq,
     modelName: process.env.LLM_MODEL || "qwen3.6-plus",
     watchlist: positions.map(p => p.symbol),
+    lastWatchlistRefresh: null,
     equityHistory: [],
     logs: [],
     decisionSource: null,
@@ -168,34 +169,28 @@ export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ ticker
   st.lastCycleAt = new Date();
   pushLog("info", "Cycle started — scanning market...");
 
-  // Stage 1: Screen the wider market for trade candidates (skip when at max positions)
-  let screenSelected: string[] = [];
-  if (st.positions.length < config.maxActivePositions) {
-    const screenResult = await runScreening(st.positions);
-    if (isStopped()) { console.warn("[Agent] Stop requested during screening — aborting cycle"); return { tickerPrice: 0, tickers: {} }; }
-    screenSelected = screenResult.selected;
-    if (screenSelected.length > 0) {
-      console.log(`[Agent] Screening selected: ${screenSelected.join(", ")} — ${screenResult.reason}`);
-      pushLog("info", `Screening: ${screenSelected.join(", ")} — ${screenResult.reason}`);
-    }
-  } else {
-    console.log(`[Agent] Max positions (${config.maxActivePositions}) — skipping screening`);
+  // Stage 1: Refresh watchlist pool (top volume / reversal candidates)
+  const now = Date.now();
+  const WATCHLIST_REFRESH_MS = Number(process.env.WATCHLIST_REFRESH_MS) || 300_000;
+  const positionSymbols = st.positions.map(p => p.symbol);
+
+  if (!st.lastWatchlistRefresh || now - st.lastWatchlistRefresh > WATCHLIST_REFRESH_MS) {
+    st.watchlist = await refreshWatchlist(positionSymbols);
+    st.lastWatchlistRefresh = now;
+    if (isStopped()) { console.warn("[Agent] Stop requested during watchlist refresh — aborting cycle"); return { tickerPrice: 0, tickers: {} }; }
   }
 
-  // Always include existing positions + screening picks
-  const positionSymbols = st.positions.map(p => p.symbol);
-  const targetSymbols = [...new Set([...positionSymbols, ...screenSelected])];
-
+  const targetSymbols = st.watchlist;
   if (targetSymbols.length === 0) {
-    console.warn("[Agent] No positions and screening picked nothing — skipping cycle");
+    console.warn("[Agent] Watchlist empty — skipping cycle");
     return { tickerPrice: 0, tickers: {} };
   }
 
-  // Fetch prices for target symbols
+  // Fetch prices for all watchlist symbols (parallel)
   const prices = new Map<string, TickerData>();
-  for (const symbol of targetSymbols) {
-    const t = await getLivePrice(symbol);
-    if (t && t.lastPrice > 0) prices.set(symbol, t);
+  const priceResults = await Promise.all(targetSymbols.map(s => getLivePrice(s)));
+  for (const t of priceResults) {
+    if (t && t.lastPrice > 0) prices.set(t.symbol, t);
   }
 
   if (prices.size === 0) { console.warn("[Agent] No price data — skipping cycle"); return { tickerPrice: 0, tickers: {} }; }
@@ -250,17 +245,11 @@ export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ ticker
   if (isStopped()) { console.warn("[Agent] Stop requested before trade execution — aborting cycle"); return { tickerPrice: 0, tickers: {} }; }
   executeTrades(st, validated, prices, displayTicker);
 
-  // Sync watchlist: keep position symbols + add freshly screened picks
+  // Sync watchlist: ensure all position symbols are present
   const posSyms = new Set(st.positions.map(p => p.symbol));
-  const kept = st.watchlist.filter(s => posSyms.has(s));
-  // Ensure all position symbols are present even if added this cycle
   for (const sym of posSyms) {
-    if (!kept.includes(sym)) kept.push(sym);
+    if (!st.watchlist.includes(sym)) st.watchlist.push(sym);
   }
-  for (const s of screenSelected) {
-    if (!posSyms.has(s) && !kept.includes(s)) kept.push(s);
-  }
-  st.watchlist = kept;
 
   // Record equity snapshot for chart history
   recalcEquity(st);

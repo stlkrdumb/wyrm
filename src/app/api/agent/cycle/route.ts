@@ -25,7 +25,7 @@ export async function POST() {
     console.log(`[API] POST /api/agent/cycle — MODEL=${process.env.LLM_MODEL} API_KEY=${process.env.OPENAI_API_KEY ? 'configured' : 'MISSING'}`);
 
     const result = await runAgentCycle();
-    marketWS.syncSubscriptionsForPositions();
+    marketWS.syncSubscriptionsForPositions(getAgentState().watchlist);
 
     const allSnapshots = priceStore.getAll();
     const tickersMap: Record<string, any> = {};
@@ -204,7 +204,7 @@ export async function PUT(request: NextRequest) {
       if (getAgentState().status === "running") {
         try {
           const cycleResult = await runAgentCycle();
-          marketWS.syncSubscriptionsForPositions();
+          marketWS.syncSubscriptionsForPositions(getAgentState().watchlist);
           console.log("[AGENT CYCLE] Cycle done — ticker:", cycleResult.tickerPrice,
             "signals:", getAgentState().signals.length);
         } catch (err) {
