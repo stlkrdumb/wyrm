@@ -139,11 +139,17 @@ export async function GET(request: NextRequest) {
   }
 
   // Recalculate equity live from positions × cached prices + pending buy orders
-  const liveEquity = currentState.portfolio.cash +
-    livePositions.reduce((sum, p) => sum + p.size * p.entryPrice + p.unrealizedPnL, 0) +
-    currentState.pendingOrders
-      .filter(o => o.side === "buy")
-      .reduce((sum, o) => sum + o.size * o.limitPrice, 0);
+  const positionEquity = livePositions.reduce((sum, p) => sum + p.size * p.entryPrice + p.unrealizedPnL, 0);
+  const pendingBuyEquity = currentState.pendingOrders
+    .filter(o => o.side === "buy")
+    .reduce((sum, o) => sum + o.size * o.limitPrice, 0);
+  const liveEquity = currentState.portfolio.cash + positionEquity + pendingBuyEquity;
+
+  // Diagnostic breakdown when totalPnL looks suspicious
+  const computedPnL = liveEquity - currentState.startEquity;
+  if (Math.abs(computedPnL) > currentState.portfolio.cash * 0.02) {
+    console.log(`[API] equity debug — cash: $${currentState.portfolio.cash.toFixed(2)} | positions: $${positionEquity.toFixed(2)} | pendingBuys: $${pendingBuyEquity.toFixed(2)} | startEq: $${currentState.startEquity.toFixed(2)} => totalPnL: $${computedPnL.toFixed(2)}`);
+  }
 
   return NextResponse.json({
     status: currentState.status,
@@ -168,7 +174,7 @@ export async function GET(request: NextRequest) {
       initialCash: currentState.portfolio.initialCash,
       totalTrades: currentState.portfolio.totalTrades,
       winRate: currentState.portfolio.winRate,
-      totalPnL: liveEquity - currentState.startEquity,
+      totalPnL: computedPnL,
     },
     positions: livePositions,
     pendingOrders: livePendingOrders,

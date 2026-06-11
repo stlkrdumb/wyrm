@@ -100,19 +100,24 @@ function buildInitialState(): AgentState {
 
 /** Recalculate portfolio equity from live positions */
 function recalcEquity(st: AgentState): void {
-  let totalPosVal = 0;
+  let posVal = 0;
   for (const p of st.positions) {
     const symSnap = priceStore.getCached(p.symbol);
-    if (!symSnap) { totalPosVal += p.size * p.entryPrice; continue; }
-    totalPosVal += p.size * symSnap.lastPrice;
+    if (!symSnap) { posVal += p.size * p.entryPrice; continue; }
+    posVal += p.size * symSnap.lastPrice;
   }
-  // Count pending buy orders as assets (valued at limit price)
+  let pendingVal = 0;
   for (const o of st.pendingOrders) {
     if (o.side === "buy") {
-      totalPosVal += o.size * o.limitPrice;
+      pendingVal += o.size * o.limitPrice;
     }
   }
-  st.portfolio = { ...st.portfolio, equity: st.portfolio.cash + totalPosVal };
+  const newEquity = st.portfolio.cash + posVal + pendingVal;
+  const newPnL = newEquity - st.startEquity;
+  if (Math.abs(newPnL) > st.portfolio.cash * 0.02) {
+    console.log(`[recalcEquity] cash: $${st.portfolio.cash.toFixed(2)} | positions: $${posVal.toFixed(2)} | pendingBuys: $${pendingVal.toFixed(2)} | startEq: $${st.startEquity.toFixed(2)} => equity: $${newEquity.toFixed(2)} / PnL: $${newPnL.toFixed(2)}`);
+  }
+  st.portfolio = { ...st.portfolio, equity: newEquity };
 }
 
 /** Called by market-ws.service.ts when a ticker update arrives */
