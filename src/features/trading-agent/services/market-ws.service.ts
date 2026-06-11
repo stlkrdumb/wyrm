@@ -24,29 +24,56 @@ export class MarketWebSocketService {
   private maxReconnectDelay = 30_000;
   private baseReconnectDelay = 1_000;
   private proxyIndex = 0;
-  private agentCycleTimer: ReturnType<typeof setInterval> | null = null;
+  private cycleTimer: ReturnType<typeof setTimeout> | null = null;
+  private cycleInFlight = false;
   private agentCycleHandler: (() => Promise<void>) | null = null;
   private restFallbackTimer: ReturnType<typeof setInterval> | null = null;
 
   setAgentCycleHandler(handler: () => Promise<void>) {
     this.agentCycleHandler = handler;
-    if (!this.agentCycleTimer) {
-      this.agentCycleTimer = setInterval(async () => {
-        if (this.agentCycleHandler) {
-          await this.agentCycleHandler();
-        }
-      }, Number(process.env.AGENT_CYCLE_INTERVAL_MS) || 60_000);
-      console.log("[WS] Agent cycle timer started (every 60s)");
+    if (!this.cycleTimer) {
+      const warmupMs = 20_000;
+      const intervalMs = Number(process.env.AGENT_CYCLE_INTERVAL_MS) || 60_000;
+      console.log(`[WS] Agent cycle timer started (warmup ${warmupMs / 1000}s, every ${(intervalMs / 1000).toFixed(0)}s)`);
+      this.scheduleNextCycle(warmupMs);
     }
   }
 
   stopAgentCycles() {
-    if (this.agentCycleTimer) {
-      clearInterval(this.agentCycleTimer);
-      this.agentCycleTimer = null;
-      this.agentCycleHandler = null;
-      console.log("[WS] Agent cycle timer stopped");
+    if (this.cycleTimer) {
+      clearTimeout(this.cycleTimer);
+      this.cycleTimer = null;
     }
+    this.cycleInFlight = false;
+    this.agentCycleHandler = null;
+    console.log("[WS] Agent cycle timer stopped");
+  }
+
+  private scheduleNextCycle(delayMs: number) {
+    this.cycleTimer = setTimeout(() => {
+      this.runCycle();
+    }, delayMs);
+  }
+
+  private async runCycle() {
+    if (this.cycleInFlight) {
+      console.warn("[WS] Cycle still in flight — skipping this tick");
+      return;
+    }
+    if (!this.agentCycleHandler) return;
+
+    const startTime = Date.now();
+    this.cycleInFlight = true;
+    try {
+      await this.agentCycleHandler();
+    } finally {
+      this.cycleInFlight = false;
+    }
+
+    const elapsed = Date.now() - startTime;
+    const intervalMs = Number(process.env.AGENT_CYCLE_INTERVAL_MS) || 60_000;
+    const nextDelay = Math.max(100, intervalMs - elapsed);
+    this.scheduleNextCycle(nextDelay);
   }
 
 

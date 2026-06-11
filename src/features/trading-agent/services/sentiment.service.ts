@@ -16,7 +16,7 @@ export interface SentimentSnapshot {
 
 class SentimentService {
   private cache = new Map<string, SentimentSnapshot>();
-  private cacheDurationMs = 5 * 60 * 1000; // 5 minutes cache
+  private cacheDurationMs = (Number(process.env.SENTIMENT_CACHE_TTL_MINUTES) || 120) * 60 * 1000;
   private supportedSymbols = new Set(["BTCUSDT", "ETHUSDT"]);
 
   public async getSentiment(symbol: string): Promise<SentimentSnapshot> {

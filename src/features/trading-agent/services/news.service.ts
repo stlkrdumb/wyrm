@@ -45,7 +45,7 @@ const DEFAULT_NEWS: NewsArticle[] = [
 class NewsService {
   private cachedNews: NewsArticle[] = [];
   private lastFetchTime = 0;
-  private cacheDurationMs = 5 * 60 * 1000; // 5 minutes cache
+  private cacheDurationMs = (Number(process.env.NEWS_CACHE_TTL_MINUTES) || 30) * 60 * 1000;
 
   public async getLatestNews(limit = 10): Promise<NewsArticle[]> {
     if (this.cachedNews.length > 0 && Date.now() - this.lastFetchTime < this.cacheDurationMs) {

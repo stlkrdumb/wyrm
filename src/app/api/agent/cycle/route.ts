@@ -199,31 +199,19 @@ export async function PUT(request: NextRequest) {
     // Initialize WS and start auto-cycling interval
     await marketWS.initialize();
     
-    // Register the cycle handler for the periodic interval
+    // Register the cycle handler (first cycle fires after 20s warmup, then at interval)
     marketWS.setAgentCycleHandler(async () => {
       if (getAgentState().status === "running") {
         try {
-          const initResult = await runAgentCycle();
+          const cycleResult = await runAgentCycle();
           marketWS.syncSubscriptionsForPositions();
-          console.log("[AGENT CYCLE] LLM analysis done — ticker price:", initResult.tickerPrice,
+          console.log("[AGENT CYCLE] Cycle done — ticker:", cycleResult.tickerPrice,
             "signals:", getAgentState().signals.length);
         } catch (err) {
           console.error("[AGENT CYCLE] Cycle failed:", err instanceof Error ? err.message : String(err));
         }
       }
     });
-    
-    // Warmup delay before first cycle — let WS data settle
-    console.log("[AGENT CYCLE] Warming up — first cycle in 20s");
-    setTimeout(async () => {
-      if (getAgentState().status !== "running") {
-        console.log("[AGENT CYCLE] Warmup aborted — agent no longer running");
-        return;
-      }
-      const initResult = await runAgentCycle();
-      marketWS.syncSubscriptionsForPositions();
-      console.log("[PUT /api/agent/cycle] Agent started — initial cycle done, ticker price:", initResult.tickerPrice);
-    }, 20_000);
   } else {
     // Stop auto-cycling for stopped/paused states
     marketWS.stopAgentCycles();
