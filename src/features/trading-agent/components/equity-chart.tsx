@@ -4,19 +4,15 @@ import { useMemo, useState, useEffect, useRef } from "react";
 import {
   createChart,
   AreaSeries,
-  createSeriesMarkers,
   type IChartApi,
   type ISeriesApi,
   type Time,
   type AreaData,
-  type SeriesMarker,
-  type SeriesMarkerPosition,
-  type SeriesMarkerShape,
 } from "lightweight-charts";
 import { Card, CardHeader, CardTitle, CardContent } from "@/shared/ui";
 import { useAnimatedNumber } from "@/features/trading-agent/hooks/use-animated-number";
 import { useLiveStream } from "@/features/trading-agent/hooks/use-live-stream";
-import type { PortfolioData, TradeData } from "@/features/trading-agent/hooks/use-agent";
+import type { PortfolioData } from "@/features/trading-agent/hooks/use-agent";
 
 const DEFAULT_INITIAL_CASH = 1000;
 
@@ -35,7 +31,6 @@ interface Props {
   portfolio: PortfolioData;
   equityCurve?: { timestamp: Date | string; equity: number }[];
   equityHistory?: { timestamp: string; equity: number }[];
-  trades?: TradeData[];
 }
 
 interface ChartPoint {
@@ -73,47 +68,13 @@ function filterByTimeframe(equityHistory: { timestamp: string; equity: number }[
     .sort((a, b) => (a.time as number) - (b.time as number));
 }
 
-function buildMarkers(equityHistory: ChartPoint[], trades: TradeData[] | undefined): SeriesMarker<Time>[] {
-  if (!trades || trades.length === 0 || equityHistory.length === 0) return [];
-
-  // Use binary search to find closest equity point to a trade timestamp
-  const findClosestIdx = (ts: number): number => {
-    let lo = 0, hi = equityHistory.length - 1;
-    while (lo < hi) {
-      const mid = (lo + hi) >> 1;
-      if ((equityHistory[mid].time as number) < ts) lo = mid + 1;
-      else hi = mid;
-    }
-    return lo;
-  };
-
-  return trades
-    .slice(-20)
-    .map(t => {
-      const tradeTime = Math.floor(new Date(t.timestamp).getTime() / 1000);
-      const idx = findClosestIdx(tradeTime);
-      const isEntry = t.action === "entry" || t.action === "add";
-      const position: SeriesMarkerPosition = isEntry ? "belowBar" : "aboveBar";
-      const shape: SeriesMarkerShape = isEntry ? "arrowUp" : "arrowDown";
-      return {
-        time: equityHistory[idx]?.time ?? (tradeTime as Time),
-        position,
-        color: isEntry ? "#10b981" : "#f43f5e",
-        shape,
-        text: `${t.action.toUpperCase()} ${t.symbol}`,
-      } as SeriesMarker<Time>;
-    })
-    .filter(m => equityHistory.some(p => p.time === m.time));
-}
-
-export function EquityChart({ portfolio, equityCurve, equityHistory, trades }: Props) {
+export function EquityChart({ portfolio, equityCurve, equityHistory }: Props) {
   const [mounted, setMounted] = useState(false);
   const [timeframe, setTimeframe] = useState<TimeframeKey>("1h");
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Area"> | null>(null);
-  const markersPluginRef = useRef<ReturnType<typeof createSeriesMarkers<Time>> | null>(null);
 
   const liveStream = useLiveStream();
 
@@ -136,9 +97,6 @@ export function EquityChart({ portfolio, equityCurve, equityHistory, trades }: P
       { time: Math.floor(Date.now() / 1000) + 1 as Time, value: initialCash },
     ];
   }, [equityCurve, equityHistory, timeframe, initialCash]);
-
-  // Markers are derived from trades + chart data
-  const markers = useMemo(() => buildMarkers(chartData, trades), [chartData, trades]);
 
   // Equity color: green when profitable, red when in loss
   const isProfit = portfolio.totalPnL >= 0;
@@ -196,10 +154,8 @@ export function EquityChart({ portfolio, equityCurve, equityHistory, trades }: P
       priceFormat: { type: "price", precision: 2, minMove: 0.01 },
     });
     seriesRef.current = series;
-    markersPluginRef.current = createSeriesMarkers(series, []);
 
     return () => {
-      markersPluginRef.current = null;
       seriesRef.current = null;
       chartRef.current = null;
       chart.remove();
@@ -224,12 +180,6 @@ export function EquityChart({ portfolio, equityCurve, equityHistory, trades }: P
     seriesRef.current.setData(areaData);
     chartRef.current?.timeScale().fitContent();
   }, [chartData]);
-
-  // Update markers when trade markers or chart data change
-  useEffect(() => {
-    if (!markersPluginRef.current) return;
-    markersPluginRef.current.setMarkers(markers);
-  }, [markers]);
 
   return (
     <Card>

@@ -67,7 +67,6 @@ export function Dashboard() {
           <EquityChart
             portfolio={agent.state.portfolio}
             equityHistory={agent.state.equityHistory}
-            trades={agent.state.trades}
           />
           <div className="flex-1 min-h-0">
             <PositionsPanel 
