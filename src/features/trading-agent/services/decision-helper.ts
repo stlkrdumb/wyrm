@@ -130,17 +130,35 @@ export function parseSingleResponse(response: string): { decision: TradingDecisi
 
 /** Attempt to repair common LLM JSON mistakes before parsing */
 function repairJSON(raw: string): string {
-  // Remove trailing commas before } or ]
-  let cleaned = raw.replace(/,(\s*[}\]])/g, "$1");
+  let cleaned = raw;
+
   // Remove comments (// and /* */)
   cleaned = cleaned.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
+  // Remove trailing commas before } or ]
+  cleaned = cleaned.replace(/,(\s*[}\]])/g, "$1");
+  // Replace bare Python/JS literals
+  cleaned = cleaned.replace(/\b(None|undefined)\b/g, "null");
+  cleaned = cleaned.replace(/\bTrue\b/g, "true");
+  cleaned = cleaned.replace(/\bFalse\b/g, "false");
+  // Fix trailing decimal dot (e.g. 1. → 1.0)
+  cleaned = cleaned.replace(/\.(?=\s*[,\}\]])/g, ".0");
+  // Strip unescaped control characters from JSON
+  cleaned = cleaned.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
   // Replace single-quoted strings with double-quoted strings
   cleaned = cleaned.replace(/'([^'\\]*(?:\\.[^'\\]*)*)'/g, '"$1"');
   // Wrap unquoted keys (word before colon, not already quoted)
   cleaned = cleaned.replace(/([{,]\s*)(\w+)(\s*:)/g, '$1"$2"$3');
-  // Insert missing commas between properties at newlines — } or ] followed by newline+quote
+  // Insert missing commas between properties at newlines
   cleaned = cleaned.replace(/}\s*\n(\s*)"/g, '},\n$1"');
   cleaned = cleaned.replace(/]\s*\n(\s*)"/g, '],\n$1"');
+  // Close unbalanced braces (handle truncated LLM output)
+  const openBraces = (cleaned.match(/\{/g) || []).length;
+  const closeBraces = (cleaned.match(/\}/g) || []).length;
+  cleaned += "}".repeat(Math.max(0, openBraces - closeBraces));
+  const openBrackets = (cleaned.match(/\[/g) || []).length;
+  const closeBrackets = (cleaned.match(/\]/g) || []).length;
+  cleaned += "]".repeat(Math.max(0, openBrackets - closeBrackets));
+
   return cleaned;
 }
 
@@ -159,9 +177,19 @@ export function parseMultiResponse(
   let parsed: Record<string, any>;
   try {
     parsed = JSON.parse(cleaned);
-  } catch (parseErr) {
-    console.error(`[DecisionHelper] JSON parse error — raw:\n${jsonMatch[0].slice(0, 2000)}`);
-    throw parseErr;
+  } catch (_firstErr) {
+    // Second pass: aggressive repair for stubborn LLM output patterns
+    let aggressive = cleaned
+      .replace(/[^\x20-\x7E{}[\],:.\-0-9a-zA-Z_" \n\r\t]/g, "")
+      .replace(/:\s*"[^"]*$/m, ': ""')
+      .replace(/:\s*[0-9.]*\s*$/m, ": 0");
+    aggressive = repairJSON(aggressive);
+    try {
+      parsed = JSON.parse(aggressive);
+    } catch (_secondErr) {
+      console.error(`[DecisionHelper] JSON parse error — raw:\n${jsonMatch[0].slice(0, 2000)}`);
+      throw _firstErr;
+    }
   }
   const decisions: Record<string, TradingDecision> = {};
   const allSignals: Signal[] = [];

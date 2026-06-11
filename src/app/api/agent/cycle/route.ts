@@ -151,7 +151,7 @@ export async function GET(request: NextRequest) {
       initialCash: currentState.portfolio.initialCash,
       totalTrades: currentState.portfolio.totalTrades,
       winRate: currentState.portfolio.winRate,
-      totalPnL: currentState.portfolio.totalPnL,
+      totalPnL: liveEquity - currentState.startEquity,
     },
     positions: livePositions,
     trades: currentState.trades.map((t) => ({
@@ -169,6 +169,10 @@ export async function GET(request: NextRequest) {
       timestamp: l.timestamp instanceof Date ? l.timestamp.toISOString() : l.timestamp,
       level: l.level,
       message: l.message,
+    })),
+    equityHistory: (currentState.equityHistory || []).map(e => ({
+      timestamp: e.timestamp instanceof Date ? e.timestamp.toISOString() : e.timestamp,
+      equity: e.equity,
     })),
   });
 }

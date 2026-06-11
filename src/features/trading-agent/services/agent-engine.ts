@@ -302,7 +302,7 @@ export async function setAgentStatus(s: "running" | "stopped" | "paused"): Promi
       totalPnlRealized += pnl; closedCount++;
     }
     st.positions = [];
-    st.portfolio.totalPnL += totalPnlRealized;
+    st.portfolio.totalPnL = st.portfolio.cash - st.startEquity;
     st.portfolio.equity = st.portfolio.cash;
       st.watchlist = [];
       saveBalanceState({

@@ -72,6 +72,8 @@ export function Watchlist({ tickers, watchlist }: Props) {
     .map(sym => [sym, tickers?.[sym] ?? null] as const)
     .filter(([, t]) => t !== null) as [string, TickerData][];
 
+  const showMarquee = entries.length > 6;
+
   return (
     <div className="flex flex-col gap-1.5 overflow-hidden">
       <div className="flex items-center justify-between px-2 flex-shrink-0">
@@ -81,10 +83,24 @@ export function Watchlist({ tickers, watchlist }: Props) {
           Live WebSocket
         </span>
       </div>
-      <div className="flex flex-wrap gap-2 border border-obsidian-border bg-obsidian-light/40 rounded py-2.5 px-3">
-        {entries.map(([symbol, ticker]) => (
-          <TickerItem key={symbol} symbol={symbol} ticker={ticker} />
-        ))}
+      <div className="border border-obsidian-border bg-obsidian-light/40 rounded py-2.5 px-3">
+        {showMarquee ? (
+          <div className="overflow-hidden">
+            <div className="flex flex-nowrap gap-2 animate-marquee">
+              {[...entries, ...entries].map(([symbol, ticker], i) => (
+                <div key={`${symbol}-${i}`} className="flex-shrink-0">
+                  <TickerItem symbol={symbol} ticker={ticker} />
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {entries.map(([symbol, ticker]) => (
+              <TickerItem key={symbol} symbol={symbol} ticker={ticker} />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
