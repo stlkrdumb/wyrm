@@ -121,9 +121,17 @@ export class MarketWebSocketService {
   }
 
   async subscribe(channels: WSSubscription[]): Promise<void> {
-    // Compute the diff so we can send unsubscribes for removed channels
+    // Compute the diff: only subscribe to NEW channels, only unsubscribe from REMOVED ones.
+    // Once a symbol is subscribed and the WS connection stays alive (kept by ping every 30s),
+    // the server keeps pushing ticks. Re-subscribing the same symbol every cycle is wasteful.
     const newKeys = new Set(channels.map(c => `${c.channel}:${c.instId}`));
+    const oldKeys = new Set(this.subscriptions.map(c => `${c.channel}:${c.instId}`));
+
     const removed = this.subscriptions.filter(c => !newKeys.has(`${c.channel}:${c.instId}`));
+    const added = channels.filter(c => !oldKeys.has(`${c.channel}:${c.instId}`));
+
+    // No-op when the subscription set is unchanged
+    if (added.length === 0 && removed.length === 0) return;
 
     this.subscriptions = channels;
     console.log(`[WS] Subscribing to ${channels.length} channel(s):`, channels.map(c => `${c.instType}/${c.channel}/${c.instId}`).join(", "));
@@ -132,7 +140,7 @@ export class MarketWebSocketService {
       await this.connect();
     } else if (this.ws.readyState === WSClient.OPEN) {
       if (removed.length > 0) this.sendUnsubscribe(removed);
-      this.sendSubscribe(channels);
+      if (added.length > 0) this.sendSubscribe(added);
     } else {
       // CONNECTING or CLOSING — subscriptions are stored; the 'open' handler will re-send them.
       console.warn(`[WS] subscribe() called while socket is ${this.ws.readyState === WSClient.CONNECTING ? "connecting" : "closing"} — queued for open`);
