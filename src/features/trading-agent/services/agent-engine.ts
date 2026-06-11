@@ -136,7 +136,7 @@ export function updatePositionUnrealizedPnL(symbol: string, currentPrice: number
     const tc = getTradeCounter() + 1;
     setTradeCounter(tc);
 
-    st.trades.push({ id: `T${tc}`, timestamp: new Date(), symbol, side: "sell", action: "exit", size: pos.size, price: currentPrice, pnl });
+    st.trades.push({ id: `T${tc}`, timestamp: new Date(), symbol, side: "sell", action: "exit", size: pos.size, price: currentPrice, pnl, fee: exitFee });
     st.portfolio.cash += currentPrice * pos.size - (currentPrice * pos.size) * config.feePct;
     st.positions.splice(idx, 1);
     st.watchlist = st.watchlist.filter(s => s !== symbol);
@@ -307,7 +307,7 @@ export async function setAgentStatus(s: "running" | "stopped" | "paused"): Promi
       const fee = revenue * config.feePct;
       const pnl = (currentPrice - p.entryPrice) * p.size - fee;
       const tc = getTradeCounter() + 1; setTradeCounter(tc);
-      st.trades.push({ id: `T${tc}`, timestamp: new Date(), symbol: p.symbol, side: "sell", action: "exit", size: p.size, price: currentPrice, pnl });
+      st.trades.push({ id: `T${tc}`, timestamp: new Date(), symbol: p.symbol, side: "sell", action: "exit", size: p.size, price: currentPrice, pnl, fee });
       st.portfolio.cash += revenue - fee;
       totalPnlRealized += pnl; closedCount++;
     }

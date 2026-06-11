@@ -27,6 +27,7 @@ export interface TradeData {
   size: number;
   price: number;
   pnl: number | null;
+  fee?: number;
 }
 
 export interface PositionData { symbol: string; side: "long" | "short"; size: number; entryPrice: number; unrealizedPnL: number; stopLossPct: number; takeProfitPct: number; }

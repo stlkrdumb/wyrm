@@ -64,7 +64,7 @@ function fillOrder(state: AgentState, orderIdx: number, order: typeof state.pend
     }
 
     state.portfolio.cash -= totalCost;
-    state.trades.push({ id: `T${tc}`, timestamp: now, symbol: order.symbol, side: "buy", action: idx >= 0 ? "add" : "entry", size: order.size, price: fillPrice });
+    state.trades.push({ id: `T${tc}`, timestamp: now, symbol: order.symbol, side: "buy", action: idx >= 0 ? "add" : "entry", size: order.size, price: fillPrice, fee });
 
     pushEvent(state, "action", `${order.symbol}: LIMIT BUY filled @ $${fillPrice.toFixed(2)}`);
     console.log(`[PendingOrder] ${order.symbol}: LIMIT BUY filled @ $${fillPrice.toFixed(2)} (limit: $${order.limitPrice.toFixed(2)})`);
@@ -87,10 +87,10 @@ function fillOrder(state: AgentState, orderIdx: number, order: typeof state.pend
     if (order.size >= pos.size) {
       state.positions.splice(idx, 1);
       state.watchlist = state.watchlist.filter(s => s !== order.symbol);
-      state.trades.push({ id: `T${tc}`, timestamp: now, symbol: order.symbol, side: "sell", action: "exit", size: pos.size, price: fillPrice, pnl });
+      state.trades.push({ id: `T${tc}`, timestamp: now, symbol: order.symbol, side: "sell", action: "exit", size: pos.size, price: fillPrice, pnl, fee });
     } else {
       state.positions[idx] = { ...pos, size: pos.size - order.size };
-      state.trades.push({ id: `T${tc}`, timestamp: now, symbol: order.symbol, side: "sell", action: "reduce", size: order.size, price: fillPrice, pnl });
+      state.trades.push({ id: `T${tc}`, timestamp: now, symbol: order.symbol, side: "sell", action: "reduce", size: order.size, price: fillPrice, pnl, fee });
     }
 
     state.portfolio.cash += revenue - fee;

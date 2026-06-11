@@ -43,6 +43,7 @@ export interface Trade {
   size: number;
   price: number;
   pnl?: number;
+  fee?: number;
 }
 
 export interface TradingDecision {

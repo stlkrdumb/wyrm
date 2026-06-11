@@ -7,9 +7,9 @@ import type { TradeData, PortfolioData } from "@/features/trading-agent/hooks/us
 function formatTime(ts: string): string {
   try {
     const d = new Date(ts);
-    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   } catch {
-    return "--:--:--";
+    return "--:--";
   }
 }
 
@@ -35,11 +35,12 @@ export const TradeLog = memo(function TradeLog({ trades, portfolio, isTabMode }:
           <table className="data-table">
             <thead>
               <tr>
-                <th className="text-left w-16">Time</th>
+                <th className="text-left w-14">Time</th>
                 <th className="text-left w-14">Type</th>
                 <th className="text-left">Symbol</th>
                 <th className="text-right w-20">Size</th>
                 <th className="text-right w-24">Price</th>
+                <th className="text-right w-18">Fee</th>
                 <th className="text-right w-20">PnL</th>
               </tr>
             </thead>
@@ -57,6 +58,7 @@ export const TradeLog = memo(function TradeLog({ trades, portfolio, isTabMode }:
                     <td className="font-bold text-zinc-100 text-[11px]">{t.symbol}</td>
                     <td className="text-right tabular-nums text-zinc-500">{t.size.toFixed(4)}</td>
                     <td className="text-right tabular-nums text-zinc-400">${t.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                    <td className="text-right tabular-nums text-zinc-600">${(t.fee ?? 0).toFixed(2)}</td>
                     <td className={`text-right tabular-nums font-bold ${hasPnl ? (t.pnl! >= 0 ? "text-emerald-400" : "text-rose-400") : "text-zinc-600"}`}>
                       {hasPnl ? `${t.pnl! >= 0 ? "+" : "-"}$${Math.abs(t.pnl!).toFixed(2)}` : "—"}
                     </td>
