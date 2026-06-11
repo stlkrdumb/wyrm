@@ -147,25 +147,7 @@ export function executeTrades(
         }
       }
 
-      // Check for mergeable order first before cancelling
-      const existing = state.pendingOrders.find(
-        o => o.symbol === symbol && o.side === decision.action && o.limitPrice === decision.limitPrice
-      );
-      if (existing) {
-        existing.size += tradeSize;
-        existing.reservedCash += reservedCash;
-        if (decision.action === "buy") {
-          liquidBalance -= reservedCash;
-          state.portfolio.cash -= reservedCash;
-        }
-        const mergeMsg = `${symbol}: LIMIT ${decision.action.toUpperCase()} @ $${decision.limitPrice.toFixed(2)} — merged +${tradeSize.toFixed(4)} (total: ${existing.size.toFixed(4)})`;
-        state.logs.push({ timestamp: new Date(), level: "action", message: mergeMsg });
-        console.log(`[Agent] ${mergeMsg}`);
-        state.portfolio.totalTrades++;
-        continue;
-      }
-
-      // Cancel any existing pending order for this symbol (swap old for new)
+      // Cancel any existing pending order for this symbol (replace with new)
       cancelPendingOrder(state, symbol);
 
       // Create new pending order
