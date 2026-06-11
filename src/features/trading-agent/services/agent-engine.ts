@@ -127,7 +127,8 @@ export function updatePositionUnrealizedPnL(symbol: string, currentPrice: number
     const reason = isStopLoss ? "Stop Loss" : "Take Profit";
     console.log(`[Auto-Bracket] ${symbol} exit: ${reason} ($${currentPrice.toLocaleString()}/entry $${pos.entryPrice.toLocaleString()})`);
 
-    const pnl = unrealizedPnL;
+    const exitFee = currentPrice * pos.size * config.feePct;
+    const pnl = unrealizedPnL - exitFee;
     const tc = getTradeCounter() + 1;
     setTradeCounter(tc);
 
@@ -135,7 +136,7 @@ export function updatePositionUnrealizedPnL(symbol: string, currentPrice: number
     st.portfolio.cash += currentPrice * pos.size - (currentPrice * pos.size) * config.feePct;
     st.positions.splice(idx, 1);
     st.watchlist = st.watchlist.filter(s => s !== symbol);
-    st.portfolio.totalPnL += pnl;
+    st.portfolio.totalPnL = st.portfolio.cash - st.startEquity;
     st.portfolio.totalTrades++;
 
     recalcEquity(st);
