@@ -54,7 +54,7 @@ export function Dashboard() {
       <StatusHeader agent={agent} />
 
       {/* Watchlist */}
-      <div className="relative z-10 px-6 pt-3">
+      <div className="relative z-10 px-4 pt-3">
         <Watchlist tickers={agent.state.tickers} watchlist={agent.state.watchlist} />
       </div>
 
