@@ -69,13 +69,15 @@ export function Dashboard() {
             equityHistory={agent.state.equityHistory}
             trades={agent.state.trades}
           />
-          <div className="flex-1 min-h-0">
-            <PositionsPanel 
-              positions={agent.state.positions} 
-              tickers={agent.state.tickers} 
-            />
+          <div className="flex-1 min-h-0 flex flex-col gap-3">
+            <div className="flex-1 min-h-0">
+              <PositionsPanel 
+                positions={agent.state.positions} 
+                tickers={agent.state.tickers} 
+              />
+            </div>
+            <PendingOrdersPanel pendingOrders={agent.state.pendingOrders} />
           </div>
-          <PendingOrdersPanel pendingOrders={agent.state.pendingOrders} />
         </div>
 
         {/* Center Column: Signals + Logs (span 4) */}
@@ -86,7 +88,7 @@ export function Dashboard() {
             decisionSource={agent.state.decisionSource}
           />
           
-          {agent.state.decision && (agent.state.decision as any).riskStatus === "blocked" && (
+          {agent.state.decision && (agent.state.decision as unknown as { riskStatus: string }).riskStatus === "blocked" && (
             <div className="glass-panel border-rose-500/30 bg-rose-950/20 p-3 text-[11px] text-rose-400 font-mono animate-pulse">
               <span className="font-bold mr-2">RISK ALERT:</span> {agent.state.decision.reason}
             </div>

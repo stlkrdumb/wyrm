@@ -65,7 +65,7 @@ export class BacktestService {
         const timestamp = stepSnapshot.timestamp;
 
         // Populate priceMap and inject candles into priceStore up to this step
-        const priceMap = new Map<string, any>();
+        const priceMap = new Map<string, Record<string, unknown>>();
         for (const symbol of symbols) {
           const symData = historicalData[symbol];
           if (!symData) continue;
@@ -135,7 +135,7 @@ export class BacktestService {
             totalTrades: tradeCount,
             winRate: tradeCount > 0 ? (wins / tradeCount) * 100 : 0,
             totalPnL: startEquity - initialEquity
-          } as any, ticker);
+          } as unknown as import("@/features/trading-agent/types").Portfolio, ticker);
 
           if (validation.isAllowed) {
             const finalDecision = validation.adjustedDecision ?? decision;

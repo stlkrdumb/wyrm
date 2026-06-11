@@ -35,7 +35,7 @@ Respond with ONLY valid JSON:
 }
 
 export function buildMultiPrompt(
-  symbolData: Map<string, { ticker: TickerData; ta5m: any; ta1h: any; ta1d: any; sentiment?: any }>,
+  symbolData: Map<string, { ticker: TickerData; ta5m: Record<string, unknown> | null; ta1h: Record<string, unknown> | null; ta1d: Record<string, unknown> | null; sentiment?: Record<string, unknown> | null }>,
   activePositions: Position[] = [],
   pendingOrders: Array<{ symbol: string; side: "buy" | "sell"; limitPrice: number }> = []
 ): string {
@@ -194,7 +194,7 @@ export function parseMultiResponse(
   }
 
   cleaned = repairJSON(jsonMatch[0]);
-  let parsed: Record<string, any>;
+  let parsed: Record<string, Record<string, unknown>>;
   try {
     parsed = JSON.parse(cleaned);
   } catch (_firstErr) {
@@ -206,7 +206,7 @@ export function parseMultiResponse(
     aggressive = repairJSON(aggressive);
     try {
       parsed = JSON.parse(aggressive);
-    } catch (_secondErr) {
+    } catch (_secondErr) { // eslint-disable-line @typescript-eslint/no-unused-vars
       console.error(`[DecisionHelper] JSON parse error — raw:\n${jsonMatch[0].slice(0, 2000)}`);
       throw _firstErr;
     }
@@ -295,7 +295,7 @@ export function parseScreeningResponse(response: string, validSymbols: Set<strin
   }
 
   cleaned = repairJSON(jsonMatch[0]);
-  let parsed: any;
+  let parsed: Record<string, unknown>;
   try {
     parsed = JSON.parse(cleaned);
   } catch (e) {
@@ -313,7 +313,7 @@ export function parseScreeningResponse(response: string, validSymbols: Set<strin
 }
 
 export function fallbackMultiAnalysis(
-  symbolData: Map<string, { ticker: TickerData; ta5m: any; ta1h: any; ta1d: any }>
+  symbolData: Map<string, { ticker: TickerData; ta5m: Record<string, unknown> | null; ta1h: Record<string, unknown> | null; ta1d: Record<string, unknown> | null }>
 ): { decisions: Record<string, TradingDecision>; allSignals: Signal[] } {
   const decisions: Record<string, TradingDecision> = {};
   const allSignals: Signal[] = [];

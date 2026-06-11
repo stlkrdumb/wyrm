@@ -104,7 +104,7 @@ export function dispatchWsMessage(
   if (arg?.channel === "ticker") {
     for (const entry of dataArr) {
       const snap = parseTicker(entry as WSTickerRaw);
-      if (snap) snapshots.push(snap); else console.error("[WS] Ticker parse failed", (entry as any)?.instId ?? "?");
+      if (snap) snapshots.push(snap); else console.error("[WS] Ticker parse failed", (entry as Record<string, unknown>)?.instId ?? "?");
     }
     if (snapshots.length > 0) onTickers(snapshots);
   } else if (arg?.channel?.startsWith("candle")) {

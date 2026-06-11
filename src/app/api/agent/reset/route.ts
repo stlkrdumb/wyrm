@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { resetBalanceState, type PortfolioState } from "@/features/trading-agent/services/balance-store";
 import { setAgentStatus } from "@/features/trading-agent/services/agent-engine";
 
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) { // eslint-disable-line @typescript-eslint/no-unused-vars
   try {
     const initialCash = Number(process.env.SIM_INITIAL_CASH) || 1000;
 

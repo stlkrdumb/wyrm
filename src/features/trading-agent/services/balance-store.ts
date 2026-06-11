@@ -1,6 +1,5 @@
 /** Persist portfolio state to disk so balance survives server restarts. */
 import fs from "node:fs";
-import type { PendingOrder } from "@/features/trading-agent/types";
 import path from "node:path";
 
 const STORE_PATH = path.join(

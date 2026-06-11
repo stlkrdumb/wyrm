@@ -130,7 +130,7 @@ export class MarketWebSocketService {
           console.warn("[WS] Socket error:", err.message);
         });
 
-        ws.on("close", (code, reason) => {
+        ws.on("close", (code, _reason) => { // eslint-disable-line @typescript-eslint/no-unused-vars
           this.ws = null;
           this.clearPingTimer();
           if (code !== 1000) {

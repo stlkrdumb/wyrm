@@ -105,8 +105,9 @@ class NewsService {
       } else {
         console.warn(`[NewsService] Google News RSS returned non-ok status: ${res.status}`);
       }
-    } catch (err: any) {
-      console.warn("[NewsService] Failed to fetch live RSS news, using fallback news feed:", err?.message || err);
+    } catch (err: unknown) {
+      const error = err as Error & { message?: string };
+      console.warn("[NewsService] Failed to fetch live RSS news, using fallback news feed:", error?.message || err);
     }
 
     // Fallback if network fails
@@ -125,7 +126,7 @@ class NewsService {
       return news
         .map((art, idx) => `${idx + 1}. Title: ${art.title} (Sentiment: ${art.sentiment})`)
         .join("\n");
-    } catch (err) {
+    } catch (_err) { // eslint-disable-line @typescript-eslint/no-unused-vars
       return "No recent news available.";
     }
   }

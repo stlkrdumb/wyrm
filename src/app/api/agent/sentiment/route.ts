@@ -39,7 +39,8 @@ export async function GET(request: Request) {
       data: results,
       timestamp: new Date().toISOString(),
     });
-  } catch (error: any) {
+  } catch (_error: unknown) {
+    const error = _error as Error;
     return NextResponse.json(
       { status: "error", message: error.message || "Internal Server Error" },
       { status: 500 }

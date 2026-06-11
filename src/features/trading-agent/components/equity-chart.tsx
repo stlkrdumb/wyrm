@@ -42,9 +42,13 @@ function formatAxisTime(ts: Date, tf: TimeframeKey): string {
 export function EquityChart({ portfolio, ticker, equityCurve, equityHistory, trades }: Props) {
   const [mounted, setMounted] = useState(false);
   const [timeframe, setTimeframe] = useState<TimeframeKey>("1h");
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true);
+  }, []);
 
   const initialCash = useMemo(() => portfolio.initialCash ?? DEFAULT_INITIAL_CASH, [portfolio.initialCash]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const currentEquity = useMemo(() => portfolio.equity ?? portfolio.cash, [portfolio, ticker]);
 
   const chartData = useMemo(() => {
@@ -58,6 +62,7 @@ export function EquityChart({ portfolio, ticker, equityCurve, equityHistory, tra
 
     // Live mode: use equityHistory from agent state
     if (equityHistory && equityHistory.length > 0) {
+      // eslint-disable-next-line react-hooks/purity
       const cutoff = Date.now() - (TIMEFRAMES.find(t => t.key === timeframe)?.ms ?? 3_600_000);
       const filtered = equityHistory
         .map(e => ({ ts: new Date(e.timestamp), equity: e.equity }))
@@ -79,7 +84,7 @@ export function EquityChart({ portfolio, ticker, equityCurve, equityHistory, tra
       { time: "", equity: initialCash, isTrade: false },
       { time: "", equity: initialCash, isTrade: false },
     ];
-  }, [portfolio, timeframe, equityCurve, equityHistory, initialCash]);
+  }, [portfolio, timeframe, equityCurve, equityHistory, initialCash]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Trade markers for chart
   const tradeMarkers = useMemo(() => {

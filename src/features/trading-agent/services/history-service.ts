@@ -47,7 +47,7 @@ export class HistoryService {
       const rawHistory = JSON.parse(data);
 
       // Convert timestamp strings back to Date objects
-      return rawHistory.map((h: any) => ({
+      return rawHistory.map((h: Record<string, unknown>) => ({
         ...h,
         timestamp: new Date(h.timestamp),
       }));

@@ -20,7 +20,8 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ status: "error", message: "Invalid action" }, { status: 400 });
-  } catch (error: any) {
+  } catch (_error: unknown) {
+    const error = _error as Error;
     return NextResponse.json(
       { status: "error", message: error.message || "Failed to process breaker action" },
       { status: 500 }

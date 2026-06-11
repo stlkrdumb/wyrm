@@ -23,6 +23,7 @@ export const StatusHeader = memo(function StatusHeader({ agent }: Props) {
   return (
     <header className="relative z-20 flex items-center justify-between px-6 py-4 border-b border-obsidian-border bg-obsidian-light/80 backdrop-blur-xl">
       <div className="flex items-center gap-4">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/logo.svg" alt="Wyrm" className="h-10 w-auto opacity-90" />
         <div className="flex flex-col">
           <h1 className="text-sm font-bold tracking-[0.2em] text-zinc-100 uppercase font-mono">

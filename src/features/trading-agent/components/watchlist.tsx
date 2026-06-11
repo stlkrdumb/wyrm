@@ -35,6 +35,7 @@ function TickerItem({ symbol, ticker }: { symbol: string; ticker: TickerData }) 
   return (
     <div className={`flex items-center gap-2.5 px-3 py-1.5 rounded border border-obsidian-border bg-obsidian-light/40 transition-all duration-300 flex-shrink-0 ${flashClass}`}>
       {!imgError ? (
+        /* eslint-disable-next-line @next/next/no-img-element */
         <img src={logoUrl} alt={coin} onError={() => setImgError(true)} className="w-4 h-4 rounded-full flex-shrink-0" />
       ) : (
         <span className="w-4 h-4 rounded-full bg-obsidian-lighter border border-obsidian-border text-[10px] font-bold text-zinc-500 flex items-center justify-center flex-shrink-0 font-sans">

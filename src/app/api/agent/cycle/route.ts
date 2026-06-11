@@ -8,8 +8,6 @@ import { priceStore } from "@/features/trading-agent/services/price-store";
 import { marketWS } from "@/features/trading-agent/services/market-ws.service";
 import { WS_STALENESS_THRESHOLD_MS } from "@/features/trading-agent/constants/config.constants";
 
-const INITIAL_CASH = Number(process.env.SIM_INITIAL_CASH) || 1000;
-
 export async function POST() {
   try {
     const currentState = getAgentState();
@@ -28,6 +26,7 @@ export async function POST() {
     marketWS.syncSubscriptionsForPositions();
 
     const allSnapshots = priceStore.getAll();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const tickersMap: Record<string, any> = {};
     for (const [symbol, snapshot] of allSnapshots) {
       const obj = priceStore.buildTickerObj(snapshot);
@@ -53,28 +52,30 @@ export async function POST() {
       equity: e.equity,
     })),
     });
-  } catch (error: any) {
-    console.error("[API] CRITICAL ERROR in POST /api/agent/cycle:", error);
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.error("[API] CRITICAL ERROR in POST /api/agent/cycle:", err);
     return NextResponse.json({ 
       status: "error", 
-      message: error.message || "Internal Server Error",
-      stack: process.env.NODE_ENV === "development" ? error.stack : undefined
+      message: err.message || "Internal Server Error",
+      stack: process.env.NODE_ENV === "development" ? err.stack : undefined
     }, { status: 500 });
   }
 }
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) { // eslint-disable-line @typescript-eslint/no-unused-vars
   const currentState = getAgentState();
 
   // Build multi-pair ticker map from PriceStore (WS-backed)
   const allSnapshots = priceStore.getAll();
-  const tickersMap: Record<string, any> = {};
-  for (const [symbol, snapshot] of allSnapshots) {
-    const obj = priceStore.buildTickerObj(snapshot);
-    if (obj) tickersMap[symbol] = obj;
-  }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const tickersMap: Record<string, any> = {};
+    for (const [symbol, snapshot] of allSnapshots) {
+      const obj = priceStore.buildTickerObj(snapshot);
+      if (obj) tickersMap[symbol] = obj;
+    }
 
-  // Determine WS status from store freshness
+    // Determine WS status from store freshness
   let wsStatus: "connected" | "connecting" | "reconnecting" = "connected";
   if (allSnapshots.size === 0) {
     wsStatus = currentState.lastCycleAt ? "reconnecting" : "connecting";

@@ -6,11 +6,10 @@ import type { DecisionRecord } from "@/features/trading-agent/types/history.type
 import { apiFetch } from "@/shared/utils/api-fetch";
 
 interface Props {
-  onBack?: () => void;
   isTabMode?: boolean;
 }
 
-export function DecisionHistory({ onBack, isTabMode }: Props) {
+export function DecisionHistory({ isTabMode }: Props) {
   const [history, setHistory] = useState<DecisionRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

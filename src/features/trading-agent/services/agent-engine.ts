@@ -25,7 +25,7 @@ export { config };
 type OnTokenCallback = (token: string) => void;
 
 // ─── State Management ───────────────────────
-let state: AgentState | null = buildInitialState();
+const state: AgentState | null = buildInitialState();
 
 function getState(): AgentState {
   if (!state) throw new Error("Agent not initialized");
@@ -75,7 +75,7 @@ function buildInitialState(): AgentState {
     executionReason: "",
     signals: [],
     positions,
-    pendingOrders: saved?.pendingOrders?.map((o: any) => ({ ...o, createdAt: new Date(o.createdAt) })) ?? [],
+    pendingOrders: saved?.pendingOrders?.map((o: Record<string, unknown>) => ({ ...o, createdAt: new Date(o.createdAt as string) })) ?? [],
     trades: [],
     portfolio: {
       timestamp: new Date(),
@@ -175,7 +175,7 @@ function isStopped(): boolean {
   return st.status !== "running";
 }
 
-export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ tickerPrice: number; tickers: Record<string, TickerData> }> {
+export async function runAgentCycle(_onToken?: OnTokenCallback): Promise<{ tickerPrice: number; tickers: Record<string, TickerData> }> { // eslint-disable-line @typescript-eslint/no-unused-vars
   const st = getState();
   if (st.circuitBreakerTripped) { st.status = "stopped"; return { tickerPrice: 0, tickers: {} }; }
   if (st.status !== "running") return { tickerPrice: 0, tickers: {} };

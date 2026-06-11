@@ -24,7 +24,7 @@ export function mask(url: string): string {
 }
 
 /** Execute curl via a single proxy, returns JSON body */
-async function _fetchVia(proxy: string, url: string): Promise<any> {
+async function _fetchVia(proxy: string, url: string): Promise<unknown> {
   const result = await exec("curl", [
     "-sS", "--max-time", "10",
     "-x", proxy,
@@ -68,7 +68,7 @@ export async function optionalFetch<T>(url: string): Promise<T> {
 }
 
 /** Get HttpsProxyAgent for WebSocket connection. Returns null if no proxies configured. */
-export function getProxyAgentForWS(index: number): HttpsProxyAgent<any> | null {
+export function getProxyAgentForWS(index: number): HttpsProxyAgent<string> | null {
   if (PROXIES.length === 0) return null;
   const proxyUrl = PROXIES[index % PROXIES.length];
   try {

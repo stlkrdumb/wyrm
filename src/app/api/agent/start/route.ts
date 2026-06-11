@@ -3,12 +3,13 @@ import { marketWS } from "@/features/trading-agent/services/market-ws.service";
 
 export async function POST() {
   try {
-    const initialized = await marketWS.initialize();
+    await marketWS.initialize();
     return NextResponse.json({
       status: "ok",
       wsStatus: marketWS.getConnectionInfo().type,
     });
-  } catch (err: any) {
+  } catch (error: unknown) {
+    const err = error as Error;
     console.error("[Agent] WS initialization failed:", err.message);
     return NextResponse.json(
       { status: "error", message: err.message },
