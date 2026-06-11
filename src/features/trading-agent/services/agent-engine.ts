@@ -1,6 +1,6 @@
 import dotenv from "dotenv";
 import path from "node:path";
-import type { Signal, TickerData, TradingDecision, Position } from "@/features/trading-agent/types";
+import type { Signal, TickerData, TradingDecision, Position, PendingOrder } from "@/features/trading-agent/types";
 import type { AgentState } from "./state-store";
 import { config, setTradeCounter, getTradeCounter } from "./state-store";
 import { getLivePrice } from "./price-fetcher.service";
@@ -75,7 +75,7 @@ function buildInitialState(): AgentState {
     executionReason: "",
     signals: [],
     positions,
-    pendingOrders: saved?.pendingOrders?.map((o: Record<string, unknown>) => ({ ...o, createdAt: new Date(o.createdAt as string) })) ?? [],
+    pendingOrders: (saved?.pendingOrders?.map((o: Record<string, unknown>) => ({ ...o, createdAt: new Date(o.createdAt as string) })) ?? []) as PendingOrder[],
     trades: [],
     portfolio: {
       timestamp: new Date(),

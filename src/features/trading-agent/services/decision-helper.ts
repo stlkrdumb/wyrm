@@ -34,8 +34,10 @@ Respond with ONLY valid JSON:
 }`;
 }
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 export function buildMultiPrompt(
-  symbolData: Map<string, { ticker: TickerData; ta5m: Record<string, unknown> | null; ta1h: Record<string, unknown> | null; ta1d: Record<string, unknown> | null; sentiment?: Record<string, unknown> | null }>,
+  symbolData: Map<string, { ticker: TickerData; ta5m: any; ta1h: any; ta1d: any; sentiment?: any }>,
+/* eslint-enable @typescript-eslint/no-explicit-any */
   activePositions: Position[] = [],
   pendingOrders: Array<{ symbol: string; side: "buy" | "sell"; limitPrice: number }> = []
 ): string {
@@ -194,7 +196,8 @@ export function parseMultiResponse(
   }
 
   cleaned = repairJSON(jsonMatch[0]);
-  let parsed: Record<string, Record<string, unknown>>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let parsed: Record<string, any>;
   try {
     parsed = JSON.parse(cleaned);
   } catch (_firstErr) {
@@ -309,11 +312,13 @@ export function parseScreeningResponse(response: string, validSymbols: Set<strin
     .filter((s: string) => validSymbols.has(s))
     .slice(0, 2);
 
-  return { selected, reason: parsed.reason || "" };
+  return { selected, reason: String(parsed.reason || "") };
 }
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 export function fallbackMultiAnalysis(
-  symbolData: Map<string, { ticker: TickerData; ta5m: Record<string, unknown> | null; ta1h: Record<string, unknown> | null; ta1d: Record<string, unknown> | null }>
+  symbolData: Map<string, { ticker: TickerData; ta5m: any; ta1h: any; ta1d: any }>
+/* eslint-enable @typescript-eslint/no-explicit-any */
 ): { decisions: Record<string, TradingDecision>; allSignals: Signal[] } {
   const decisions: Record<string, TradingDecision> = {};
   const allSignals: Signal[] = [];

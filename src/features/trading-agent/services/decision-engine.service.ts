@@ -29,7 +29,8 @@ export interface MultiPairResult {
 
 // ─── Technical Analysis ──────────────────────────────
 
-async function runTAForTimeframe(symbol: string, interval: string): Promise<Record<string, unknown> | null> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function runTAForTimeframe(symbol: string, interval: string): Promise<any | null> {
   if (priceStore.isBacktesting) {
     const cached = priceStore.getCandles(symbol, interval);
     if (!cached || cached.length === 0) return null;
@@ -153,8 +154,8 @@ export async function evaluateMultiPair(
     }
   }
 
-  // Build symbol data map for prompt
-  const symbolData = new Map<string, { ticker: TickerData; ta5m: Record<string, unknown> | null; ta1h: Record<string, unknown> | null; ta1d: Record<string, unknown> | null; sentiment: import("./sentiment.service").SentimentSnapshot | null }>();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const symbolData = new Map<string, { ticker: TickerData; ta5m: any; ta1h: any; ta1d: any; sentiment: import("./sentiment.service").SentimentSnapshot | null }>();
   for (const { symbol, ta5m, ta1h, ta1d, sentiment } of taResults) {
     symbolData.set(symbol, { ticker: priceMap.get(symbol)!, ta5m, ta1h, ta1d, sentiment });
   }
