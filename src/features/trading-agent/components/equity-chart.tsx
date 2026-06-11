@@ -10,8 +10,6 @@ import {
   type AreaData,
 } from "lightweight-charts";
 import { Card, CardHeader, CardTitle, CardContent } from "@/shared/ui";
-import { useAnimatedNumber } from "@/features/trading-agent/hooks/use-animated-number";
-import { useLiveStream } from "@/features/trading-agent/hooks/use-live-stream";
 import type { PortfolioData } from "@/features/trading-agent/hooks/use-agent";
 
 const DEFAULT_INITIAL_CASH = 1000;
@@ -76,8 +74,6 @@ export function EquityChart({ portfolio, equityCurve, equityHistory }: Props) {
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Area"> | null>(null);
 
-  const liveStream = useLiveStream();
-
   useEffect(() => { setMounted(true); }, []);
 
   const initialCash = useMemo(() => portfolio.initialCash ?? DEFAULT_INITIAL_CASH, [portfolio.initialCash]);
@@ -102,19 +98,10 @@ export function EquityChart({ portfolio, equityCurve, equityHistory }: Props) {
   const isProfit = portfolio.totalPnL >= 0;
   const chartColor = isProfit ? "#10b981" : "#f43f5e";
 
-  // The displayed equity = live SSE value if fresh, otherwise poll value
-  const pollEquity = portfolio.equity ?? portfolio.cash;
-  const liveEquityFresh = liveStream.equity && Date.now() - liveStream.equity.timestamp < 10_000;
-  const displayEquityRaw = liveEquityFresh && liveStream.equity ? liveStream.equity.equity : pollEquity;
-  const displayEquity = useAnimatedNumber(displayEquityRaw, 350);
-  const displayTotalPnL = useAnimatedNumber(
-    liveEquityFresh && liveStream.equity ? liveStream.equity.totalPnL : portfolio.totalPnL,
-    350
-  );
-  const displayCash = useAnimatedNumber(
-    liveEquityFresh && liveStream.equity ? liveStream.equity.cash : portfolio.cash,
-    350
-  );
+  // Displayed values come straight from the 1s poll — no overlay, no animation
+  const displayEquity = portfolio.equity ?? portfolio.cash;
+  const displayTotalPnL = portfolio.totalPnL;
+  const displayCash = portfolio.cash;
 
   // Init the chart once
   useEffect(() => {

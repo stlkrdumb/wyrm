@@ -13,7 +13,6 @@ import { riskManager } from "./risk-manager.service";
 import { historyService } from "./history-service";
 import { loadBalanceState, saveBalanceState } from "./balance-store";
 import { marketWS } from "./market-ws.service";
-import { agentEvents } from "./agent-events";
 
 // Load .env.local to ensure env vars are available
 dotenv.config({ path: path.join(process.cwd(), ".env.local"), override: false });
@@ -108,96 +107,16 @@ function buildInitialState(): AgentState {
   };
 }
 
-/** Last emitted equity snapshot for change-detection throttling.
- *  We skip emitting if nothing meaningful changed — keeps SSE traffic low
- *  under heavy ticker load (~20 symbols × ticks every 1-2s). */
-let lastEmittedEquity: { equity: number; cash: number; drawdown: number } | null = null;
-/** Per-position last-emitted snapshot for the same reason. */
-const lastEmittedPosition = new Map<string, { unrealizedPnL: number; size: number; entryPrice: number }>();
-
-/** Emit-equity helper that skips when the value hasn't moved enough.
- *  Force=true bypasses the check (used after trade execution and cycle end). */
-function maybeEmitEquity(st: AgentState, force: boolean = false): void {
-  const equity = st.portfolio.equity;
-  const cash = st.portfolio.cash;
-  const drawdown = st.peakEquity > 0 ? ((st.peakEquity - equity) / st.peakEquity) * 100 : 0;
-
-  if (!force && lastEmittedEquity) {
-    // Skip if equity moved < $0.01, cash moved < $0.01, drawdown moved < 0.01%
-    if (
-      Math.abs(equity - lastEmittedEquity.equity) < 0.01 &&
-      Math.abs(cash - lastEmittedEquity.cash) < 0.01 &&
-      Math.abs(drawdown - lastEmittedEquity.drawdown) < 0.01
-    ) {
-      return;
-    }
-  }
-
-  lastEmittedEquity = { equity, cash, drawdown };
-  agentEvents.emitEquity({
-    equity,
-    cash,
-    totalPnL: equity - st.startEquity,
-    drawdown,
-    timestamp: Date.now(),
-  });
-}
-
-/** Emit per-position update only if something meaningful changed for that symbol. */
-function maybeEmitPosition(p: import("@/features/trading-agent/types").Position, force: boolean = false): void {
-  const last = lastEmittedPosition.get(p.symbol);
-  if (!force && last) {
-    if (
-      Math.abs(p.unrealizedPnL - last.unrealizedPnL) < 0.01 &&
-      Math.abs(p.size - last.size) < 0.0000001 &&
-      Math.abs(p.entryPrice - last.entryPrice) < 0.0001
-    ) {
-      return;
-    }
-  }
-  lastEmittedPosition.set(p.symbol, { unrealizedPnL: p.unrealizedPnL, size: p.size, entryPrice: p.entryPrice });
-
-  const symSnap = priceStore.getCached(p.symbol);
-  const lastPrice = symSnap?.lastPrice ?? p.entryPrice;
-  const pnlPct = p.entryPrice > 0 ? ((lastPrice - p.entryPrice) / p.entryPrice) * 100 : 0;
-  agentEvents.emitPosition({
-    symbol: p.symbol,
-    side: p.side,
-    size: p.size,
-    entryPrice: p.entryPrice,
-    unrealizedPnL: p.unrealizedPnL,
-    stopLossPct: p.stopLossPct,
-    takeProfitPct: p.takeProfitPct,
-    pnlPct,
-    timestamp: Date.now(),
-  });
-}
-
-/** Recalculate portfolio equity from live positions */
-function recalcEquity(st: AgentState, force: boolean = false): void {
+/** Recalculate portfolio equity from live positions.
+ *  State is read directly by the 1s poll — no SSE emission needed. */
+function recalcEquity(st: AgentState): void {
   let totalPosVal = 0;
   for (const p of st.positions) {
     const symSnap = priceStore.getCached(p.symbol);
     if (!symSnap) { totalPosVal += p.size * p.entryPrice; continue; }
     totalPosVal += p.size * symSnap.lastPrice;
   }
-  const newEquity = st.portfolio.cash + totalPosVal;
-  st.portfolio = { ...st.portfolio, equity: newEquity };
-
-  // Emit throttled equity event
-  maybeEmitEquity(st, force);
-
-  // Emit per-position updates (throttled per-symbol)
-  for (const p of st.positions) {
-    maybeEmitPosition(p, force);
-  }
-
-  // Prune stale position snapshots for closed positions
-  for (const sym of lastEmittedPosition.keys()) {
-    if (!st.positions.some(p => p.symbol === sym)) {
-      lastEmittedPosition.delete(sym);
-    }
-  }
+  st.portfolio = { ...st.portfolio, equity: st.portfolio.cash + totalPosVal };
 }
 
 /** Called by market-ws.service.ts when a ticker update arrives */
@@ -224,7 +143,6 @@ export function updatePositionUnrealizedPnL(symbol: string, currentPrice: number
 
   if (isStopLoss || isTakeProfit) {
     const reason = isStopLoss ? "Stop Loss" : "Take Profit";
-    const closeReason = isStopLoss ? "auto-bracket-sl" : "auto-bracket-tp";
     console.log(`[Auto-Bracket] ${symbol} exit: ${reason} ($${currentPrice.toLocaleString()}/entry $${pos.entryPrice.toLocaleString()})`);
 
     const exitFee = currentPrice * pos.size * config.feePct;
@@ -239,30 +157,6 @@ export function updatePositionUnrealizedPnL(symbol: string, currentPrice: number
     st.portfolio.totalPnL = st.portfolio.cash - st.startEquity;
     st.portfolio.totalTrades++;
 
-    // Emit trade + position_closed events for SSE consumers
-    const now = Date.now();
-    agentEvents.emitTrade({
-      id: `T${tc}`,
-      symbol,
-      side: "sell",
-      action: "exit",
-      size: pos.size,
-      price: currentPrice,
-      pnl,
-      fee: exitFee,
-      timestamp: now,
-    });
-    agentEvents.emitPositionClosed({
-      symbol,
-      side: pos.side,
-      size: pos.size,
-      entryPrice: pos.entryPrice,
-      closePrice: currentPrice,
-      realizedPnL: pnl,
-      reason: closeReason,
-      timestamp: now,
-    });
-
     // Record auto-bracket exit so the LLM doesn't re-enter within the cooldown window
     st.recentExits.set(symbol, { timestamp: Date.now(), reason });
     // Periodically prune stale entries (older than 24h) to keep the map small
@@ -273,8 +167,8 @@ export function updatePositionUnrealizedPnL(symbol: string, currentPrice: number
       }
     }
 
-    // Force the post-close recalc to emit (state has changed structurally)
-    recalcEquity(st, true);
+    // Recalc equity after the position close
+    recalcEquity(st);
   }
 }
 
@@ -427,8 +321,8 @@ export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ ticker
     if (!st.watchlist.includes(sym)) st.watchlist.push(sym);
   }
 
-  // Record equity snapshot for chart history — force emit since trades just changed state
-  recalcEquity(st, true);
+  // Record equity snapshot for chart history
+  recalcEquity(st);
   st.equityHistory.push({ timestamp: new Date(), equity: st.portfolio.equity });
   if (st.equityHistory.length > 500) st.equityHistory.splice(0, st.equityHistory.length - 500);
 

@@ -1,25 +1,14 @@
 "use client";
 
-import { useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent, Badge } from "@/shared/ui";
 import type { PositionData, MultiTickerState } from "@/features/trading-agent/hooks/use-agent";
-import type { LivePosition } from "@/features/trading-agent/hooks/use-live-stream";
 
 interface Props {
   positions: PositionData[];
   tickers: MultiTickerState | null;
-  livePositions?: Map<string, LivePosition>;
 }
 
-const LIVE_FRESHNESS_MS = 10_000;
-
-export function PositionsPanel({ positions, tickers, livePositions }: Props) {
-  // Snapshot of "now" captured at render time — Date.now() is impure but acceptable
-  // here because we only use it for a comparison threshold, not for state changes.
-  // The component re-renders when livePositions Map reference changes (SSE-driven),
-  // so this stays fresh in practice.
-  const [now] = useState(() => Date.now());
-
+export function PositionsPanel({ positions, tickers }: Props) {
   if (positions.length === 0) {
     return (
       <Card>
@@ -36,8 +25,6 @@ export function PositionsPanel({ positions, tickers, livePositions }: Props) {
       </Card>
     );
   }
-
-  const nowSnapshot = now;
 
   return (
     <Card className="flex flex-col h-full">
@@ -60,14 +47,9 @@ export function PositionsPanel({ positions, tickers, livePositions }: Props) {
             <tbody>
               {positions.map((p) => {
                 const symTicker = tickers?.[p.symbol];
-                // Prefer SSE live position for freshest PnL; fall back to polled/derived
-                const live = livePositions?.get(p.symbol);
-                const liveIsFresh = live !== undefined && nowSnapshot - live.timestamp < LIVE_FRESHNESS_MS;
-                const currentPrice = symTicker?.lastPrice ?? (liveIsFresh && live ? p.entryPrice + (live.unrealizedPnL / Math.max(p.size, 1e-9)) : p.entryPrice);
+                const currentPrice = symTicker?.lastPrice ?? p.entryPrice;
                 const currentValue = p.size * currentPrice;
-                const rawPnl = liveIsFresh && live
-                  ? live.unrealizedPnL
-                  : (p.unrealizedPnL !== undefined ? p.unrealizedPnL : currentValue - (p.size * p.entryPrice));
+                const rawPnl = p.unrealizedPnL !== undefined ? p.unrealizedPnL : currentValue - (p.size * p.entryPrice);
                 const displayedPnl = Math.round(rawPnl * 100) / 100;
                 const pnlString = displayedPnl === 0
                   ? "$0.00"

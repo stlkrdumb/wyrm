@@ -4,8 +4,7 @@ import { config, setTradeCounter, getTradeCounter, calculateWinRate } from "./st
 import { getLivePrice } from "./price-fetcher.service";
 import { saveBalanceState } from "./balance-store";
 import { priceStore } from "./price-store";
-import { agentEvents } from "./agent-events";
-import { RISK_PROFILES, type RiskProfile } from "../constants/risk.constants";
+import { RISK_PROFILES } from "../constants/risk.constants";
 
 /** Resolve the trade execution price from the WS cache ONLY — never REST.
  *  Trade prices are the source of truth and must be real-time from the live feed.
@@ -85,16 +84,6 @@ export async function flattenPositions(state: AgentState): Promise<{ closed: num
       pnl,
       fee,
     });
-    // Emit trade + position_closed for SSE consumers — flatten = "agent-stop" reason
-    agentEvents.emitTrade({
-      id: `T${counter}`, symbol: pos.symbol, side: "sell", action: "exit",
-      size: pos.size, price, pnl, fee, timestamp: now.getTime(),
-    });
-    agentEvents.emitPositionClosed({
-      symbol: pos.symbol, side: pos.side, size: pos.size,
-      entryPrice: pos.entryPrice, closePrice: price, realizedPnL: pnl,
-      reason: "agent-stop", timestamp: now.getTime(),
-    });
     totalPnlRealized += pnl;
     state.portfolio.cash += revenue - fee;
     closedCount++;
@@ -122,26 +111,6 @@ export async function flattenPositions(state: AgentState): Promise<{ closed: num
   };
 
   if (state.peakEquity < state.portfolio.equity) state.peakEquity = state.portfolio.equity;
-
-  // Force emit equity + remaining position events after flatten
-  const drawdown = state.peakEquity > 0 ? ((state.peakEquity - state.portfolio.equity) / state.peakEquity) * 100 : 0;
-  agentEvents.emitEquity({
-    equity: state.portfolio.equity,
-    cash: state.portfolio.cash,
-    totalPnL: state.portfolio.equity - state.startEquity,
-    drawdown,
-    timestamp: Date.now(),
-  });
-  for (const p of state.positions) {
-    const symTicker = prices.get(p.symbol);
-    const lastPrice = symTicker?.lastPrice ?? p.entryPrice;
-    const pnlPct = p.entryPrice > 0 ? ((lastPrice - p.entryPrice) / p.entryPrice) * 100 : 0;
-    agentEvents.emitPosition({
-      symbol: p.symbol, side: p.side, size: p.size, entryPrice: p.entryPrice,
-      unrealizedPnL: p.unrealizedPnL, stopLossPct: p.stopLossPct, takeProfitPct: p.takeProfitPct,
-      pnlPct, timestamp: Date.now(),
-    });
-  }
 
   saveBalanceState({
     initialCash: config.initialCash,
@@ -234,12 +203,10 @@ export function executeTrades(
             entryPrice: (p.entryPrice * p.size + execPrice * tradeSize * (1 + config.feePct)) / (p.size + tradeSize),
           };
           state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "buy", action: "add", size: tradeSize, price: execPrice, fee });
-          agentEvents.emitTrade({ id: `T${tc}`, symbol, side: "buy", action: "add", size: tradeSize, price: execPrice, fee, timestamp: now.getTime() });
         } else {
           const sltp = resolveSLTP(decision);
           state.positions.push({ symbol, side: "long", size: tradeSize, entryPrice: execPrice * (1 + config.feePct), unrealizedPnL: 0, ...sltp });
           state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "buy", action: "entry", size: tradeSize, price: execPrice, fee });
-          agentEvents.emitTrade({ id: `T${tc}`, symbol, side: "buy", action: "entry", size: tradeSize, price: execPrice, fee, timestamp: now.getTime() });
           livePositionCount++;
         }
         liquidBalance -= totalCost;
@@ -255,13 +222,6 @@ export function executeTrades(
           const fee = revenue * config.feePct;
           const pnl = (execPrice - pos.entryPrice) * pos.size - fee;
           state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "sell", action: "exit", size: pos.size, price: execPrice, pnl, fee });
-          agentEvents.emitTrade({ id: `T${tc}`, symbol, side: "sell", action: "exit", size: pos.size, price: execPrice, pnl, fee, timestamp: now.getTime() });
-          // Full position closed — emit position_closed so SSE clients can drop it
-          agentEvents.emitPositionClosed({
-            symbol, side: pos.side, size: pos.size,
-            entryPrice: pos.entryPrice, closePrice: execPrice, realizedPnL: pnl,
-            reason: "manual-sell", timestamp: now.getTime(),
-          });
           liquidBalance += revenue - fee;
           state.positions.splice(idx, 1);
           livePositionCount = new Set(state.positions.map(p => p.symbol)).size;
@@ -271,7 +231,6 @@ export function executeTrades(
           const fee = revenue * config.feePct;
           const pnl = (execPrice - avgEntry) * tradeSize - fee;
           state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "sell", action: "reduce", size: tradeSize, price: execPrice, pnl, fee });
-          agentEvents.emitTrade({ id: `T${tc}`, symbol, side: "sell", action: "reduce", size: tradeSize, price: execPrice, pnl, fee, timestamp: now.getTime() });
           liquidBalance += revenue - fee;
           state.positions[idx] = { ...state.positions[idx], size: pos.size - tradeSize };
         }
@@ -304,32 +263,6 @@ export function executeTrades(
   };
 
   if (state.peakEquity < state.portfolio.equity) state.peakEquity = state.portfolio.equity;
-
-  // Force emit equity + position events after trades — state has structurally changed
-  const drawdown = state.peakEquity > 0 ? ((state.peakEquity - state.portfolio.equity) / state.peakEquity) * 100 : 0;
-  agentEvents.emitEquity({
-    equity: state.portfolio.equity,
-    cash: state.portfolio.cash,
-    totalPnL: state.portfolio.equity - state.startEquity,
-    drawdown,
-    timestamp: Date.now(),
-  });
-  for (const p of state.positions) {
-    const symTicker = priceMap.get(p.symbol);
-    const lastPrice = symTicker?.lastPrice ?? p.entryPrice;
-    const pnlPct = p.entryPrice > 0 ? ((lastPrice - p.entryPrice) / p.entryPrice) * 100 : 0;
-    agentEvents.emitPosition({
-      symbol: p.symbol,
-      side: p.side,
-      size: p.size,
-      entryPrice: p.entryPrice,
-      unrealizedPnL: p.unrealizedPnL,
-      stopLossPct: p.stopLossPct,
-      takeProfitPct: p.takeProfitPct,
-      pnlPct,
-      timestamp: Date.now(),
-    });
-  }
 
   const savedPositions = state.positions.map(p => ({ symbol: p.symbol, side: p.side as "long" | "short", size: p.size, entryPrice: p.entryPrice, stopLossPct: p.stopLossPct, takeProfitPct: p.takeProfitPct }));
   saveBalanceState({

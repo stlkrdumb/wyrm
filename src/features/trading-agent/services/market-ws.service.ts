@@ -6,7 +6,6 @@ import { WebSocket as WSClient } from "ws";
 import { getProxyAgentForWS, PROXIES, mask } from "./proxy-client";
 import { bitgetClient } from "@/lib/bitget-client";
 import { dispatchWsMessage } from "./ws-helpers";
-import { agentEvents } from "./agent-events";
 
 export interface WSSubscription {
   instType: "SPOT";
@@ -359,14 +358,6 @@ export class MarketWebSocketService {
         for (const s of snapshots) {
           priceStore.updateTicker(s);
           updatePositionUnrealizedPnL(s.symbol, s.lastPrice);
-          // Emit price event for SSE consumers — fires on every WS ticker
-          agentEvents.emitPrice({
-            symbol: s.symbol,
-            lastPrice: s.lastPrice,
-            change24hPercent: s.changePercent,
-            volume24h: s.quoteVolume,
-            timestamp: Date.now(),
-          });
         }
       },
       (msg: Record<string, unknown>) => {

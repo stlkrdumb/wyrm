@@ -62,7 +62,8 @@ interface AgentState {
 }
 
 let lastKnownState: AgentState | null = null;
-const POLL_MS = 3000;
+const POLL_MS_RUNNING = 1000;
+const POLL_MS_STOPPED = 5000;
 
 export function useAgent() {
   const [state, setState] = useState<AgentState>(lastKnownState ?? {
@@ -203,9 +204,9 @@ export function useAgent() {
     fetchState();
   }, [fetchState]);
 
-  // Polling — always on, faster when running
+  // Polling — 1s when running for real-time feel, 5s when stopped/paused
   useEffect(() => {
-    const interval = state.status === "running" ? POLL_MS : 10_000;
+    const interval = state.status === "running" ? POLL_MS_RUNNING : POLL_MS_STOPPED;
     const id = setInterval(fetchState, interval);
     return () => { clearInterval(id); };
   }, [state.status, fetchState]);

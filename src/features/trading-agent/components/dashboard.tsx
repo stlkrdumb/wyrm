@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useAgent } from "@/features/trading-agent/hooks/use-agent";
-import { useLiveStream } from "@/features/trading-agent/hooks/use-live-stream";
 import { StatusHeader } from "./status-header";
 import { BottomStatusBar } from "./bottom-status-bar";
 import { SignalPanel } from "./signal-panel";
@@ -23,7 +22,6 @@ import { Brain, Settings } from "lucide-react";
 
 export function Dashboard() {
   const agent = useAgent();
-  const liveStream = useLiveStream();
   const [activeLogTab, setActiveLogTab] = useState<"execution" | "decision" | "console">("execution");
   const [activeSidebarTab, setActiveSidebarTab] = useState<"intel" | "config">("intel");
 
@@ -72,7 +70,6 @@ export function Dashboard() {
             <PositionsPanel
               positions={agent.state.positions}
               tickers={agent.state.tickers}
-              livePositions={liveStream.positions}
             />
           </div>
         </div>
@@ -165,7 +162,7 @@ export function Dashboard() {
         </div>
       </main>
 
-      <BottomStatusBar agent={agent} liveConnected={liveStream.connected} />
+      <BottomStatusBar agent={agent} />
     </div>
   );
 }
