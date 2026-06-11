@@ -34,8 +34,23 @@ export async function POST() {
       if (obj) tickersMap[symbol] = obj;
     }
 
+    // Same dual-layer WS status check as the GET handler
     let wsStatus: "connected" | "connecting" | "reconnecting" = "connected";
-    if (allSnapshots.size === 0) wsStatus = "reconnecting";
+    const ci = marketWS.getConnectionInfo();
+    if (ci.type === "fallback") {
+      wsStatus = "reconnecting";
+    } else if (allSnapshots.size === 0) {
+      wsStatus = currentState.lastCycleAt ? "reconnecting" : "connecting";
+    } else {
+      const activeSymbols = new Set([
+        ...currentState.watchlist,
+        ...currentState.positions.map(p => p.symbol),
+      ]);
+      const anyActiveStale = activeSymbols.size > 0 && [...allSnapshots.entries()]
+        .filter(([symbol]) => activeSymbols.has(symbol))
+        .some(([, s]) => Date.now() - s.updatedAt.getTime() > WS_STALENESS_THRESHOLD_MS);
+      if (anyActiveStale) wsStatus = "reconnecting";
+    }
 
     console.log("[POST /api/agent/cycle] Cycle complete — decision:", currentState.decision?.action, "signals:", currentState.signals.length);
 
@@ -74,15 +89,29 @@ export async function GET(request: NextRequest) {
     if (obj) tickersMap[symbol] = obj;
   }
 
-  // Determine WS status from store freshness
+  // Determine WS status — two layers:
+  //   Layer 1: Is the WebSocket physically connected? (getConnectionInfo)
+  //   Layer 2: If WS is open, are actively-watched symbols getting fresh data?
+  // This avoids false "RECON" from stale price-store artifacts (old watchlist
+  // symbols) while still catching real disconnects and data starvation.
   let wsStatus: "connected" | "connecting" | "reconnecting" = "connected";
-  if (allSnapshots.size === 0) {
-    wsStatus = currentState.lastCycleAt ? "reconnecting" : "connecting";
+  const ci = marketWS.getConnectionInfo();
+  if (ci.type === "fallback") {
+    wsStatus = "reconnecting";
+  } else if (allSnapshots.size === 0 && currentState.lastCycleAt) {
+    wsStatus = "reconnecting";
+  } else if (allSnapshots.size === 0) {
+    wsStatus = "connecting";
   } else {
-    const isAnyStale = [...allSnapshots.values()].some(s =>
-      Date.now() - s.updatedAt.getTime() > WS_STALENESS_THRESHOLD_MS
-    );
-    if (isAnyStale) wsStatus = "reconnecting";
+    // Only check staleness for symbols we actually care about (watchlist + positions)
+    const activeSymbols = new Set([
+      ...currentState.watchlist,
+      ...currentState.positions.map(p => p.symbol),
+    ]);
+    const anyActiveStale = activeSymbols.size > 0 && [...allSnapshots.entries()]
+      .filter(([symbol]) => activeSymbols.has(symbol))
+      .some(([, s]) => Date.now() - s.updatedAt.getTime() > WS_STALENESS_THRESHOLD_MS);
+    if (anyActiveStale) wsStatus = "reconnecting";
   }
 
   console.log(`[API] GET /api/agent/cycle — status=${currentState.status} equity=$${Math.round(currentState.portfolio.equity).toLocaleString()} symbols=${Object.keys(tickersMap).join(",")}`);
