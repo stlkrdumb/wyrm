@@ -63,7 +63,7 @@ function fillOrder(state: AgentState, orderIdx: number, order: typeof state.pend
       });
     }
 
-    state.portfolio.cash -= totalCost;
+    state.portfolio.cash += (order.reservedCash - totalCost);
     state.trades.push({ id: `T${tc}`, timestamp: now, symbol: order.symbol, side: "buy", action: idx >= 0 ? "add" : "entry", size: order.size, price: fillPrice, fee });
 
     pushEvent(state, "action", `${order.symbol}: LIMIT BUY filled @ $${fillPrice.toFixed(2)}`);

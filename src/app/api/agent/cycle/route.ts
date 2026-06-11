@@ -138,9 +138,12 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  // Recalculate equity live from positions × cached prices
+  // Recalculate equity live from positions × cached prices + pending buy orders
   const liveEquity = currentState.portfolio.cash +
-    livePositions.reduce((sum, p) => sum + p.size * p.entryPrice + p.unrealizedPnL, 0);
+    livePositions.reduce((sum, p) => sum + p.size * p.entryPrice + p.unrealizedPnL, 0) +
+    currentState.pendingOrders
+      .filter(o => o.side === "buy")
+      .reduce((sum, o) => sum + o.size * o.limitPrice, 0);
 
   return NextResponse.json({
     status: currentState.status,

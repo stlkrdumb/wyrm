@@ -106,6 +106,12 @@ function recalcEquity(st: AgentState): void {
     if (!symSnap) { totalPosVal += p.size * p.entryPrice; continue; }
     totalPosVal += p.size * symSnap.lastPrice;
   }
+  // Count pending buy orders as assets (valued at limit price)
+  for (const o of st.pendingOrders) {
+    if (o.side === "buy") {
+      totalPosVal += o.size * o.limitPrice;
+    }
+  }
   st.portfolio = { ...st.portfolio, equity: st.portfolio.cash + totalPosVal };
 }
 
