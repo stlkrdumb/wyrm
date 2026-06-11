@@ -1,5 +1,5 @@
 import { bitgetClient } from "@/lib/bitget-client";
-import { chatCompletion } from "./llm.service";
+import { chatCompletion, getActiveModel } from "./llm.service";
 import { buildScreeningPrompt, parseScreeningResponse } from "./decision-helper";
 import { strategyService } from "./strategy.service";
 import type { Position } from "@/features/trading-agent/types";
@@ -13,7 +13,8 @@ interface RawTicker {
   change24hPercent: number;
 }
 
-const MAX_SCREEN_POOL = 20;
+const MAX_SCREEN_POOL = Number(process.env.SCREEN_POOL_SIZE) || 20;
+const SCREEN_RETRY_SIZE = Number(process.env.SCREEN_RETRY_SIZE) || 15;
 
 function isRealCrypto(symbol: string): boolean {
   // Exclude Bitget stock tokens (R-prefixed: RSOXLUSDT, RMUUSDT, etc.)
@@ -69,6 +70,7 @@ export async function runScreening(
 
   const strategy = strategyService.getStrategy();
   const prompt = buildScreeningPrompt(tickers, activePositions, strategy.persona, strategy.customInstructions);
+  console.log(`[Screening] Prompt: ${prompt.length} chars for ${tickers.length} coins, model=${getActiveModel()}`);
 
   const systemPrompt = `You are a coin screening AI. Your task is to select up to 2 coins most likely to have a strong directional move in the next hour based on 24h price action and volume. Be concise and specific.`;
 
@@ -83,9 +85,10 @@ export async function runScreening(
     });
 
     if (!response || response.trim().length === 0) {
-      console.warn("[Screening] LLM returned empty response — retrying with fewer coins");
-      const shorterTickers = tickers.slice(0, 15);
+      console.warn(`[Screening] LLM empty (model=${getActiveModel()}, prompt=${prompt.length} chars) — retrying with fewer coins`);
+      const shorterTickers = tickers.slice(0, SCREEN_RETRY_SIZE);
       const retryPrompt = buildScreeningPrompt(shorterTickers, activePositions, strategy.persona, strategy.customInstructions);
+      console.log(`[Screening] Retry prompt: ${retryPrompt.length} chars for ${shorterTickers.length} coins`);
       const retryResponse = await chatCompletion({
         messages: [
           { role: "system", content: systemPrompt },
