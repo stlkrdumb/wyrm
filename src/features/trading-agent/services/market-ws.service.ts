@@ -2,6 +2,7 @@ import type { PriceSnapshot } from "./price-store";
 import { updatePositionUnrealizedPnL, getAgentState } from "./agent-engine";
 import { priceStore, type PriceStore } from "./price-store";
 import { config } from "./agent-engine";
+import { agentEvents } from "./agent-events";
 import { WebSocket as WSClient } from "ws";
 import { getProxyAgentForWS, PROXIES, mask } from "./proxy-client";
 import { bitgetClient } from "@/lib/bitget-client";
@@ -358,6 +359,15 @@ export class MarketWebSocketService {
         for (const s of snapshots) {
           priceStore.updateTicker(s);
           updatePositionUnrealizedPnL(s.symbol, s.lastPrice);
+          agentEvents.emitPrice({
+            symbol: s.symbol,
+            lastPrice: s.lastPrice,
+            change24hPercent: s.changePercent,
+            high24h: s.high24h,
+            low24h: s.low24h,
+            volume24h: s.quoteVolume,
+            timestamp: Date.now(),
+          });
         }
       },
       (msg: Record<string, unknown>) => {

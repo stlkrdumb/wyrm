@@ -2,14 +2,31 @@
 
 import { Card, CardHeader, CardTitle, CardContent, Badge } from "@/shared/ui";
 import type { PositionData, MultiTickerState } from "@/features/trading-agent/hooks/use-agent";
+import { useAnimatedNumber } from "@/features/trading-agent/hooks/use-animated-number";
 
 interface Props {
   positions: PositionData[];
   tickers: MultiTickerState | null;
-  /** Set true once the WS has connected at least once. While false and there
-   *  are open positions, PnL shows "—" because computed values would be stale
-   *  (price store is empty before the first tick). */
   everConnected?: boolean;
+}
+
+function AnimatedPnL({ value, everConnected }: { value: number; everConnected: boolean }) {
+  const animated = useAnimatedNumber(value);
+  const isProfit = animated >= 0;
+
+  if (!everConnected) {
+    return <span className="text-zinc-600">—</span>;
+  }
+
+  if (Math.abs(animated) < 0.005) {
+    return <span className="text-zinc-500">$0.00</span>;
+  }
+
+  return (
+    <span className={isProfit ? "text-emerald-400" : "text-rose-400"}>
+      {isProfit ? "+" : "-"}${Math.abs(animated).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+    </span>
+  );
 }
 
 export function PositionsPanel({ positions, tickers, everConnected = true }: Props) {
@@ -53,13 +70,6 @@ export function PositionsPanel({ positions, tickers, everConnected = true }: Pro
                 const symTicker = tickers?.[p.symbol];
                 const currentPrice = symTicker?.lastPrice ?? p.entryPrice;
                 const currentValue = p.size * currentPrice;
-                const rawPnl = p.unrealizedPnL !== undefined ? p.unrealizedPnL : currentValue - (p.size * p.entryPrice);
-                const displayedPnl = Math.round(rawPnl * 100) / 100;
-                const pnlString = !everConnected
-                  ? "—"
-                  : displayedPnl === 0
-                    ? "$0.00"
-                    : (displayedPnl > 0 ? "+" : "-") + "$" + Math.abs(displayedPnl).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
                 return (
                   <tr key={p.symbol}>
@@ -72,11 +82,8 @@ export function PositionsPanel({ positions, tickers, everConnected = true }: Pro
                     <td className="text-right tabular-nums text-zinc-300">{p.size.toFixed(4)}</td>
                     <td className="text-right tabular-nums text-zinc-500">${p.entryPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                     <td className="text-right tabular-nums text-zinc-200 font-semibold">${currentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                    <td className={`text-right tabular-nums font-bold ${
-                      !everConnected ? "text-zinc-600" :
-                      displayedPnl === 0 ? "text-zinc-500" : displayedPnl > 0 ? "text-emerald-400" : "text-rose-400"
-                    }`}>
-                      {pnlString}
+                    <td className="text-right tabular-nums font-bold">
+                      <AnimatedPnL value={p.unrealizedPnL} everConnected={everConnected} />
                     </td>
                   </tr>
                 );

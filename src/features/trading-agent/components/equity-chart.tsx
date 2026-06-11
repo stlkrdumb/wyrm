@@ -11,6 +11,7 @@ import {
 } from "lightweight-charts";
 import { Card, CardHeader, CardTitle, CardContent } from "@/shared/ui";
 import type { PortfolioData } from "@/features/trading-agent/hooks/use-agent";
+import { useAnimatedNumber } from "@/features/trading-agent/hooks/use-animated-number";
 
 const DEFAULT_INITIAL_CASH = 1000;
 
@@ -77,9 +78,13 @@ export function EquityChart({ portfolio, equityCurve, equityHistory, everConnect
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Area"> | null>(null);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- standard hydration pattern
   useEffect(() => { setMounted(true); }, []);
 
   const initialCash = useMemo(() => portfolio.initialCash ?? DEFAULT_INITIAL_CASH, [portfolio.initialCash]);
+
+  // Stable timestamp for fallback chart points — computed once at mount, not during render
+  const [mountTime] = useState(() => Math.floor(Date.now() / 1000));
 
   // Build chart data — backtest mode takes precedence over live history
   const chartData = useMemo<ChartPoint[]>(() => {
@@ -92,19 +97,23 @@ export function EquityChart({ portfolio, equityCurve, equityHistory, everConnect
       return filterByTimeframe(equityHistory, timeframe);
     }
     return [
-      { time: Math.floor(Date.now() / 1000) as Time, value: initialCash },
-      { time: Math.floor(Date.now() / 1000) + 1 as Time, value: initialCash },
+      { time: mountTime as Time, value: initialCash },
+      { time: (mountTime + 1) as Time, value: initialCash },
     ];
-  }, [equityCurve, equityHistory, timeframe, initialCash]);
+  }, [equityCurve, equityHistory, timeframe, initialCash, mountTime]);
 
   // Equity color: green when profitable, red when in loss
   const isProfit = portfolio.totalPnL >= 0;
   const chartColor = isProfit ? "#10b981" : "#f43f5e";
 
-  // Displayed values come straight from the 1s poll — no overlay, no animation
-  const displayEquity = portfolio.equity ?? portfolio.cash;
-  const displayTotalPnL = portfolio.totalPnL;
-  const displayCash = portfolio.cash;
+  // Displayed values come from the poll + SSE merge, animated smoothly
+  const rawEquity = portfolio.equity ?? portfolio.cash;
+  const rawTotalPnL = portfolio.totalPnL;
+  const rawCash = portfolio.cash;
+
+  const displayEquity = useAnimatedNumber(rawEquity);
+  const displayTotalPnL = useAnimatedNumber(rawTotalPnL);
+  const displayCash = useAnimatedNumber(rawCash);
 
   // Pre-connection gate: while the WS has never connected, show "CONNECTING…"
   // placeholders instead of stale data computed from an empty price store.
