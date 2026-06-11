@@ -69,9 +69,10 @@ export function Dashboard() {
             equityHistory={agent.state.equityHistory}
           />
           <div className="flex-1 min-h-0">
-            <PositionsPanel 
-              positions={agent.state.positions} 
-              tickers={agent.state.tickers} 
+            <PositionsPanel
+              positions={agent.state.positions}
+              tickers={agent.state.tickers}
+              livePositions={liveStream.positions}
             />
           </div>
         </div>

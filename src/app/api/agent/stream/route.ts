@@ -3,7 +3,7 @@ import path from "node:path";
 dotenv.config({ path: path.join(process.cwd(), ".env.local"), override: true });
 
 import type { NextRequest } from "next/server";
-import { agentEvents, type EquityEvent, type PositionEvent, type PriceEvent, type TradeEvent } from "@/features/trading-agent/services/agent-events";
+import { agentEvents, type EquityEvent, type PositionEvent, type PositionClosedEvent, type PriceEvent, type TradeEvent } from "@/features/trading-agent/services/agent-events";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -32,11 +32,13 @@ export async function GET(req: NextRequest) {
 
       const onEquity = (e: EquityEvent) => write("equity", e);
       const onPosition = (e: PositionEvent) => write("position", e);
+      const onPositionClosed = (e: PositionClosedEvent) => write("position_closed", e);
       const onPrice = (e: PriceEvent) => write("price", e);
       const onTrade = (e: TradeEvent) => write("trade", e);
 
       agentEvents.on("equity", onEquity);
       agentEvents.on("position", onPosition);
+      agentEvents.on("position_closed", onPositionClosed);
       agentEvents.on("price", onPrice);
       agentEvents.on("trade", onTrade);
 
@@ -54,6 +56,7 @@ export async function GET(req: NextRequest) {
         closed = true;
         agentEvents.off("equity", onEquity);
         agentEvents.off("position", onPosition);
+        agentEvents.off("position_closed", onPositionClosed);
         agentEvents.off("price", onPrice);
         agentEvents.off("trade", onTrade);
         if (heartbeat) { clearInterval(heartbeat); heartbeat = null; }

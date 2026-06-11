@@ -22,6 +22,17 @@ export interface LivePosition {
   timestamp: number;
 }
 
+export interface LivePositionClosed {
+  symbol: string;
+  side: "long" | "short";
+  size: number;
+  entryPrice: number;
+  closePrice: number;
+  realizedPnL: number;
+  reason: "auto-bracket-sl" | "auto-bracket-tp" | "manual-sell" | "agent-stop" | "unknown";
+  timestamp: number;
+}
+
 export interface LivePrice {
   symbol: string;
   lastPrice: number;
@@ -116,6 +127,17 @@ export function useLiveStream() {
         setState((prev) => {
           const next = new Map(prev.positions);
           next.set(pos.symbol, pos);
+          return { ...prev, positions: next, lastEventAt: Date.now() };
+        });
+      });
+
+      handleEvent<LivePositionClosed>("position_closed", (closed) => {
+        // Remove the closed symbol from the live positions map so the UI
+        // immediately reflects the position table without waiting for the 3s poll
+        setState((prev) => {
+          if (!prev.positions.has(closed.symbol)) return { ...prev, lastEventAt: Date.now() };
+          const next = new Map(prev.positions);
+          next.delete(closed.symbol);
           return { ...prev, positions: next, lastEventAt: Date.now() };
         });
       });

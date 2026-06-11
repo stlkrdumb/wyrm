@@ -20,6 +20,17 @@ export interface PositionEvent {
   timestamp: number;
 }
 
+export interface PositionClosedEvent {
+  symbol: string;
+  side: "long" | "short";
+  size: number;
+  entryPrice: number;
+  closePrice: number;
+  realizedPnL: number;
+  reason: "auto-bracket-sl" | "auto-bracket-tp" | "manual-sell" | "agent-stop" | "unknown";
+  timestamp: number;
+}
+
 export interface PriceEvent {
   symbol: string;
   lastPrice: number;
@@ -46,6 +57,9 @@ class AgentEvents extends EventEmitter {
   }
   emitPosition(payload: PositionEvent): void {
     this.emit("position", payload);
+  }
+  emitPositionClosed(payload: PositionClosedEvent): void {
+    this.emit("position_closed", payload);
   }
   emitPrice(payload: PriceEvent): void {
     this.emit("price", payload);

@@ -41,7 +41,8 @@ ${process.env.LLM_RISKPROFILE === "true"
 
 export function buildMultiPrompt(
   symbolData: Map<string, { ticker: TickerData; ta5m: any; ta1h: any; ta1d: any; sentiment?: any }>,
-  activePositions: Position[] = []
+  activePositions: Position[] = [],
+  recentExits: Array<{ symbol: string; reason: 'Stop Loss' | 'Take Profit'; timestamp: number }> = []
 ): string {
   const entries = Array.from(symbolData.entries());
   const lines = entries
@@ -98,11 +99,30 @@ export function buildMultiPrompt(
     positionsSection = "\n⚠ IMPORTANT: We hold NO positions in any of these symbols. Every symbol below should be evaluated as a fresh entry opportunity (buy) or a skip (hold) — there is nothing to sell and nothing to maintain.\n";
   }
 
+  // Recent auto-exits — tells the LLM which symbols were just SL/TP'd and are no longer held.
+  // This prevents the LLM from hallucinating "manage existing position" / "hold to manage"
+  // on symbols that were just auto-closed by the system.
+  const RECENT_EXITS_WINDOW_MS = 30 * 60 * 1000; // 30 min
+  const freshExits = recentExits.filter(e => Date.now() - e.timestamp < RECENT_EXITS_WINDOW_MS);
+  let recentExitsSection = "";
+  if (freshExits.length > 0) {
+    const lines = freshExits
+      .map(e => {
+        const agoMs = Date.now() - e.timestamp;
+        const ago = agoMs < 60_000
+          ? `${Math.max(1, Math.round(agoMs / 1000))}s ago`
+          : `${Math.round(agoMs / 60_000)}m ago`;
+        return `- ${e.symbol}: exited ${ago} via ${e.reason}`;
+      })
+      .join("\n");
+    recentExitsSection = `\nRecent Auto-Exits (these symbols were just closed by the system — DO NOT treat them as active positions):\n${lines}\n`;
+  }
+
   return `You are a professional quantitative trader. Analyze the following cryptocurrencies and provide a decision for EACH one.
 
 Analyze ONLY these symbols and return a JSON object with keys matching each symbol:
 ${lines}
-${positionsSection}
+${positionsSection}${recentExitsSection}
 Rules:
 - For EACH symbol, decide: buy, sell, or hold
 - If we hold a position for a symbol (one that appears in the "Active Positions" section above) and you want to take profit, stop loss, or close it, output "action": "sell".
@@ -110,6 +130,7 @@ Rules:
 - If we hold a position (listed above) and you wish to add more (average down), output "action": "buy".
 - If we do NOT hold a position for a symbol (NOT listed in the Active Positions section), "sell" is invalid — only "buy" or "hold" are valid actions for it.
 - ANTI-HALLUCINATION: NEVER refer to "current position", "our position", "we hold", "we are holding", or "maintaining" in your reason for any symbol UNLESS that symbol is explicitly listed in the Active Positions section above. If no positions are listed, we hold nothing — do not invent one.
+- ANTI-HALLUCINATION: If a symbol is listed in the Recent Auto-Exits section, it is NOT an active position — the system just closed it. Treat it as a fresh entry opportunity (buy) or a skip (hold). Do NOT say "hold to manage existing position" or "we already hold" for any symbol in that list.
 - For "hold" decisions on symbols we don't own, explain why the technical/fundamental signals don't warrant a fresh entry (e.g., weak RSI, unclear trend, low volume), NOT because you're "maintaining a position".
 - Strength: -1 (strong sell) to +1 (strong buy)
 - Confidence: 0-1
@@ -167,7 +188,7 @@ export function parseSingleResponse(response: string): { decision: TradingDecisi
   const tpPct = parsePercentField(parsed.tpPct, 1, 100);
 
   return {
-    decision: { action, strength, confidence, riskProfile, slPct, tpPct, reason: parsed.reason || "No reasoning provided" },
+    decision: { action, strength, confidence, riskProfile, slPct, tpPct, reason: sanitizeReason(parsed.reason || "No reasoning provided") },
     signals: [
       {
         id: crypto.randomUUID(),
@@ -298,6 +319,26 @@ function parsePercentField(raw: unknown, min: number, max: number): number | und
   return Number(clamped.toFixed(2));
 }
 
+/** Strip hallucinated position references from the LLM's reason text.
+ *  This is a server-side safety net for when the LLM ignores prompt rules
+ *  (especially when reasoning is disabled) and invents a position. */
+function sanitizeReason(reason: string): string {
+  if (!reason || typeof reason !== "string") return reason;
+  const patterns: RegExp[] = [
+    /manage existing position[^.,]*/gi,
+    /current position is held[^.,]*/gi,
+    /current position[^.,]*/gi,
+    /our position[^.,]*/gi,
+    /we hold (a |an )?position[^.,]*/gi,
+    /we are holding[^.,]*/gi,
+    /maintaining (a |an |our )?position[^.,]*/gi,
+    /holding (this |the )?position[^.,]*/gi,
+  ];
+  let out = reason;
+  for (const p of patterns) out = out.replace(p, "");
+  return out.replace(/\s{2,}/g, " ").trim();
+}
+
 export function parseMultiResponse(
   response: string,
   symbols: string[]
@@ -354,7 +395,7 @@ export function parseMultiResponse(
     const slPct = parsePercentField(raw.slPct, 1, 50);
     const tpPct = parsePercentField(raw.tpPct, 1, 100);
 
-    decisions[symbol] = { action, strength, confidence, riskProfile, slPct, tpPct, reason: raw.reason || "No reasoning" };
+    decisions[symbol] = { action, strength, confidence, riskProfile, slPct, tpPct, reason: sanitizeReason(raw.reason || "No reasoning") };
 
     allSignals.push({
       id: crypto.randomUUID(),

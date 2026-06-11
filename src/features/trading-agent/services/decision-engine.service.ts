@@ -157,7 +157,8 @@ export async function evaluateDecision(ticker: TickerData): Promise<{ decision: 
 export async function evaluateMultiPair(
   priceMap: Map<string, TickerData>,
   activePositions: import("@/features/trading-agent/types").Position[] = [],
-  onToken?: (token: string) => void
+  onToken?: (token: string) => void,
+  recentExits: Array<{ symbol: string; reason: "Stop Loss" | "Take Profit"; timestamp: number }> = []
 ): Promise<MultiPairResult> {
   const symbols = Array.from(priceMap.keys());
   if (symbols.length === 0) {
@@ -204,7 +205,7 @@ export async function evaluateMultiPair(
   }
 
   // Step 2: Single LLM call with all symbols
-  const prompt = buildMultiPrompt(symbolData, activePositions);
+  const prompt = buildMultiPrompt(symbolData, activePositions, recentExits);
 
   let userPrompt = prompt;
   if (!priceStore.isBacktesting) {
