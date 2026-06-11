@@ -189,7 +189,6 @@ export function BacktestPanel({ onBack }: { onBack?: () => void }) {
                       totalPnL: result.totalReturn,
                       winRate: result.winRate
                     }}
-                    ticker={null}
                     equityCurve={result.equityCurve}
                   />
                 </div>

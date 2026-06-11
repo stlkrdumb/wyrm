@@ -13,6 +13,7 @@ import { riskManager } from "./risk-manager.service";
 import { historyService } from "./history-service";
 import { loadBalanceState, saveBalanceState } from "./balance-store";
 import { marketWS } from "./market-ws.service";
+import { agentEvents } from "./agent-events";
 
 // Load .env.local to ensure env vars are available
 dotenv.config({ path: path.join(process.cwd(), ".env.local"), override: false });
@@ -115,7 +116,36 @@ function recalcEquity(st: AgentState): void {
     if (!symSnap) { totalPosVal += p.size * p.entryPrice; continue; }
     totalPosVal += p.size * symSnap.lastPrice;
   }
-  st.portfolio = { ...st.portfolio, equity: st.portfolio.cash + totalPosVal };
+  const newEquity = st.portfolio.cash + totalPosVal;
+  st.portfolio = { ...st.portfolio, equity: newEquity };
+
+  // Emit equity event for SSE consumers — fires on every WS ticker push
+  const drawdown = st.peakEquity > 0 ? ((st.peakEquity - newEquity) / st.peakEquity) * 100 : 0;
+  agentEvents.emitEquity({
+    equity: newEquity,
+    cash: st.portfolio.cash,
+    totalPnL: newEquity - st.startEquity,
+    drawdown,
+    timestamp: Date.now(),
+  });
+
+  // Emit per-position updates so the portfolio panel can animate
+  for (const p of st.positions) {
+    const symSnap = priceStore.getCached(p.symbol);
+    const lastPrice = symSnap?.lastPrice ?? p.entryPrice;
+    const pnlPct = p.entryPrice > 0 ? ((lastPrice - p.entryPrice) / p.entryPrice) * 100 : 0;
+    agentEvents.emitPosition({
+      symbol: p.symbol,
+      side: p.side,
+      size: p.size,
+      entryPrice: p.entryPrice,
+      unrealizedPnL: p.unrealizedPnL,
+      stopLossPct: p.stopLossPct,
+      takeProfitPct: p.takeProfitPct,
+      pnlPct,
+      timestamp: Date.now(),
+    });
+  }
 }
 
 /** Called by market-ws.service.ts when a ticker update arrives */
@@ -155,6 +185,19 @@ export function updatePositionUnrealizedPnL(symbol: string, currentPrice: number
     st.watchlist = st.watchlist.filter(s => s !== symbol);
     st.portfolio.totalPnL = st.portfolio.cash - st.startEquity;
     st.portfolio.totalTrades++;
+
+    // Emit trade event for SSE consumers
+    agentEvents.emitTrade({
+      id: `T${tc}`,
+      symbol,
+      side: "sell",
+      action: "exit",
+      size: pos.size,
+      price: currentPrice,
+      pnl,
+      fee: exitFee,
+      timestamp: Date.now(),
+    });
 
     // Record auto-bracket exit so the LLM doesn't re-enter within the cooldown window
     st.recentExits.set(symbol, Date.now());

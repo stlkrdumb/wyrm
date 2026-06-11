@@ -4,6 +4,7 @@ import { config, setTradeCounter, getTradeCounter, calculateWinRate } from "./st
 import { getLivePrice } from "./price-fetcher.service";
 import { saveBalanceState } from "./balance-store";
 import { priceStore } from "./price-store";
+import { agentEvents } from "./agent-events";
 import { RISK_PROFILES, type RiskProfile } from "../constants/risk.constants";
 
 /** Resolve the trade execution price from the WS cache ONLY — never REST.
@@ -202,10 +203,12 @@ export function executeTrades(
             entryPrice: (p.entryPrice * p.size + execPrice * tradeSize * (1 + config.feePct)) / (p.size + tradeSize),
           };
           state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "buy", action: "add", size: tradeSize, price: execPrice, fee });
+          agentEvents.emitTrade({ id: `T${tc}`, symbol, side: "buy", action: "add", size: tradeSize, price: execPrice, fee, timestamp: now.getTime() });
         } else {
           const sltp = resolveSLTP(decision);
           state.positions.push({ symbol, side: "long", size: tradeSize, entryPrice: execPrice * (1 + config.feePct), unrealizedPnL: 0, ...sltp });
           state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "buy", action: "entry", size: tradeSize, price: execPrice, fee });
+          agentEvents.emitTrade({ id: `T${tc}`, symbol, side: "buy", action: "entry", size: tradeSize, price: execPrice, fee, timestamp: now.getTime() });
           livePositionCount++;
         }
         liquidBalance -= totalCost;
@@ -221,6 +224,7 @@ export function executeTrades(
           const fee = revenue * config.feePct;
           const pnl = (execPrice - pos.entryPrice) * pos.size - fee;
           state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "sell", action: "exit", size: pos.size, price: execPrice, pnl, fee });
+          agentEvents.emitTrade({ id: `T${tc}`, symbol, side: "sell", action: "exit", size: pos.size, price: execPrice, pnl, fee, timestamp: now.getTime() });
           liquidBalance += revenue - fee;
           state.positions.splice(idx, 1);
           livePositionCount = new Set(state.positions.map(p => p.symbol)).size;
@@ -230,6 +234,7 @@ export function executeTrades(
           const fee = revenue * config.feePct;
           const pnl = (execPrice - avgEntry) * tradeSize - fee;
           state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "sell", action: "reduce", size: tradeSize, price: execPrice, pnl, fee });
+          agentEvents.emitTrade({ id: `T${tc}`, symbol, side: "sell", action: "reduce", size: tradeSize, price: execPrice, pnl, fee, timestamp: now.getTime() });
           liquidBalance += revenue - fee;
           state.positions[idx] = { ...state.positions[idx], size: pos.size - tradeSize };
         }

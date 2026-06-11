@@ -2,37 +2,49 @@
 
 import { memo } from "react";
 import { TrendingUp, TrendingDown, Wallet, Target, Activity, Zap } from "lucide-react";
+import { useAnimatedNumber } from "@/features/trading-agent/hooks/use-animated-number";
 import type { PortfolioData, PositionData } from "@/features/trading-agent/hooks/use-agent";
+import type { LiveEquity } from "@/features/trading-agent/hooks/use-live-stream";
 
 interface Props {
   portfolio: PortfolioData;
   positions: PositionData[];
   peakEquity: number;
   status: string;
+  liveEquity?: LiveEquity | null;
 }
 
-const CountUp = memo(function CountUp({ value, prefix = "", suffix = "", decimals = 0 }: { value: number; prefix?: string; suffix?: string; decimals?: number }) {
-  const formatted = value.toLocaleString(undefined, {
+const AnimatedNumber = memo(function AnimatedNumber({ value, prefix = "", suffix = "", decimals = 0 }: { value: number; prefix?: string; suffix?: string; decimals?: number }) {
+  const animated = useAnimatedNumber(value, 350);
+  const formatted = animated.toLocaleString(undefined, {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   });
   return (
-    <span className="tabular-nums transition-all duration-300">
+    <span className="tabular-nums">
       {prefix}{formatted}{suffix}
     </span>
   );
 });
 
-export const KpiStrip = memo(function KpiStrip({ portfolio, positions, peakEquity, status }: Props) {
+export const KpiStrip = memo(function KpiStrip({ portfolio, positions, peakEquity, status, liveEquity }: Props) {
   const isRunning = status === "running";
-  const isProfit = portfolio.totalPnL >= 0;
-  const drawdown = peakEquity > 0 ? ((peakEquity - portfolio.equity) / peakEquity) * 100 : 0;
+
+  // Use SSE live data when fresh (< 10s old), otherwise fall back to polled state
+  const liveFresh = liveEquity && Date.now() - liveEquity.timestamp < 10_000;
+  const equity = liveFresh && liveEquity ? liveEquity.equity : portfolio.equity;
+  const totalPnL = liveFresh && liveEquity ? liveEquity.totalPnL : portfolio.totalPnL;
+  const drawdown = liveFresh && liveEquity
+    ? liveEquity.drawdown
+    : peakEquity > 0 ? ((peakEquity - portfolio.equity) / peakEquity) * 100 : 0;
+
+  const isProfit = totalPnL >= 0;
 
   const kpiItems = [
     {
       icon: <Wallet className="w-4 h-4" />,
       label: "EQUITY",
-      value: portfolio.equity,
+      value: equity,
       prefix: "$",
       decimals: 2,
       color: "text-zinc-100",
@@ -41,7 +53,7 @@ export const KpiStrip = memo(function KpiStrip({ portfolio, positions, peakEquit
     {
       icon: isProfit ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />,
       label: "TOTAL PnL",
-      value: portfolio.totalPnL,
+      value: totalPnL,
       prefix: "",
       suffix: "",
       decimals: 2,
@@ -97,7 +109,7 @@ export const KpiStrip = memo(function KpiStrip({ portfolio, positions, peakEquit
                 {kpi.label}
               </div>
               <div className={`text-[18px] font-black font-mono tracking-tight ${kpi.color}`}>
-                <CountUp value={kpi.value} prefix={kpi.prefix} suffix={kpi.suffix} decimals={kpi.decimals} />
+                <AnimatedNumber value={kpi.value} prefix={kpi.prefix} suffix={kpi.suffix} decimals={kpi.decimals} />
               </div>
             </div>
             {isRunning && (

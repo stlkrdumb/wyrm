@@ -10,6 +10,9 @@ export default function proxy(request: NextRequest) {
 
   const authHeader = request.headers.get("authorization");
   const token = process.env.NEXT_PUBLIC_AUTH_TOKEN;
+  // SSE via EventSource can't send custom headers, so accept the token via ?token= query
+  const queryToken = request.nextUrl.searchParams.get("token");
+  const provided = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : queryToken;
 
   if (!token) {
     return NextResponse.json(
@@ -18,7 +21,7 @@ export default function proxy(request: NextRequest) {
     );
   }
 
-  if (!authHeader || authHeader !== `Bearer ${token}`) {
+  if (!provided || provided !== token) {
     return NextResponse.json(
       { status: "error", message: "Unauthorized — invalid or missing Bearer token" },
       { status: 401 }
