@@ -2,9 +2,9 @@ import dotenv from "dotenv";
 import path from "node:path";
 import type { Signal, TickerData, TradingDecision, Position } from "@/features/trading-agent/types";
 import type { AgentState } from "./state-store";
-import { config, setTradeCounter, getTradeCounter, calculateWinRate } from "./state-store";
+import { config, setTradeCounter, getTradeCounter } from "./state-store";
 import { getLivePrice } from "./price-fetcher.service";
-import { flattenPositions, executeTrades } from "./order-executor.service";
+import { executeTrades } from "./order-executor.service";
 import { priceStore } from "./price-store";
 import { evaluateMultiPair, type MultiPairResult } from "./decision-engine.service";
 import { runScreening } from "./screening.service";
@@ -12,7 +12,6 @@ import { getActiveModel } from "./llm.service";
 import { riskManager } from "./risk-manager.service";
 import { historyService } from "./history-service";
 import { loadBalanceState, saveBalanceState } from "./balance-store";
-import type { DecisionRecord } from "@/features/trading-agent/types/history.types";
 
 // Load .env.local to ensure env vars are available
 dotenv.config({ path: path.join(process.cwd(), ".env.local"), override: true });

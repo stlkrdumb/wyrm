@@ -1,5 +1,6 @@
 import type { TickerData, OrderBook, Candlestick } from "@/features/trading-agent/types";
 import { optionalFetch } from "./proxy-client";
+import { priceStore } from "./price-store";
 
 const BITGET_API = "https://api.bitget.com/api/v2/spot/market";
 
@@ -109,4 +110,35 @@ export async function getCandlestickData(
 /** Get current account assets (requires API key with Read permission). */
 export async function getAccountAssets(): Promise<Record<string, unknown>> {
   throw new Error("Private endpoints require HMAC-SHA256 signing — use Bitget CLI or implement auth headers");
+}
+
+/** Get candle data with priceStore cache. Single source of truth for TA candle fetching. */
+export async function getCandlesWithCache(symbol: string, interval: string, limit = 50): Promise<Candlestick[]> {
+  let candles = priceStore.getCandles(symbol, interval);
+  if (candles && candles.length >= limit && !priceStore.isCandleStale(symbol, interval, 5 * 60_000)) {
+    return candles;
+  }
+
+  const granularityMap: Record<string, string> = {
+    "5m": "5min", "1h": "1h", "1d": "1day",
+  };
+  const gran = granularityMap[interval] ?? "1h";
+  const resp = await optionalFetch<{ code: string; data: string[][] }>(
+    `https://api.bitget.com/api/v2/spot/market/candles?symbol=${symbol}&granularity=${gran}&limit=${limit}`
+  );
+  const ohlcvs = resp.data ?? [];
+  candles = ohlcvs.reverse().map((c: string[]) => ({
+    timestamp: Number(c[0]),
+    open: Number(c[1]),
+    high: Number(c[2]),
+    low: Number(c[3]),
+    close: Number(c[4]),
+    volume: Number(c[5]),
+  }));
+
+  for (const c of candles) {
+    priceStore.updateCandle(symbol, interval, c);
+  }
+
+  return candles;
 }
