@@ -4,45 +4,72 @@ import { memo } from "react";
 import { Badge } from "@/shared/ui";
 import type { TradeData, PortfolioData } from "@/features/trading-agent/hooks/use-agent";
 
-function formatRelative(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  if (diff < 60_000) return "just now";
-  if (diff < 3600_000) return `${Math.floor(diff / 60_000)}m ago`;
-  if (diff < 86400_000) return `${Math.floor(diff / 3600_000)}h ago`;
-  return `${Math.floor(diff / 86400_000)}d ago`;
+function formatTime(ts: string): string {
+  try {
+    const d = new Date(ts);
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  } catch {
+    return "--:--:--";
+  }
 }
 
-const actionBadgeVariant = (action: string): "success" | "danger" | "warning" | "neutral" => {
-  switch (action) {
-    case "entry": return "success";
-    case "add": return "success";
-    case "exit": return "danger";
-    case "reduce": return "warning";
-    default: return "neutral";
-  }
+const actionLabel: Record<string, string> = {
+  entry: "BUY", exit: "SELL", add: "ADD", reduce: "REDUCE",
 };
 
-const actionLabel: Record<string, string> = {
-  entry: "Buy", exit: "Sell", add: "Buy More", reduce: "Partial Sell",
+const actionColor: Record<string, string> = {
+  entry: "border-l-emerald-500/40",
+  exit: "border-l-rose-500/40",
+  add: "border-l-emerald-500/25",
+  reduce: "border-l-amber-500/25",
 };
 
 export const TradeLog = memo(function TradeLog({ trades, portfolio, isTabMode }: { trades: TradeData[]; portfolio: PortfolioData; isTabMode?: boolean }) {
   const hasTrades = trades.length > 0;
+  const reversed = hasTrades ? [...trades].reverse() : [];
 
   const content = (
     <>
       <div className="flex-grow overflow-y-auto scrollbar-none pr-1 -mr-1 mt-2">
         {hasTrades ? (
-          <div className="flex flex-col gap-2 font-mono">
-            {[...trades].reverse().map((t) => (
-              <TradeRow key={t.id} trade={t} />
-            ))}
-          </div>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th className="text-left w-16">Time</th>
+                <th className="text-left w-14">Type</th>
+                <th className="text-left">Symbol</th>
+                <th className="text-right w-20">Size</th>
+                <th className="text-right w-24">Price</th>
+                <th className="text-right w-20">PnL</th>
+              </tr>
+            </thead>
+            <tbody>
+              {reversed.map((t) => {
+                const hasPnl = t.pnl !== null && t.pnl !== undefined;
+                return (
+                  <tr key={t.id} className={actionColor[t.action] ?? ""}>
+                    <td className="tabular-nums text-zinc-600 text-[11px]">{formatTime(t.timestamp)}</td>
+                    <td>
+                      <Badge variant={t.action === "entry" || t.action === "add" ? "success" : t.action === "reduce" ? "warning" : "danger"} className="text-[10px] px-1.5">
+                        {actionLabel[t.action] ?? t.action}
+                      </Badge>
+                    </td>
+                    <td className="font-bold text-zinc-100 text-[11px]">{t.symbol}</td>
+                    <td className="text-right tabular-nums text-zinc-500">{t.size.toFixed(4)}</td>
+                    <td className="text-right tabular-nums text-zinc-400">${t.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                    <td className={`text-right tabular-nums font-bold ${hasPnl ? (t.pnl! >= 0 ? "text-emerald-400" : "text-rose-400") : "text-zinc-600"}`}>
+                      {hasPnl ? `${t.pnl! >= 0 ? "+" : "-"}$${Math.abs(t.pnl!).toFixed(2)}` : "—"}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         ) : (
           <div className="relative flex items-center justify-center py-6 overflow-hidden">
             <div className="relative z-10 flex flex-col items-center gap-1.5 text-[12px] font-mono text-zinc-500 tracking-wide uppercase">
               <div className="w-1.5 h-1.5 rounded-full bg-white/30 animate-empty-pulse" />
-              <span>Awaiting execution logs • system idle</span>
+              <span>Awaiting execution logs — system idle</span>
             </div>
           </div>
         )}
@@ -73,27 +100,3 @@ export const TradeLog = memo(function TradeLog({ trades, portfolio, isTabMode }:
     </div>
   );
 });
-
-function TradeRow({ trade }: { trade: TradeData }) {
-  const pnlDisplay = trade.pnl !== null && trade.pnl !== undefined;
-  return (
-    <div className="flex items-center justify-between py-1.5 border-b border-zinc-800/30 last:border-0">
-      <div className="flex items-center gap-2.5 min-w-0">
-        <Badge variant={actionBadgeVariant(trade.action)} className="text-[10px] px-1.5">
-          {actionLabel[trade.action] ?? trade.action}
-        </Badge>
-        <span className="text-[11px] text-zinc-200 font-semibold font-mono">{trade.symbol}</span>
-      </div>
-      <div className="flex items-center gap-3 text-[12px] font-mono tabular-nums flex-shrink-0">
-        <span className="text-zinc-500">{trade.size.toFixed(4)}</span>
-        <span className="text-zinc-400">${trade.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-        {pnlDisplay && (
-          <span className={`font-bold min-w-[4.5rem] text-right ${trade.pnl! >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-            {trade.pnl! >= 0 ? "+" : "-"}${Math.abs(trade.pnl!).toFixed(2)}
-          </span>
-        )}
-        <span className="text-zinc-600 min-w-[4rem] text-right">{formatRelative(trade.timestamp)}</span>
-      </div>
-    </div>
-  );
-}
