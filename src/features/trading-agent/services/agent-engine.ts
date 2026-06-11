@@ -25,7 +25,14 @@ export { config };
 type OnTokenCallback = (token: string) => void;
 
 // ─── State Management ───────────────────────
-const state: AgentState = buildInitialState();
+// Share the agent state singleton across Next.js bundles using Node's global object
+const globalForAgentState = global as unknown as { agentState?: AgentState };
+
+const state: AgentState = globalForAgentState.agentState ?? buildInitialState();
+
+if (process.env.NODE_ENV !== "production") {
+  globalForAgentState.agentState = state;
+}
 
 function getState(): AgentState {
   return state;
@@ -193,6 +200,7 @@ export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ ticker
   if (st.status !== "running") return { tickerPrice: 0, tickers: {} };
 
   llmProgress = { text: "", tokensReceived: 0 };
+  st.llmProgress = llmProgress;
   st.lastCycleAt = new Date();
   pushLog("info", "Cycle started — scanning market...");
 
@@ -252,6 +260,7 @@ export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ ticker
     if (!llmProgress) llmProgress = { text: "", tokensReceived: 0 };
     llmProgress.text += token;
     llmProgress.tokensReceived += 1;
+    st.llmProgress = llmProgress;
   }), recentExitsForPrompt);
   if (isStopped()) { console.warn("[Agent] Stop requested during evaluation — aborting cycle"); return { tickerPrice: 0, tickers: {} }; }
   setS({ decisionSource: er.source });

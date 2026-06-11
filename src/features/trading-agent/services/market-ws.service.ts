@@ -28,8 +28,6 @@ export class MarketWebSocketService {
   private cycleTimer: ReturnType<typeof setTimeout> | null = null;
   private cycleInFlight = false;
   private agentCycleHandler: (() => Promise<void>) | null = null;
-  private restFallbackTimer: ReturnType<typeof setTimeout> | null = null;
-  private restFallbackRunning = false;
 
   setAgentCycleHandler(handler: () => Promise<void>) {
     this.agentCycleHandler = handler;
@@ -102,10 +100,6 @@ export class MarketWebSocketService {
         proxy: proxyUrl ? mask(proxyUrl) : null,
       };
     }
-    // Only report "fallback" when the REST timer is actually running
-    if (this.restFallbackTimer !== null) {
-      return { type: "fallback", proxy: null };
-    }
     return { type: "fallback", proxy: null };
   }
 
@@ -150,7 +144,6 @@ export class MarketWebSocketService {
 
   disconnect(): void {
     this.clearPingTimer();
-    this.clearRestFallbackTimer();
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
@@ -186,8 +179,6 @@ export class MarketWebSocketService {
           }
           this.reconnectAttempt = 0;
           this.ws = ws;
-          // Stop REST fallback timer when WS is live
-          this.clearRestFallbackTimer();
           if (this.subscriptions.length > 0) {
             this.sendSubscribe(this.subscriptions);
           }
@@ -225,88 +216,11 @@ export class MarketWebSocketService {
     } catch (err) {
       if (PROXIES.length > 0) {
         this.proxyIndex = (this.proxyIndex + 1) % PROXIES.length;
-        console.warn(`[WS] Connection failed (proxy) — trying next proxy/REST fallback:`, err instanceof Error ? err.message : String(err));
+        console.warn(`[WS] Connection failed (proxy) — trying next proxy:`, err instanceof Error ? err.message : String(err));
       } else {
-        console.warn(`[WS] Connection failed — trying REST fallback:`, err instanceof Error ? err.message : String(err));
+        console.warn(`[WS] Connection failed:`, err instanceof Error ? err.message : String(err));
       }
-      await this.fallbackToRest();
-    }
-  }
-
-  private async fallbackToRest(): Promise<void> {
-    console.log("[WS] Starting REST ticker fallback...");
-
-    this.clearRestFallbackTimer();
-
-    const fetchAllTickers = async () => {
-      // Prevent overlapping runs when previous fetch took longer than 30s
-      if (this.restFallbackRunning) return;
-      this.restFallbackRunning = true;
-      try {
-        // Batch fetch — single call returns all tickers
-        const result = await bitgetClient.publicGet<Array<Record<string, string>>>(
-          "/api/v2/spot/market/tickers"
-        );
-
-        const targetSymbols = new Set(config.tradingSymbols);
-        const st = getAgentState();
-        for (const p of st.positions) targetSymbols.add(p.symbol);
-        if (st.watchlist) for (const s of st.watchlist) targetSymbols.add(s);
-
-        let count = 0;
-        for (const ticker of result.data ?? []) {
-          const symbol = (ticker.symbol ?? ticker.instId ?? "").toUpperCase();
-          if (!targetSymbols.has(symbol)) continue;
-
-          const lastPrice = Number(ticker.lastPrice ?? ticker.lastPr ?? ticker.close ?? "0");
-          if (lastPrice <= 0) continue;
-
-          const high24h = Number(ticker.high24h ?? ticker.high ?? "0");
-          const low24h = Number(ticker.low24h ?? ticker.low ?? "0");
-          const quoteVol = Number(ticker.volValue24h ?? ticker.quoteVolume ?? ticker.volumeValue24h ?? "0");
-          const changePctRaw = Number(ticker.changeUtc24h ?? ticker.priceRate ?? ticker.changingPercent24h ?? "0");
-          // Bitget already returns percentage as a decimal ratio (0.05 = 5%) — multiply by 100
-          const changePct = Number((changePctRaw * 100).toFixed(2));
-          const tsNum = Number(ticker.ts ?? Date.now());
-
-          const snapshot: PriceSnapshot = {
-            symbol,
-            lastPrice: Math.round(lastPrice * 100) / 100,
-            high24h,
-            low24h,
-            baseVolume: 0,
-            quoteVolume: quoteVol,
-            changePercent: changePct,
-            updatedAt: new Date(tsNum),
-          };
-
-          priceStore.updateTicker(snapshot);
-          count++;
-        }
-
-        console.log(`[WS] REST fallback cached ${count} ticker(s)`);
-      } catch (err) {
-        console.warn("[WS] REST fetch error:", err instanceof Error ? err.message : String(err));
-      } finally {
-        this.restFallbackRunning = false;
-      }
-    };
-
-    // Fire immediately, then on 30s interval — use recursive setTimeout to avoid overlap
-    const schedule = () => {
-      this.restFallbackTimer = setTimeout(async () => {
-        await fetchAllTickers();
-        if (this.restFallbackTimer) schedule(); // re-schedule only if still active
-      }, 30_000);
-    };
-    await fetchAllTickers();
-    schedule();
-  }
-
-  private clearRestFallbackTimer(): void {
-    if (this.restFallbackTimer) {
-      clearTimeout(this.restFallbackTimer);
-      this.restFallbackTimer = null;
+      this.scheduleReconnect();
     }
   }
 
@@ -422,8 +336,6 @@ export class MarketWebSocketService {
   syncSubscriptionsForPositions(extraSymbols?: string[]): void {
     const st = getAgentState();
     const posSymbols = st.positions.map(p => p.symbol);
-    // Preserve any candle subscriptions — only compute the ticker-channel diff
-    const existingTickerKeys = new Set(this.subscriptions.filter(s => s.channel === "ticker").map(s => `${s.channel}:${s.instId}`));
     const all = [...new Set([...config.tradingSymbols, ...posSymbols, ...(extraSymbols ?? [])])];
     const tickerChannels: WSSubscription[] = all.map((symbol): WSSubscription => ({
       instType: "SPOT",
@@ -432,7 +344,7 @@ export class MarketWebSocketService {
     }));
     // Keep existing candle subscriptions
     const candleChannels = this.subscriptions.filter(s => s.channel !== "ticker");
-    const merged = [...candleChannels, ...tickerChannels.filter(c => !existingTickerKeys.has(`${c.channel}:${c.instId}`))];
+    const merged = [...candleChannels, ...tickerChannels];
     this.subscribe(merged).catch(err =>
       console.warn("[WS] syncSubscriptions failed:", err instanceof Error ? err.message : String(err))
     );
@@ -450,9 +362,18 @@ export class MarketWebSocketService {
   }
 }
 
-export const marketWS = new MarketWebSocketService();
+// Share the MarketWebSocketService instance across Next.js bundles using Node's global object
+const globalForMarketWS = global as unknown as { marketWS?: MarketWebSocketService };
+
+export const marketWS = globalForMarketWS.marketWS ?? new MarketWebSocketService();
+
+if (process.env.NODE_ENV !== "production") {
+  globalForMarketWS.marketWS = marketWS;
+}
 
 // Auto-initialize WebSocket on module load (connects at server startup)
-marketWS.initialize().catch(err => {
-  console.warn("[WS] Auto-initialize failed (will retry on demand):", err instanceof Error ? err.message : String(err));
-});
+if (!globalForMarketWS.marketWS) {
+  marketWS.initialize().catch(err => {
+    console.warn("[WS] Auto-initialize failed (will retry on demand):", err instanceof Error ? err.message : String(err));
+  });
+}

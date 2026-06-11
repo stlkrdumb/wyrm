@@ -24,5 +24,13 @@ class AgentEvents extends EventEmitter {
   }
 }
 
-export const agentEvents = new AgentEvents();
+// Share the Event Emitter instance across Next.js bundles using Node's global object
+const globalForAgentEvents = global as unknown as { agentEvents?: AgentEvents };
+
+export const agentEvents = globalForAgentEvents.agentEvents ?? new AgentEvents();
+
+if (process.env.NODE_ENV !== "production") {
+  globalForAgentEvents.agentEvents = agentEvents;
+}
+
 agentEvents.setMaxListeners(100);
