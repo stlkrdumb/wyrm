@@ -12,6 +12,7 @@ function buildSavePayload(state: AgentState): PortfolioState {
     accumulatedRealizedPnL: state.portfolio.totalPnL,
     positions: savedPositions,
     pendingOrders: [],
+    trades: state.trades.map(t => ({ id: t.id, timestamp: t.timestamp.toISOString(), symbol: t.symbol, side: t.side, action: t.action, size: t.size, price: t.price, pnl: t.pnl, fee: t.fee })),
     totalTrades: state.portfolio.totalTrades,
     winRate: state.portfolio.winRate,
     circuitBreakerTripped: false,

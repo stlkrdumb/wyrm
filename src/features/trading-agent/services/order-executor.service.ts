@@ -75,6 +75,7 @@ export async function flattenPositions(state: AgentState): Promise<{ closed: num
     accumulatedRealizedPnL: state.portfolio.totalPnL,
     positions: [],
     pendingOrders: [],
+    trades: [],
     totalTrades: state.portfolio.totalTrades,
     winRate,
     circuitBreakerTripped: state.circuitBreakerTripped,
@@ -270,6 +271,7 @@ export function executeTrades(
 
   const savedPositions = state.positions.map(p => ({ symbol: p.symbol, side: p.side as "long" | "short", size: p.size, entryPrice: p.entryPrice, stopLossPct: p.stopLossPct, takeProfitPct: p.takeProfitPct }));
   const savedPending = state.pendingOrders.map(o => ({ id: o.id, symbol: o.symbol, side: o.side, limitPrice: o.limitPrice, size: o.size, reservedCash: o.reservedCash, createdAt: o.createdAt.toISOString(), stopLossPct: o.stopLossPct, takeProfitPct: o.takeProfitPct }));
+  const savedTrades = state.trades.map(t => ({ id: t.id, timestamp: t.timestamp.toISOString(), symbol: t.symbol, side: t.side, action: t.action, size: t.size, price: t.price, pnl: t.pnl, fee: t.fee }));
   saveBalanceState({
     initialCash: config.initialCash,
     startCash: state.startEquity,
@@ -277,6 +279,7 @@ export function executeTrades(
     accumulatedRealizedPnL: state.portfolio.totalPnL,
     positions: savedPositions,
     pendingOrders: savedPending,
+    trades: savedTrades,
     totalTrades: state.portfolio.totalTrades,
     winRate,
     circuitBreakerTripped: state.circuitBreakerTripped,

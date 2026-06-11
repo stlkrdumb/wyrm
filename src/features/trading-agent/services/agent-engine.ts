@@ -76,7 +76,17 @@ function buildInitialState(): AgentState {
     signals: [],
     positions,
     pendingOrders: (saved?.pendingOrders?.map((o: Record<string, unknown>) => ({ ...o, createdAt: new Date(o.createdAt as string) })) ?? []) as PendingOrder[],
-    trades: [],
+    trades: (saved?.trades?.map((t: Record<string, unknown>) => ({
+      id: t.id as string,
+      timestamp: new Date(t.timestamp as string),
+      symbol: t.symbol as string,
+      side: t.side as "buy" | "sell",
+      action: t.action as "entry" | "exit" | "add" | "reduce",
+      size: t.size as number,
+      price: t.price as number,
+      pnl: t.pnl as number | undefined,
+      fee: t.fee as number | undefined,
+    })) ?? []),
     portfolio: {
       timestamp: new Date(),
       initialCash: config.initialCash,
@@ -326,7 +336,7 @@ export async function setAgentStatus(s: "running" | "stopped" | "paused"): Promi
       st.watchlist = [];
       saveBalanceState({
         initialCash: config.initialCash, startCash: state?.startEquity ?? st.startEquity, cash: st.portfolio.cash,
-        accumulatedRealizedPnL: st.portfolio.totalPnL, positions: [], pendingOrders: [], totalTrades: st.portfolio.totalTrades, winRate: st.portfolio.winRate,
+        accumulatedRealizedPnL: st.portfolio.totalPnL, positions: [], pendingOrders: [], trades: [], totalTrades: st.portfolio.totalTrades, winRate: st.portfolio.winRate,
       });
       return { closed: closedCount, realizedPnl: totalPnlRealized };
     }

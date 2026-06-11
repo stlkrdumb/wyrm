@@ -32,6 +32,17 @@ export interface PortfolioState {
     stopLossPct: number;
     takeProfitPct: number;
   }>;
+  trades: Array<{           // trade history at last save
+    id: string;
+    timestamp: string;
+    symbol: string;
+    side: "buy" | "sell";
+    action: string;
+    size: number;
+    price: number;
+    pnl?: number;
+    fee?: number;
+  }>;
   totalTrades: number;
   winRate: number;           // approximate — for display
   circuitBreakerTripped?: boolean;
@@ -77,6 +88,7 @@ export function resetBalanceState(initialCash: number): PortfolioState {
     accumulatedRealizedPnL: 0,
     positions: [],
     pendingOrders: [],
+    trades: [],
     totalTrades: 0,
     winRate: 0,
     circuitBreakerTripped: false,

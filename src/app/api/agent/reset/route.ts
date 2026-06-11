@@ -19,6 +19,7 @@ export async function POST(_request: NextRequest) { // eslint-disable-line @type
       accumulatedRealizedPnL: 0,
       positions: [],
       pendingOrders: [],
+      trades: [],
       totalTrades: 0,
       winRate: 0,
     };

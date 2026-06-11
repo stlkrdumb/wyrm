@@ -63,7 +63,9 @@ function fillOrder(state: AgentState, orderIdx: number, order: typeof state.pend
       });
     }
 
-    state.portfolio.cash += (order.reservedCash - totalCost);
+    // Cap refund at 110% of actual fill cost to prevent phantom cash from bloated reservedCash
+    const refund = Math.min(order.reservedCash, totalCost * 1.1);
+    state.portfolio.cash += (refund - totalCost);
     state.trades.push({ id: `T${tc}`, timestamp: now, symbol: order.symbol, side: "buy", action: idx >= 0 ? "add" : "entry", size: order.size, price: fillPrice, fee });
 
     pushEvent(state, "action", `${order.symbol}: LIMIT BUY filled @ $${fillPrice.toFixed(2)}`);
