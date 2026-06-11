@@ -87,7 +87,7 @@ export function buildMultiPrompt(
       })
       .join("\n") + "\n";
   } else {
-    positionsSection = "\nNo active positions currently held.\n";
+    positionsSection = "\n⚠ IMPORTANT: We hold NO positions in any of these symbols. Every symbol below should be evaluated as a fresh entry opportunity (buy) or a skip (hold) — there is nothing to sell and nothing to maintain.\n";
   }
 
   return `You are a professional quantitative trader. Analyze the following cryptocurrencies and provide a decision for EACH one.
@@ -97,9 +97,12 @@ ${lines}
 ${positionsSection}
 Rules:
 - For EACH symbol, decide: buy, sell, or hold
-- If we hold a position for a symbol and you want to take profit, stop loss, or close it, output "action": "sell".
-- If we hold a position and you wish to keep it, output "action": "hold".
-- If we hold a position and you wish to add more (average down), output "action": "buy".
+- If we hold a position for a symbol (one that appears in the "Active Positions" section above) and you want to take profit, stop loss, or close it, output "action": "sell".
+- If we hold a position (listed above) and you wish to keep it, output "action": "hold".
+- If we hold a position (listed above) and you wish to add more (average down), output "action": "buy".
+- If we do NOT hold a position for a symbol (NOT listed in the Active Positions section), "sell" is invalid — only "buy" or "hold" are valid actions for it.
+- ANTI-HALLUCINATION: NEVER refer to "current position", "our position", "we hold", "we are holding", or "maintaining" in your reason for any symbol UNLESS that symbol is explicitly listed in the Active Positions section above. If no positions are listed, we hold nothing — do not invent one.
+- For "hold" decisions on symbols we don't own, explain why the technical/fundamental signals don't warrant a fresh entry (e.g., weak RSI, unclear trend, low volume), NOT because you're "maintaining a position".
 - Strength: -1 (strong sell) to +1 (strong buy)
 - Confidence: 0-1
 - riskProfile (for buy actions only): "tight" (3% SL / 9% TP) | "normal" (5% SL / 10% TP) | "wide" (8% SL / 16% TP)
