@@ -168,10 +168,19 @@ export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ ticker
   st.lastCycleAt = new Date();
   pushLog("info", "Cycle started — scanning market...");
 
-  // Stage 1: Screen the wider market for trade candidates
-  const screenResult = await runScreening(st.positions);
-  if (isStopped()) { console.warn("[Agent] Stop requested during screening — aborting cycle"); return { tickerPrice: 0, tickers: {} }; }
-  const screenSelected = screenResult.selected;
+  // Stage 1: Screen the wider market for trade candidates (skip when at max positions)
+  let screenSelected: string[] = [];
+  if (st.positions.length < config.maxActivePositions) {
+    const screenResult = await runScreening(st.positions);
+    if (isStopped()) { console.warn("[Agent] Stop requested during screening — aborting cycle"); return { tickerPrice: 0, tickers: {} }; }
+    screenSelected = screenResult.selected;
+    if (screenSelected.length > 0) {
+      console.log(`[Agent] Screening selected: ${screenSelected.join(", ")} — ${screenResult.reason}`);
+      pushLog("info", `Screening: ${screenSelected.join(", ")} — ${screenResult.reason}`);
+    }
+  } else {
+    console.log(`[Agent] Max positions (${config.maxActivePositions}) — skipping screening`);
+  }
 
   // Always include existing positions + screening picks
   const positionSymbols = st.positions.map(p => p.symbol);
@@ -195,11 +204,6 @@ export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ ticker
   st.ticker = displayTicker;
 
   for (const [, t] of prices) { console.log(`[Agent] ${t.symbol}: $${t.lastPrice.toLocaleString()} (${t.change24hPercent >= 0 ? "+" : ""}${t.change24hPercent}%)`); }
-
-  if (screenSelected.length > 0) {
-    console.log(`[Agent] Screening selected: ${screenSelected.join(", ")} — ${screenResult.reason}`);
-    pushLog("info", `Screening: ${screenSelected.join(", ")} — ${screenResult.reason}`);
-  }
 
   // Stage 2: Deep TA + sentiment analysis on selected + held symbols
   const er: MultiPairResult = await evaluateMultiPair(prices, st.positions, (token: string) => {

@@ -65,7 +65,14 @@ export class MarketWebSocketService {
     const startTime = Date.now();
     this.cycleInFlight = true;
     try {
-      await this.agentCycleHandler();
+      await Promise.race([
+        this.agentCycleHandler(),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Cycle timed out after 90s")), 90_000)
+        ),
+      ]);
+    } catch (err) {
+      console.error("[AGENT CYCLE] Cycle failed or timed out:", err instanceof Error ? err.message : String(err));
     } finally {
       this.cycleInFlight = false;
     }

@@ -29,7 +29,21 @@ export interface MultiPairResult {
 
 // ─── Technical Analysis ──────────────────────────────
 
+const taCache = new Map<string, { result: any; timestamp: number }>();
+const TA_CACHE_TTL_MS: Record<string, number> = {
+  "5m": 30_000,   // 30 seconds — 5m candles close every 5min, recompute each cycle
+  "1h": 300_000,  // 5 minutes — 1h candles close hourly
+  "1d": 900_000,  // 15 minutes — daily candles close once per day
+};
+
 async function runTAForTimeframe(symbol: string, interval: string): Promise<any> {
+  const cacheKey = `${symbol}-${interval}`;
+  const cached = taCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < (TA_CACHE_TTL_MS[interval] || 30_000)) {
+    return cached.result;
+  }
+
+
   if (priceStore.isBacktesting) {
     const cached = priceStore.getCandles(symbol, interval);
     if (!cached || cached.length === 0) return null;
@@ -48,7 +62,7 @@ async function runTAForTimeframe(symbol: string, interval: string): Promise<any>
 
   try {
     // Run Python TA
-    const result = await exec("python3", [
+    const execResult = await exec("python3", [
       ANALYSIS_SCRIPT,
       JSON.stringify({
         symbol,
@@ -63,7 +77,7 @@ async function runTAForTimeframe(symbol: string, interval: string): Promise<any>
       }),
     ], { timeout: 30_000 });
 
-    const output = JSON.parse(result.stdout);
+    const output = JSON.parse(execResult.stdout);
     const rsi = output.indicators?.RSI?.series?.RSI_14;
     const macd = output.indicators?.MACD;
     const boll = output.indicators?.BOLL;
@@ -72,7 +86,7 @@ async function runTAForTimeframe(symbol: string, interval: string): Promise<any>
 
     const latestClose = candles[candles.length - 1].close;
 
-    return {
+    const result = {
       close: latestClose,
       rsi: rsi ? Number(rsi[rsi.length - 1]) : 50,
       macdDif: macd?.series?.DIF ? Number(macd.series.DIF[macd.series.DIF.length - 1]) : 0,
@@ -83,6 +97,8 @@ async function runTAForTimeframe(symbol: string, interval: string): Promise<any>
       atr: atrObj?.series?.ATR ? Number(atrObj.series.ATR[atrObj.series.ATR.length - 1]) : 0,
       ema20: emaObj?.series?.EMA_20 ? Number(emaObj.series.EMA_20[emaObj.series.EMA_20.length - 1]) : 0,
     };
+    taCache.set(cacheKey, { result, timestamp: Date.now() });
+    return result;
   } catch (err) {
     console.error(`[DecisionEngine] Python TA failed for ${symbol} (${interval}):`, err);
     return null;
