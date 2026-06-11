@@ -26,7 +26,7 @@ export function Dashboard() {
   const [activeSidebarTab, setActiveSidebarTab] = useState<"intel" | "config">("intel");
 
   return (
-    <div className="min-h-screen bg-obsidian text-zinc-100 relative">
+    <div className="h-screen flex flex-col bg-obsidian text-zinc-100 relative overflow-hidden">
       {/* Subtle radial gradient overlay */}
       <div className="fixed inset-0 bg-gradient-radial pointer-events-none" />
       <div className="fixed inset-0 grid-bg pointer-events-none opacity-30" />
@@ -59,9 +59,9 @@ export function Dashboard() {
       </div>
 
       {/* Main Terminal Grid */}
-      <main className="relative z-10 px-4 pb-12 pt-3 max-w-[1920px] mx-auto grid grid-cols-12 gap-3">
+      <main className="relative z-10 px-4 pb-12 pt-3 max-w-[1920px] mx-auto grid grid-cols-12 gap-3 flex-1 min-h-0">
         {/* Left Column: Chart + Positions (span 5) */}
-        <div className="col-span-5 flex flex-col gap-3">
+        <div className="col-span-5 flex flex-col gap-3 min-h-0">
           <EquityChart 
             portfolio={agent.state.portfolio} 
             ticker={agent.state.ticker} 
@@ -75,7 +75,7 @@ export function Dashboard() {
         </div>
 
         {/* Center Column: Signals + Logs (span 4) */}
-        <div className="col-span-4 flex flex-col gap-3">
+        <div className="col-span-4 flex flex-col gap-3 min-h-0">
           <SignalPanel 
             signals={agent.state.signals} 
             decision={agent.state.decision}
@@ -89,7 +89,7 @@ export function Dashboard() {
           )}
 
           {/* Logs Console */}
-          <div className="glass-panel flex flex-col gap-3 p-4 flex-grow min-h-[300px] max-h-[calc(100vh-380px)]">
+          <div className="glass-panel flex flex-col gap-3 p-4 flex-1 min-h-0">
             <Tabs
               tabs={[
                 { key: "execution", label: "Execution" },
@@ -112,7 +112,7 @@ export function Dashboard() {
         </div>
 
         {/* Right Column: Intel + Config (span 3) */}
-        <div className="col-span-3 flex flex-col gap-3">
+        <div className="col-span-3 flex flex-col gap-3 min-h-0">
           {/* Sidebar Tabs */}
           <div className="glass-panel p-1 flex gap-1">
             <button
