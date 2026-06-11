@@ -11,6 +11,7 @@ function buildSavePayload(state: AgentState): PortfolioState {
     cash: state.portfolio.cash,
     accumulatedRealizedPnL: state.portfolio.totalPnL,
     positions: savedPositions,
+    pendingOrders: [],
     totalTrades: state.portfolio.totalTrades,
     winRate: state.portfolio.winRate,
     circuitBreakerTripped: false,

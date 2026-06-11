@@ -53,4 +53,6 @@ export interface TradingDecision {
   riskStatus?: "approved" | "blocked" | "adjusted";
   size?: number;
   riskProfile?: "tight" | "normal" | "wide";
+  orderType?: "market" | "limit";
+  limitPrice?: number;
 }

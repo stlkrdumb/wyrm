@@ -15,6 +15,7 @@ import { BacktestPanel } from "./backtest-panel";
 import { StrategyPanel } from "./strategy-panel";
 import { CircuitBreakerPanel } from "./circuit-breaker-panel";
 import { NewsPanel } from "./news-panel";
+import { PendingOrdersPanel } from "./pending-orders-panel";
 import { TerminalLog } from "./terminal-log";
 import { TradeToast } from "./trade-toast";
 import { Tabs } from "@/shared/ui";
@@ -145,6 +146,7 @@ export function Dashboard() {
             {activeSidebarTab === "intel" ? (
               <>
                 <SentimentPanel />
+                <PendingOrdersPanel pendingOrders={agent.state.pendingOrders} />
                 <NewsPanel />
               </>
             ) : (

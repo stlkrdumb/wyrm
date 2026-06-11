@@ -1,5 +1,6 @@
 /** Persist portfolio state to disk so balance survives server restarts. */
 import fs from "node:fs";
+import type { PendingOrder } from "@/features/trading-agent/types";
 import path from "node:path";
 
 const STORE_PATH = path.join(
@@ -18,6 +19,16 @@ export interface PortfolioState {
     side: "long" | "short";
     size: number;
     entryPrice: number;
+    stopLossPct: number;
+    takeProfitPct: number;
+  }>;
+  pendingOrders: Array<{    // pending limit orders at last save
+    id: string;
+    symbol: string;
+    side: "buy" | "sell";
+    limitPrice: number;
+    size: number;
+    createdAt: string;
     stopLossPct: number;
     takeProfitPct: number;
   }>;
@@ -65,6 +76,7 @@ export function resetBalanceState(initialCash: number): PortfolioState {
     cash: initialCash,
     accumulatedRealizedPnL: 0,
     positions: [],
+    pendingOrders: [],
     totalTrades: 0,
     winRate: 0,
     circuitBreakerTripped: false,

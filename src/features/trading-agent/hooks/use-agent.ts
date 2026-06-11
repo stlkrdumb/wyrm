@@ -31,6 +31,8 @@ export interface TradeData {
 
 export interface PositionData { symbol: string; side: "long" | "short"; size: number; entryPrice: number; unrealizedPnL: number; stopLossPct: number; takeProfitPct: number; }
 
+export interface PendingOrderData { id: string; symbol: string; side: "buy" | "sell"; limitPrice: number; size: number; createdAt: string; stopLossPct: number; takeProfitPct: number; }
+
 export type WSConnectionStatus = "connecting" | "connected" | "reconnecting";
 
 interface AgentState {
@@ -45,6 +47,7 @@ interface AgentState {
   signals: SignalData[];
   portfolio: PortfolioData;
   positions: PositionData[];
+  pendingOrders: PendingOrderData[];
   trades: TradeData[];
   showHistory: boolean;
   showBacktest: boolean;
@@ -67,7 +70,7 @@ export function useAgent() {
   const [state, setState] = useState<AgentState>(lastKnownState ?? {
     status: "stopped", lastCycleAt: null, ticker: null, tickers: null, wsStatus: "connecting",
     wsConnection: null, decision: null, executionReason: "",
-    signals: [], portfolio: { cash: 1000, equity: 1000, initialCash: 1000, totalTrades: 0, winRate: 0, totalPnL: 0 }, positions: [], trades: [],
+    signals: [], portfolio: { cash: 1000, equity: 1000, initialCash: 1000, totalTrades: 0, winRate: 0, totalPnL: 0 }, positions: [], pendingOrders: [], trades: [],
     showHistory: false,
     showBacktest: false,
     circuitBreakerTripped: false,
@@ -103,6 +106,7 @@ export function useAgent() {
         signals: data.signals || [],
         portfolio: data.portfolio || { cash: 1000, equity: 1000, initialCash: 1000, totalTrades: 0, winRate: 0, totalPnL: 0 },
         positions: data.positions || [],
+        pendingOrders: data.pendingOrders || [],
         trades: data.trades || [],
         showHistory: state.showHistory,
         showBacktest: state.showBacktest,

@@ -4,6 +4,7 @@ import { config, setTradeCounter, getTradeCounter, calculateWinRate } from "./st
 import { getLivePrice } from "./price-fetcher.service";
 import { saveBalanceState } from "./balance-store";
 import { RISK_PROFILES, type RiskProfile } from "../constants/risk.constants";
+import { cancelPendingOrder } from "./pending-order.service";
 
 function resolveSLTP(profile?: RiskProfile): { stopLossPct: number; takeProfitPct: number } {
   if (profile && RISK_PROFILES[profile]) {
@@ -72,6 +73,7 @@ export async function flattenPositions(state: AgentState): Promise<{ closed: num
     cash: state.portfolio.cash,
     accumulatedRealizedPnL: state.portfolio.totalPnL,
     positions: [],
+    pendingOrders: [],
     totalTrades: state.portfolio.totalTrades,
     winRate,
     circuitBreakerTripped: state.circuitBreakerTripped,
@@ -102,6 +104,9 @@ export function executeTrades(
     if (typeof priceMap.get(symbol) === "undefined") continue;
     const ticker = priceMap.get(symbol)!;
 
+    // Cancel any existing pending order for this symbol if LLM issues new decision
+    cancelPendingOrder(state, symbol);
+
     if (decision.action === "buy" && uniqueSymbolsCount >= config.maxActivePositions) {
       console.log(`[Agent] ${symbol}: skipping buy — already at max open positions (${config.maxActivePositions})`);
       continue;
@@ -117,6 +122,47 @@ export function executeTrades(
     const tradeSize = decision.size ?? ((totalEquity * allocationPct) / ticker.lastPrice);
 
     if (tradeSize <= 0 || ticker.lastPrice === 0) continue;
+
+    // Handle limit orders — create pending order instead of executing immediately
+    if (decision.orderType === "limit" && decision.limitPrice && decision.limitPrice > 0) {
+      const sltp = resolveSLTP(decision.riskProfile);
+
+      // For limit buys: reserve cash now
+      if (decision.action === "buy") {
+        const cost = ticker.lastPrice * tradeSize;
+        const fee = cost * config.feePct;
+        const totalCost = cost + fee;
+        if (totalCost > liquidBalance) {
+          console.log(`[Agent] ${symbol}: skipping limit buy — insufficient funds for reservation`);
+          continue;
+        }
+        liquidBalance -= totalCost;
+        state.portfolio.cash -= totalCost;
+      }
+
+      // For limit sells: verify position exists
+      if (decision.action === "sell") {
+        const posIdx = state.positions.findIndex(p => p.symbol === symbol);
+        if (posIdx < 0) {
+          console.log(`[Agent] ${symbol}: skipping limit sell — no position held`);
+          continue;
+        }
+      }
+
+      state.pendingOrders.push({
+        id: `LO-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        symbol,
+        side: decision.action,
+        limitPrice: decision.limitPrice,
+        size: tradeSize,
+        createdAt: new Date(),
+        ...sltp,
+      });
+
+      console.log(`[Agent] ${symbol}: LIMIT ${decision.action.toUpperCase()} placed @ $${decision.limitPrice.toFixed(2)} (size: ${tradeSize.toFixed(4)})`);
+      state.portfolio.totalTrades++;
+      continue;
+    }
 
     const idx = state.positions.findIndex((p) => p.symbol === symbol);
     const now = new Date();
@@ -194,12 +240,14 @@ export function executeTrades(
   };
 
   const savedPositions = state.positions.map(p => ({ symbol: p.symbol, side: p.side as "long" | "short", size: p.size, entryPrice: p.entryPrice, stopLossPct: p.stopLossPct, takeProfitPct: p.takeProfitPct }));
+  const savedPending = state.pendingOrders.map(o => ({ id: o.id, symbol: o.symbol, side: o.side, limitPrice: o.limitPrice, size: o.size, createdAt: o.createdAt.toISOString(), stopLossPct: o.stopLossPct, takeProfitPct: o.takeProfitPct }));
   saveBalanceState({
     initialCash: config.initialCash,
     startCash: state.startEquity,
     cash: liquidBalance,
     accumulatedRealizedPnL: state.portfolio.totalPnL,
     positions: savedPositions,
+    pendingOrders: savedPending,
     totalTrades: state.portfolio.totalTrades,
     winRate,
     circuitBreakerTripped: state.circuitBreakerTripped,

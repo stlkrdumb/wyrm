@@ -18,6 +18,7 @@ export async function POST(request: NextRequest) {
       cash: initialCash,
       accumulatedRealizedPnL: 0,
       positions: [],
+      pendingOrders: [],
       totalTrades: 0,
       winRate: 0,
     };

@@ -1,4 +1,4 @@
-import type { Signal, TickerData, TradingDecision, Position, Trade } from "@/features/trading-agent/types";
+import type { Signal, TickerData, TradingDecision, Position, Trade, PendingOrder } from "@/features/trading-agent/types";
 
 export interface PortfolioSnapshot {
   timestamp: Date;
@@ -19,6 +19,7 @@ export interface AgentState {
   signals: Signal[];
   portfolio: PortfolioSnapshot;
   positions: Position[];
+  pendingOrders: PendingOrder[];
   trades: Trade[];
   startEquity: number;
   circuitBreakerTripped: boolean;

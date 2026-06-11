@@ -111,6 +111,17 @@ export async function GET(request: NextRequest) {
     };
   });
 
+  const livePendingOrders = currentState.pendingOrders.map((o) => ({
+    id: o.id,
+    symbol: o.symbol,
+    side: o.side,
+    limitPrice: o.limitPrice,
+    size: o.size,
+    createdAt: o.createdAt.toISOString(),
+    stopLossPct: o.stopLossPct,
+    takeProfitPct: o.takeProfitPct,
+  }));
+
   // Fix the ticker mapping to handle TickerData vs PriceSnapshot correctly
   let tickerObj = null;
   if (currentState.ticker) {
@@ -156,6 +167,7 @@ export async function GET(request: NextRequest) {
       totalPnL: liveEquity - currentState.startEquity,
     },
     positions: livePositions,
+    pendingOrders: livePendingOrders,
     trades: currentState.trades.map((t) => ({
       id: t.id, timestamp: t.timestamp.toISOString(), symbol: t.symbol, side: t.side,
       action: t.action, size: t.size, price: t.price, pnl: t.pnl ?? null,
