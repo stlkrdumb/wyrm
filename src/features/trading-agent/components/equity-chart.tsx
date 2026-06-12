@@ -152,11 +152,8 @@ export function EquityChart({ portfolio, equityCurve, equityHistory, everConnect
   const displayTotalPnL = useAnimatedNumber(rawTotalPnL);
   const displayCash = useAnimatedNumber(rawCash);
 
-  // Pre-connection gate: while the WS has never connected, show "CONNECTING…"
-  // placeholders instead of stale data computed from an empty price store.
-  // After the first connection, even if WS briefly disconnects, we keep
-  // showing values (a "STALE" badge in the status bar indicates freshness).
-  const showConnecting = !everConnected;
+  // Render the chart immediately on mount to prevent any visual delay/lag
+  const showConnecting = false;
 
   // Init the chart once
   useEffect(() => {
