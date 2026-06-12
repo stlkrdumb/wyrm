@@ -211,9 +211,9 @@ export async function evaluateMultiPair(
     // Prioritize held positions (up to the cap)
     const selected = held.slice(0, EVAL_MAX_PAIRS);
 
-    // If we have remaining slots, score the top 6 pool candidates using 1h RSI
-    if (selected.length < EVAL_MAX_PAIRS) {
-      const remainingSlots = EVAL_MAX_PAIRS - selected.length;
+    // Always score the top 6 pool candidates using 1h RSI, selecting at least EVAL_MAX_PAIRS candidates to evaluate alongside active positions
+    if (candidates.length > 0) {
+      const slotsToFill = Math.max(EVAL_MAX_PAIRS, EVAL_MAX_PAIRS - selected.length);
       const poolCandidates = candidates.slice(0, 6);
       const mode = process.env.SCREENING_MODE || "momentum";
       const candidateSetups: Array<{ symbol: string; rsi: number; score: number }> = [];
@@ -241,7 +241,7 @@ export async function evaluateMultiPair(
       // Sort candidates by setup score in descending order
       candidateSetups.sort((a, b) => b.score - a.score);
       const sortedCandidates = candidateSetups.map(c => c.symbol);
-      const filled = sortedCandidates.slice(0, remainingSlots);
+      const filled = sortedCandidates.slice(0, slotsToFill);
 
       console.log(`[DecisionEngine] Pre-screened candidates setups:`, candidateSetups.map(c => `${c.symbol}(RSI=${c.rsi.toFixed(1)}, score=${c.score.toFixed(1)})`).join(", "));
       selected.push(...filled);
@@ -249,7 +249,7 @@ export async function evaluateMultiPair(
 
     selectedSymbols = selected;
     const skipped = symbols.filter(s => !selectedSymbols.includes(s));
-    console.log(`[DecisionEngine] LLM evaluation capped at ${EVAL_MAX_PAIRS}. Selected: ${selectedSymbols.join(", ")} (Skipped: ${skipped.join(", ")})`);
+    console.log(`[DecisionEngine] LLM evaluation selected: ${selectedSymbols.join(", ")} (Skipped: ${skipped.join(", ")})`);
   }
 
   console.log(`[DecisionEngine] Running multi-timeframe TA + sentiment on ${selectedSymbols.length} symbol(s):`, selectedSymbols.join(", "));
