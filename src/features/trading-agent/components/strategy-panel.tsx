@@ -14,12 +14,12 @@ const STRATEGY_PRESETS = [
 
 Entry: 1h RSI < 35 and price near lower Bollinger AND 1d EMA20 sloping up. Fear & Greed < 40 (fear selling into dip) strongly preferred.
 
-Exit: 1h RSI > 65 or MACD hist crosses below zero. Take partial at +5%, full at +10%.
+Exit: 1h RSI > 65 or MACD hist crosses below zero. Take partial at +5% (sell action with strength -0.5), full at +10% (sell action with strength -1.0).
 
 Risk: Limit to strongest single setup. Avoid coins with >5% 24h volatility.`,
     threshold: 5,
     orderSize: 5,
-    stopLoss: 3,
+    stopLoss: 4,
     takeProfit: 10,
     cycleInterval: 60,
     maxActivePositions: 3,
@@ -32,7 +32,7 @@ Risk: Limit to strongest single setup. Avoid coins with >5% 24h volatility.`,
 
 Entry: 1h MACD hist positive and increasing for 3+ bars AND price above EMA20 AND Bollinger Bands expanding from squeeze. RSI 1h ideally 45-60.
 
-Exit: 1h MACD hist decreasing by 50% from peak, or RSI > 70. Scale out at +10%, full at +20%.
+Exit: 1h MACD hist decreasing by 50% from peak, or RSI > 70. Scale out at +10% (sell action with strength -0.5), full at +20% (sell action with strength -1.0).
 
 Risk: 2-3 concurrent positions. Prefer coins with 2-4% 24h volatility.`,
     threshold: 8,
@@ -50,12 +50,12 @@ Risk: 2-3 concurrent positions. Prefer coins with 2-4% 24h volatility.`,
 
 Entry: 5m RSI crossing above 55 with strong momentum + 1h MACD hist strongly positive AND 24h volatility > 4% AND Fear & Greed > 55 (greed amplifying momentum).
 
-Exit: 5m RSI crossing below 45 or 1h MACD hist declining. Quick partial at +5%, full at +12%.
+Exit: 5m RSI crossing below 45 or 1h MACD hist declining. Quick partial at +5% (sell action with strength -0.5), full at +12% (sell action with strength -1.0).
 
 Risk: 1-2 concurrent positions. Accept 2-3% daily drawdown. High conviction only (strength > 0.5).`,
     threshold: 12,
     orderSize: 25,
-    stopLoss: 3,
+    stopLoss: 5,
     takeProfit: 12,
     cycleInterval: 10,
     maxActivePositions: 3,
