@@ -15,7 +15,6 @@ interface Props {
 export function CircuitBreakerPanel({
   circuitBreakerTripped, circuitBreakerThresholdPct, peakEquity, currentEquity, resetBreaker,
 }: Props) {
-  const [isCollapsed, setIsCollapsed] = useState(true);
   const [isResetting, setIsResetting] = useState(false);
 
   const currentDrawdown = peakEquity > 0
@@ -36,30 +35,21 @@ export function CircuitBreakerPanel({
           : ""
       }`}
     >
-      <div
-        onClick={() => setIsCollapsed(!isCollapsed)}
-        className="cursor-pointer select-none"
-      >
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Shield className={`w-3.5 h-3.5 ${circuitBreakerTripped ? "text-rose-400 animate-pulse" : "text-zinc-500"}`} />
-            <CardTitle>Autonomous Risk Breaker</CardTitle>
-          </div>
-          <div className="flex items-center gap-2">
-            {circuitBreakerTripped ? (
-              <Badge variant="danger" className="text-[10px] animate-pulse">TRIPPED</Badge>
-            ) : (
-              <Badge variant="success" className="text-[10px]">ACTIVE</Badge>
-            )}
-            <span className="text-[10px] font-mono text-zinc-600 uppercase font-bold tracking-widest">
-              {isCollapsed ? "[EXPAND]" : "[COLLAPSE]"}
-            </span>
-          </div>
-        </CardHeader>
-      </div>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <Shield className={`w-3.5 h-3.5 ${circuitBreakerTripped ? "text-rose-400 animate-pulse" : "text-zinc-500"}`} />
+          <CardTitle>Autonomous Risk Breaker</CardTitle>
+        </div>
+        <div className="flex items-center gap-2">
+          {circuitBreakerTripped ? (
+            <Badge variant="danger" className="text-[10px] animate-pulse">TRIPPED</Badge>
+          ) : (
+            <Badge variant="success" className="text-[10px]">ACTIVE</Badge>
+          )}
+        </div>
+      </CardHeader>
 
-      {!isCollapsed && (
-        <CardContent>
+      <CardContent>
           <div className="flex flex-col gap-4 pt-2 border-t border-zinc-800/60">
             {circuitBreakerTripped && (
               <div className="p-3 rounded bg-rose-500/10 border border-rose-500/20 flex gap-2.5 items-start">
@@ -133,7 +123,6 @@ export function CircuitBreakerPanel({
             )}
           </div>
         </CardContent>
-      )}
     </Card>
   );
 }

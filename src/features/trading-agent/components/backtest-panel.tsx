@@ -8,7 +8,6 @@ import type { BacktestResult } from "@/features/trading-agent/types/backtest.typ
 import { apiFetch } from "@/shared/utils/api-fetch";
 
 export function BacktestPanel({ onBack }: { onBack?: () => void }) {
-  const [isCollapsed, setIsCollapsed] = useState(true);
   const [result, setResult] = useState<BacktestResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,18 +37,15 @@ export function BacktestPanel({ onBack }: { onBack?: () => void }) {
 
   return (
     <Card>
-      <div onClick={() => setIsCollapsed(!isCollapsed)} className="cursor-pointer select-none">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Activity className="w-3.5 h-3.5 text-zinc-500" />
-            <CardTitle>Simulation Sandbox</CardTitle>
-          </div>
-          <Badge variant="neutral" className="text-[10px]">{result ? "RESULTS" : "SETUP"}</Badge>
-        </CardHeader>
-      </div>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <Activity className="w-3.5 h-3.5 text-zinc-500" />
+          <CardTitle>Simulation Sandbox</CardTitle>
+        </div>
+        <Badge variant="neutral" className="text-[10px]">{result ? "RESULTS" : "SETUP"}</Badge>
+      </CardHeader>
 
-      {!isCollapsed && (
-        <CardContent>
+      <CardContent>
           {!result ? (
             <div className="flex flex-col gap-5">
               <div className="space-y-1.5 font-mono text-[11px] text-zinc-400">
@@ -240,7 +236,6 @@ export function BacktestPanel({ onBack }: { onBack?: () => void }) {
             </div>
           )}
         </CardContent>
-      )}
     </Card>
   );
 }

@@ -17,7 +17,7 @@ export default function ConfigPage() {
 
       <StatusHeader agent={agent} />
 
-      <main className="relative z-10 flex-1 px-6 py-6 grid grid-cols-3 gap-4 max-w-7xl mx-auto min-h-0">
+      <main className="relative z-10 flex-1 px-6 py-6 grid grid-cols-3 gap-4 min-h-0">
         <div className="col-span-2 flex flex-col gap-4 min-h-0 overflow-y-auto scrollbar-none">
           <StrategyPanel />
         </div>

@@ -68,7 +68,6 @@ Risk Management: High exposure. Position size is 25% of total capital per trade.
 ];
 
 export const StrategyPanel = memo(function StrategyPanel() {
-  const [isCollapsed, setIsCollapsed] = useState(true);
   const [persona, setPersona] = useState("");
   const [instructions, setInstructions] = useState("");
   const [threshold, setThreshold] = useState(10);
@@ -158,28 +157,22 @@ export const StrategyPanel = memo(function StrategyPanel() {
 
   return (
     <Card>
-      <div onClick={() => setIsCollapsed(!isCollapsed)} className="cursor-pointer select-none">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Sliders className="w-3.5 h-3.5 text-zinc-500" />
-            <CardTitle>Agent Customizer</CardTitle>
-          </div>
-          <div className="flex items-center gap-2">
-            <Badge variant={bias === "AGGRESSIVE" ? "warning" : bias === "CONSERVATIVE" ? "success" : "neutral"}>
-              {bias}
-            </Badge>
-            <span className="text-[10px] font-mono text-zinc-600 border border-zinc-800 px-1.5 py-0.2 rounded tracking-wider">
-              DD {threshold}%
-            </span>
-            <span className="text-[10px] font-mono text-zinc-600 uppercase tracking-widest">
-              {isCollapsed ? "[EXPAND]" : "[COLLAPSE]"}
-            </span>
-          </div>
-        </CardHeader>
-      </div>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <Sliders className="w-3.5 h-3.5 text-zinc-500" />
+          <CardTitle>Agent Customizer</CardTitle>
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge variant={bias === "AGGRESSIVE" ? "warning" : bias === "CONSERVATIVE" ? "success" : "neutral"}>
+            {bias}
+          </Badge>
+          <span className="text-[10px] font-mono text-zinc-600 border border-zinc-800 px-1.5 py-0.2 rounded tracking-wider">
+            DD {threshold}%
+          </span>
+        </div>
+      </CardHeader>
 
-      {!isCollapsed && (
-        <CardContent>
+      <CardContent>
           <div className="flex flex-col gap-4 font-mono text-[11px]">
             <div className="flex flex-col gap-1.5">
               <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">
@@ -295,7 +288,6 @@ export const StrategyPanel = memo(function StrategyPanel() {
             )}
           </div>
         </CardContent>
-      )}
     </Card>
   );
 });
