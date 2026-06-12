@@ -165,11 +165,36 @@ export async function evaluateMultiPair(
     return { decisions: {}, allSignals: [], source: "llm" };
   }
 
-  console.log(`[DecisionEngine] Running multi-timeframe TA + sentiment on ${symbols.length} symbol(s):`, symbols.join(", "));
+  // Cap the number of symbols evaluated by the LLM (default to 2)
+  const EVAL_MAX_PAIRS = Number(process.env.EVAL_MAX_PAIRS) || 2;
+
+  let selectedSymbols = symbols;
+  if (symbols.length > EVAL_MAX_PAIRS) {
+    const positionSymbols = new Set(activePositions.map(p => p.symbol.toUpperCase()));
+
+    // Separate symbols into active positions (held) and screening candidates
+    const held = symbols.filter(s => positionSymbols.has(s.toUpperCase()));
+    const candidates = symbols.filter(s => !positionSymbols.has(s.toUpperCase()));
+
+    // Prioritize held positions (up to the cap)
+    const selected = held.slice(0, EVAL_MAX_PAIRS);
+
+    // Fill remaining slots with top candidates from watchlist (already sorted by volume/momentum)
+    if (selected.length < EVAL_MAX_PAIRS) {
+      const remainingSlots = EVAL_MAX_PAIRS - selected.length;
+      selected.push(...candidates.slice(0, remainingSlots));
+    }
+
+    selectedSymbols = selected;
+    const skipped = symbols.filter(s => !selectedSymbols.includes(s));
+    console.log(`[DecisionEngine] LLM evaluation capped at ${EVAL_MAX_PAIRS}. Selected: ${selectedSymbols.join(", ")} (Skipped: ${skipped.join(", ")})`);
+  }
+
+  console.log(`[DecisionEngine] Running multi-timeframe TA + sentiment on ${selectedSymbols.length} symbol(s):`, selectedSymbols.join(", "));
   // Per-symbol allSettled so one bad symbol doesn't abort the whole batch
   const taResults: Array<{ symbol: string; ta5m: any; ta1h: any; ta1d: any; sentiment: any }> = [];
   const perSymbolResults = await Promise.allSettled(
-    symbols.map(async (symbol) => {
+    selectedSymbols.map(async (symbol) => {
       const [ta5m, ta1h, ta1d, sentiment] = await Promise.all([
         runTAForTimeframe(symbol, "5m"),
         runTAForTimeframe(symbol, "1h"),
