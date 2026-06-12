@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect, useRef } from "react";
 import {
   createChart,
   AreaSeries,
+  ColorType,
   type IChartApi,
   type ISeriesApi,
   type Time,
@@ -43,8 +44,11 @@ interface ChartPoint {
 function filterByTimeframe(equityHistory: { timestamp: string; equity: number }[], tf: TimeframeKey): ChartPoint[] {
   const cutoff = Date.now() - (TIMEFRAMES.find(t => t.key === tf)?.ms ?? 3_600_000);
   const filtered = equityHistory
-    .map(e => ({ ts: new Date(e.timestamp).getTime(), equity: e.equity }))
-    .filter(e => e.ts >= cutoff);
+    .map(e => {
+      const ts = new Date(e.timestamp).getTime();
+      return { ts, equity: e.equity };
+    })
+    .filter(e => !isNaN(e.ts) && e.ts >= cutoff);
 
   // Convert to Lightweight Charts time format (UTC seconds)
   let points: ChartPoint[] = filtered.map(e => ({
@@ -56,7 +60,11 @@ function filterByTimeframe(equityHistory: { timestamp: string; equity: number }[
     // Fall back to last 10 points
     points = equityHistory
       .slice(-10)
-      .map(e => ({ time: Math.floor(new Date(e.timestamp).getTime() / 1000) as Time, value: e.equity }));
+      .map(e => {
+        const ts = new Date(e.timestamp).getTime();
+        return { time: Math.floor(ts / 1000) as Time, value: e.equity };
+      })
+      .filter(p => !isNaN(p.time as number));
   }
 
   // Lightweight Charts requires strictly increasing time — dedupe ties
@@ -88,17 +96,46 @@ export function EquityChart({ portfolio, equityCurve, equityHistory, everConnect
 
   // Build chart data — backtest mode takes precedence over live history
   const chartData = useMemo<ChartPoint[]>(() => {
+    let points: ChartPoint[] = [];
     if (equityCurve && equityCurve.length > 0) {
-      return equityCurve
-        .map(e => ({ time: Math.floor(new Date(e.timestamp).getTime() / 1000) as Time, value: e.equity }))
-        .sort((a, b) => (a.time as number) - (b.time as number));
+      points = equityCurve
+        .map(e => {
+          const ts = new Date(e.timestamp).getTime();
+          return { time: Math.floor(ts / 1000) as Time, value: e.equity };
+        })
+        .filter(p => !isNaN(p.time as number));
+    } else if (equityHistory && equityHistory.length > 0) {
+      points = filterByTimeframe(equityHistory, timeframe);
     }
-    if (equityHistory && equityHistory.length > 0) {
-      return filterByTimeframe(equityHistory, timeframe);
+
+    // Deduplicate ties just in case (lightweight-charts requires strictly increasing times)
+    const seen = new Set<number>();
+    const deduped = points
+      .filter(p => {
+        if (seen.has(p.time as number)) return false;
+        seen.add(p.time as number);
+        return true;
+      })
+      .sort((a, b) => (a.time as number) - (b.time as number));
+
+    if (deduped.length >= 2) {
+      return deduped;
     }
+
+    // If we have exactly 1 point, pad it with a preceding point to satisfy lightweight-charts
+    if (deduped.length === 1) {
+      const p = deduped[0];
+      const t = p.time as number;
+      return [
+        { time: (t - 1) as Time, value: p.value },
+        p,
+      ];
+    }
+
+    // Default fallback if we have 0 points
     return [
+      { time: (mountTime - 1) as Time, value: initialCash },
       { time: mountTime as Time, value: initialCash },
-      { time: (mountTime + 1) as Time, value: initialCash },
     ];
   }, [equityCurve, equityHistory, timeframe, initialCash, mountTime]);
 
@@ -123,11 +160,11 @@ export function EquityChart({ portfolio, equityCurve, equityHistory, everConnect
 
   // Init the chart once
   useEffect(() => {
-    if (!mounted || !containerRef.current) return;
+    if (!mounted || !containerRef.current || showConnecting) return;
 
     const chart = createChart(containerRef.current, {
       layout: {
-        background: { color: "transparent" },
+        background: { type: ColorType.Solid, color: "transparent" },
         textColor: "#71717a",
         fontFamily: "JetBrains Mono, monospace",
         fontSize: 10,
@@ -160,13 +197,33 @@ export function EquityChart({ portfolio, equityCurve, equityHistory, everConnect
     });
     seriesRef.current = series;
 
+    // Load initial data if already available
+    if (chartData.length > 0) {
+      const areaData: AreaData[] = chartData.map(p => ({ time: p.time, value: p.value }));
+      series.setData(areaData);
+      
+      // Use setTimeout to ensure container has been sized by browser layout engine
+      const timer = setTimeout(() => {
+        if (chartRef.current) {
+          chartRef.current.timeScale().fitContent();
+        }
+      }, 50);
+      
+      return () => {
+        clearTimeout(timer);
+        seriesRef.current = null;
+        chartRef.current = null;
+        chart.remove();
+      };
+    }
+
     return () => {
       seriesRef.current = null;
       chartRef.current = null;
       chart.remove();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mounted]);
+  }, [mounted, showConnecting]);
 
   // Update series color when profit/loss flips
   useEffect(() => {
@@ -183,7 +240,14 @@ export function EquityChart({ portfolio, equityCurve, equityHistory, everConnect
     if (!seriesRef.current) return;
     const areaData: AreaData[] = chartData.map(p => ({ time: p.time, value: p.value }));
     seriesRef.current.setData(areaData);
-    chartRef.current?.timeScale().fitContent();
+    
+    // Use setTimeout to ensure canvas has finished resizing
+    const timer = setTimeout(() => {
+      if (chartRef.current) {
+        chartRef.current.timeScale().fitContent();
+      }
+    }, 50);
+    return () => clearTimeout(timer);
   }, [chartData]);
 
   return (
@@ -247,14 +311,14 @@ export function EquityChart({ portfolio, equityCurve, equityHistory, everConnect
           ))}
         </div>
 
-        <div className="w-full h-[240px] mt-3">
+        <div className="w-full h-[240px] mt-3 relative">
           {showConnecting ? (
             <div className="flex items-center justify-center h-full text-[12px] font-mono text-zinc-500 uppercase tracking-widest">
               <span className="w-1.5 h-1.5 rounded-full bg-zinc-500 animate-pulse mr-2" />
               Connecting to market…
             </div>
           ) : mounted ? (
-            <div ref={containerRef} className="w-full h-full" />
+            <div ref={containerRef} className="w-full h-full relative" />
           ) : (
             <div className="flex items-center justify-center h-full text-[12px] font-mono text-zinc-600 uppercase tracking-widest animate-pulse">
               Plotting market curve...
