@@ -207,8 +207,9 @@ export function executeTrades(
           const sellValue = rawDesiredSize * currentPrice;
           const posValue = pos.size * currentPrice;
 
-          if (sellValue >= posValue - 0.01) {
-            // Full exit — sell dollar covers the position
+          const remainingValue = (pos.size - rawDesiredSize) * currentPrice;
+          if (sellValue >= posValue - 0.01 || remainingValue < 1.00) {
+            // Full exit — sell dollar covers the position or remaining value is dust (< $1.00)
             const revenue = (pos.entryPrice * pos.size) + pos.unrealizedPnL;
             const fee = revenue * config.feePct;
             const pnl = pos.unrealizedPnL - fee;
@@ -218,14 +219,18 @@ export function executeTrades(
             state.positions.splice(idx, 1);
             livePositionCount = new Set(state.positions.map(p => p.symbol)).size;
           } else {
-            const reduceSize = Math.min(rawDesiredSize, pos.size - 0.0001);
+            const reduceSize = rawDesiredSize;
             const pnlFraction = reduceSize / pos.size;
             const revenue = (pos.entryPrice * reduceSize) + (pos.unrealizedPnL * pnlFraction);
             const fee = revenue * config.feePct;
             const pnl = (pos.unrealizedPnL * pnlFraction) - fee;
             state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "sell", action: "reduce", size: reduceSize, price: pos.entryPrice + (pos.unrealizedPnL / pos.size), pnl, fee });
             liquidBalance += revenue - fee;
-            state.positions[idx] = { ...state.positions[idx], size: pos.size - reduceSize };
+            state.positions[idx] = { 
+              ...state.positions[idx], 
+              size: pos.size - reduceSize,
+              unrealizedPnL: pos.unrealizedPnL * (1 - pnlFraction),
+            };
           }
         }
         state.portfolio.totalTrades++;

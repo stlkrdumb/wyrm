@@ -26,7 +26,7 @@ export class RiskManager {
     tickerData?: TickerData,
     positions?: Position[]
   ): RiskValidationResult {
-    if (!decision || decision.action === "hold") {
+    if (!decision || decision.action !== "buy") {
       return { isAllowed: true };
     }
 
