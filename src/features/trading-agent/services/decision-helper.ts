@@ -131,6 +131,7 @@ Analyze ONLY these symbols and return a JSON object with keys matching each symb
 ${lines}
 ${positionsSection}${recentExitsSection}
 Rules:
+- You MUST provide a decision for EVERY SINGLE symbol listed above (specifically: ${Array.from(symbolData.keys()).join(", ")}). Never omit any symbol from your JSON response. If you want to take no action on a symbol, explicitly output "action": "hold" for it.
 - For EACH symbol, decide: buy, sell, or hold
 - If we hold a position for a symbol (one that appears in the "Active Positions" section above) and you want to take profit, stop loss, or close it, output "action": "sell".
 - If we hold a position (listed above) and you wish to keep it, output "action": "hold".
@@ -349,12 +350,13 @@ function sanitizeReason(reason: string): string {
 function findDecisionForSymbol(parsed: any, symbol: string): any {
   if (!parsed) return null;
 
-  const targetSymbol = symbol.toUpperCase();
-  const baseSymbol = symbol.replace(/USDT$/, "").toUpperCase();
+  const clean = (str: string) => str.replace(/[^A-Z0-9]/g, "").toUpperCase();
+  const targetSymbol = clean(symbol);
+  const baseSymbol = clean(symbol.replace(/USDT$/, ""));
 
   const matchesSymbol = (str: unknown): boolean => {
     if (typeof str !== "string") return false;
-    const s = str.toUpperCase();
+    const s = clean(str);
     return s === targetSymbol || s === baseSymbol;
   };
 
