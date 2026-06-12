@@ -202,14 +202,26 @@ export function executeTrades(
           livePositionCount = new Set(state.positions.map(p => p.symbol)).size;
         } else {
           // Partial reduce
-          const reduceSize = decision.size || (pos.size / 2);
-          const pnlFraction = reduceSize / pos.size;
-          const revenue = (pos.entryPrice * reduceSize) + (pos.unrealizedPnL * pnlFraction);
-          const fee = revenue * config.feePct;
-          const pnl = (pos.unrealizedPnL * pnlFraction) - fee;
-          state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "sell", action: "reduce", size: reduceSize, price: pos.entryPrice + (pos.unrealizedPnL / pos.size), pnl, fee });
-          liquidBalance += revenue - fee;
-          state.positions[idx] = { ...state.positions[idx], size: pos.size - reduceSize };
+          const reduceSize = Math.min(decision.size || pos.size, pos.size);
+          if (reduceSize >= pos.size - 0.0001) {
+            // Dust close — treat as full exit
+            const revenue = (pos.entryPrice * reduceSize) + (pos.unrealizedPnL * (reduceSize / pos.size));
+            const fee = revenue * config.feePct;
+            const pnl = (pos.unrealizedPnL * (reduceSize / pos.size)) - fee;
+            const avgPrice = pos.entryPrice + (pos.unrealizedPnL / pos.size);
+            state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "sell", action: "exit", size: reduceSize, price: avgPrice, pnl, fee });
+            liquidBalance += revenue - fee;
+            state.positions.splice(idx, 1);
+            livePositionCount = new Set(state.positions.map(p => p.symbol)).size;
+          } else {
+            const pnlFraction = reduceSize / pos.size;
+            const revenue = (pos.entryPrice * reduceSize) + (pos.unrealizedPnL * pnlFraction);
+            const fee = revenue * config.feePct;
+            const pnl = (pos.unrealizedPnL * pnlFraction) - fee;
+            state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "sell", action: "reduce", size: reduceSize, price: pos.entryPrice + (pos.unrealizedPnL / pos.size), pnl, fee });
+            liquidBalance += revenue - fee;
+            state.positions[idx] = { ...state.positions[idx], size: pos.size - reduceSize };
+          }
         }
         state.portfolio.totalTrades++;
       } else {
