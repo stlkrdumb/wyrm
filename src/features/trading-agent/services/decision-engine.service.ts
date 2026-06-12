@@ -150,6 +150,38 @@ export async function evaluateDecision(ticker: TickerData): Promise<{ decision: 
   };
 }
 
+/** Calculate Wilder's RSI (14-period) in TypeScript */
+function calculateRsi(closes: number[], period = 14): number {
+  if (closes.length < period + 1) return 50;
+
+  let gains = 0;
+  let losses = 0;
+
+  for (let i = 1; i <= period; i++) {
+    const diff = closes[i] - closes[i - 1];
+    if (diff > 0) gains += diff;
+    else losses -= diff;
+  }
+
+  let avgGain = gains / period;
+  let avgLoss = losses / period;
+
+  for (let i = period + 1; i < closes.length; i++) {
+    const diff = closes[i] - closes[i - 1];
+    if (diff > 0) {
+      avgGain = (avgGain * (period - 1) + diff) / period;
+      avgLoss = (avgLoss * (period - 1)) / period;
+    } else {
+      avgGain = (avgGain * (period - 1)) / period;
+      avgLoss = (avgLoss * (period - 1) - diff) / period;
+    }
+  }
+
+  if (avgLoss === 0) return 100;
+  const rs = avgGain / avgLoss;
+  return 100 - (100 / (1 + rs));
+}
+
 /**
  * Evaluate signals for MULTIPLE symbols simultaneously.
  * One LLM call for all pairs → per-symbol decisions.
@@ -179,10 +211,40 @@ export async function evaluateMultiPair(
     // Prioritize held positions (up to the cap)
     const selected = held.slice(0, EVAL_MAX_PAIRS);
 
-    // Fill remaining slots with top candidates from watchlist (already sorted by volume/momentum)
+    // If we have remaining slots, score the top 6 pool candidates using 1h RSI
     if (selected.length < EVAL_MAX_PAIRS) {
       const remainingSlots = EVAL_MAX_PAIRS - selected.length;
-      selected.push(...candidates.slice(0, remainingSlots));
+      const poolCandidates = candidates.slice(0, 6);
+      const mode = process.env.SCREENING_MODE || "momentum";
+      const candidateSetups: Array<{ symbol: string; rsi: number; score: number }> = [];
+
+      // Fetch 1h candles and compute RSI in parallel
+      await Promise.all(
+        poolCandidates.map(async (symbol) => {
+          try {
+            const candles = await getCandlesWithCache(symbol, "1h", 30);
+            if (candles && candles.length >= 15) {
+              const closes = candles.map(c => c.close);
+              const rsi = calculateRsi(closes);
+              const score = mode === "reversal" ? (100 - rsi) : rsi;
+              candidateSetups.push({ symbol, rsi, score });
+            } else {
+              candidateSetups.push({ symbol, rsi: 50, score: 0 });
+            }
+          } catch (err) {
+            console.warn(`[DecisionEngine] Setup pre-screen failed for ${symbol}:`, err);
+            candidateSetups.push({ symbol, rsi: 50, score: 0 });
+          }
+        })
+      );
+
+      // Sort candidates by setup score in descending order
+      candidateSetups.sort((a, b) => b.score - a.score);
+      const sortedCandidates = candidateSetups.map(c => c.symbol);
+      const filled = sortedCandidates.slice(0, remainingSlots);
+
+      console.log(`[DecisionEngine] Pre-screened candidates setups:`, candidateSetups.map(c => `${c.symbol}(RSI=${c.rsi.toFixed(1)}, score=${c.score.toFixed(1)})`).join(", "));
+      selected.push(...filled);
     }
 
     selectedSymbols = selected;
