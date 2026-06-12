@@ -242,7 +242,8 @@ export function executeTrades(
 
     // ─── Buy path — requires fresh WS price ───
     const strengthFactor = Math.abs(strength);
-    const allocationPct = config.orderSizePct * strengthFactor;
+    const confidenceFactor = typeof decision.confidence === "number" ? Math.max(0, Math.min(1, decision.confidence)) : 1.0;
+    const allocationPct = config.orderSizePct * strengthFactor * confidenceFactor;
     const tradeSize = decision.size ?? ((totalEquity * allocationPct) / execPrice!);
 
     if (!Number.isFinite(tradeSize) || tradeSize <= 0) continue;

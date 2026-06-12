@@ -70,7 +70,8 @@ export class RiskManager {
     // 4. Check Position Size Limit
     if (tickerData && tickerData.lastPrice > 0) {
       const positionValue = decision.size * tickerData.lastPrice;
-      const maxAllowedValue = portfolio.equity * RISK_CONFIG.MAX_POSITION_SIZE_PCT;
+      const maxPct = Math.max(RISK_CONFIG.MAX_POSITION_SIZE_PCT, config.orderSizePct);
+      const maxAllowedValue = portfolio.equity * maxPct;
 
       if (positionValue > maxAllowedValue) {
         // Adjust the decision to fit within limits
@@ -80,7 +81,7 @@ export class RiskManager {
         const adjustedDecision = {
           ...decision,
           size: adjustedSize,
-          reason: `Adjusted: Original size exceeded max position limit (${(RISK_CONFIG.MAX_POSITION_SIZE_PCT * 100).toFixed(0)}% of equity)`,
+          reason: `Adjusted: Original size exceeded max position limit (${(maxPct * 100).toFixed(0)}% of equity)`,
         };
 
         return {

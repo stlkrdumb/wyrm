@@ -297,7 +297,8 @@ export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ ticker
       } else if (ticker?.lastPrice) {
         const totalEquity = st.portfolio.equity;
         const strengthFactor = Math.abs(decision.strength);
-        decision.size = (totalEquity * config.orderSizePct * strengthFactor) / ticker.lastPrice;
+        const confidenceFactor = typeof decision.confidence === "number" ? Math.max(0, Math.min(1, decision.confidence)) : 1.0;
+        decision.size = (totalEquity * config.orderSizePct * strengthFactor * confidenceFactor) / ticker.lastPrice;
       }
     }
 
