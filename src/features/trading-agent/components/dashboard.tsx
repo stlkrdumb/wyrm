@@ -16,12 +16,10 @@ import { TerminalLog } from "./terminal-log";
 import { TradeToast } from "./trade-toast";
 import { BrainLog } from "./brain-log";
 import { Tabs } from "@/shared/ui";
-import { ConfigModal } from "./config-modal";
 
 export function Dashboard() {
   const agent = useAgent();
   const [activeLogTab, setActiveLogTab] = useState<"execution" | "decision" | "brain" | "console">("execution");
-  const [isConfigOpen, setIsConfigOpen] = useState(false);
 
   return (
     <div className="h-screen flex flex-col bg-obsidian text-zinc-100 relative overflow-hidden">
@@ -121,8 +119,7 @@ export function Dashboard() {
         </div>
       </main>
 
-      <BottomStatusBar agent={agent} onOpenConfig={() => setIsConfigOpen(true)} />
-      <ConfigModal isOpen={isConfigOpen} onClose={() => setIsConfigOpen(false)} agent={agent} />
+      <BottomStatusBar agent={agent} />
     </div>
   );
 }

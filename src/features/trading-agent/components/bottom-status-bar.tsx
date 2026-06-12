@@ -1,13 +1,11 @@
 import { memo } from "react";
 import type { useAgent } from "@/features/trading-agent/hooks/use-agent";
-import { Settings } from "lucide-react";
 
 interface Props {
   agent: ReturnType<typeof useAgent>;
-  onOpenConfig?: () => void;
 }
 
-export const BottomStatusBar = memo(function BottomStatusBar({ agent, onOpenConfig }: Props) {
+export const BottomStatusBar = memo(function BottomStatusBar({ agent }: Props) {
   const { state } = agent;
   const { status, lastCycleAt } = state;
 
@@ -109,16 +107,6 @@ export const BottomStatusBar = memo(function BottomStatusBar({ agent, onOpenConf
       </div>
 
       <div className="flex items-center gap-4">
-        {onOpenConfig && (
-          <button
-            onClick={onOpenConfig}
-            className="flex items-center gap-1.5 px-3 py-1 rounded text-[11px] font-mono font-bold tracking-widest uppercase bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-400 hover:text-zinc-200 transition-all cursor-pointer"
-            title="Configure System Parameters"
-          >
-            <Settings className="w-3.5 h-3.5" />
-            Config
-          </button>
-        )}
         <span className="text-zinc-600 tracking-widest uppercase">WYRM // V0.1.0</span>
       </div>
     </footer>
