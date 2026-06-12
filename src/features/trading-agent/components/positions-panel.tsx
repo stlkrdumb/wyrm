@@ -80,7 +80,22 @@ export function PositionsPanel({ positions, tickers, everConnected = true }: Pro
                       </div>
                     </td>
                     <td className="text-right tabular-nums text-zinc-300">{p.size.toFixed(4)}</td>
-                    <td className="text-right tabular-nums text-zinc-500">${p.entryPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                    <td className="text-right tabular-nums">
+                      <div className="text-zinc-500">${p.entryPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                      {(() => {
+                        const slPct = p.stopLossPct || 5;
+                        const tpPct = p.takeProfitPct || 10;
+                        const slPrice = p.entryPrice * (1 - slPct / 100);
+                        const tpPrice = p.entryPrice * (1 + tpPct / 100);
+                        return (
+                          <div className="text-[9px] font-mono tracking-tighter mt-0.5 text-zinc-500 flex justify-end gap-1.5">
+                            <span className="text-rose-500/70" title={`Stop Loss: -${slPct}%`}>SL ${slPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                            <span className="text-zinc-700">|</span>
+                            <span className="text-emerald-500/70" title={`Take Profit: +${tpPct}%`}>TP ${tpPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                          </div>
+                        );
+                      })()}
+                    </td>
                     <td className="text-right tabular-nums text-zinc-200 font-semibold">${currentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td className="text-right tabular-nums font-bold">
                       <AnimatedPnL value={p.unrealizedPnL} everConnected={everConnected} />

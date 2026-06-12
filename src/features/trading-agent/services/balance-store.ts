@@ -27,6 +27,7 @@ export interface PortfolioState {
   circuitBreakerThresholdPct?: number;
   peakEquity?: number;
   tradeCounter?: number;     // monotonic — prevents duplicate trade IDs across restarts
+  equityHistory?: Array<{ timestamp: string; equity: number }>;
 }
 
 /** Runtime validation — guards against corrupted or partial JSON. */
@@ -67,6 +68,11 @@ function validateState(raw: unknown): PortfolioState | null {
     circuitBreakerThresholdPct: typeof s.circuitBreakerThresholdPct === "number" ? s.circuitBreakerThresholdPct : 5.0,
     peakEquity: typeof s.peakEquity === "number" ? s.peakEquity : (s.cash as number),
     tradeCounter: typeof s.tradeCounter === "number" && s.tradeCounter >= 0 ? s.tradeCounter : 0,
+    equityHistory: Array.isArray(s.equityHistory)
+      ? (s.equityHistory.filter(
+          (e) => e && typeof e === "object" && typeof e.timestamp === "string" && typeof e.equity === "number"
+        ) as PortfolioState["equityHistory"])
+      : [],
   };
 }
 
@@ -100,7 +106,22 @@ export function loadBalanceState(): PortfolioState | null {
 export function saveBalanceState(state: PortfolioState): void {
   ensureDir();
   try {
-    fs.writeFileSync(STORE_PATH, JSON.stringify(state, null, 2));
+    let finalState = state;
+    if (!state.equityHistory && fs.existsSync(STORE_PATH)) {
+      try {
+        const raw = fs.readFileSync(STORE_PATH, "utf-8");
+        const existing = JSON.parse(raw);
+        if (existing && typeof existing === "object" && Array.isArray(existing.equityHistory)) {
+          finalState = {
+            ...state,
+            equityHistory: existing.equityHistory,
+          };
+        }
+      } catch {
+        // ignore read/parse errors
+      }
+    }
+    fs.writeFileSync(STORE_PATH, JSON.stringify(finalState, null, 2));
   } catch (err) {
     console.error("[Balance] Save failed:", err instanceof Error ? err.message : String(err));
     throw err;
@@ -120,6 +141,7 @@ export function resetBalanceState(initialCash: number): PortfolioState {
     circuitBreakerThresholdPct: 5.0,
     peakEquity: initialCash,
     tradeCounter: 0,
+    equityHistory: [],
   };
   saveBalanceState(state);
   console.log(`[Balance] Reset to initial: $${initialCash.toLocaleString()}`);
