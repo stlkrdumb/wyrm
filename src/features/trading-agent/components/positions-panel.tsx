@@ -32,12 +32,12 @@ function AnimatedPnL({ value, everConnected }: { value: number; everConnected: b
 export function PositionsPanel({ positions, tickers, everConnected = true }: Props) {
   if (positions.length === 0) {
     return (
-      <Card>
+      <Card className="flex flex-col h-full">
         <CardHeader>
           <CardTitle>Spot Holdings (0)</CardTitle>
           <span className="text-[12px] tracking-widest text-zinc-500 font-mono">PORTFOLIO ASSETS</span>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex-1 flex items-center justify-center">
           <div className="flex items-center justify-center py-8 text-[12px] font-mono text-zinc-500 tracking-wide uppercase">
             <div className="w-1.5 h-1.5 rounded-full bg-white/30 animate-empty-pulse mr-2" />
             No holdings active — awaiting entry signals

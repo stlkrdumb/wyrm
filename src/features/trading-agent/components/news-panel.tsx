@@ -68,24 +68,24 @@ export const NewsPanel = memo(function NewsPanel() {
   };
 
   return (
-    <Card>
+    <Card className="flex flex-col flex-1 min-h-0 h-full">
       <CardHeader>
         <CardTitle>Macro News</CardTitle>
         <span className="text-[11px] font-mono text-zinc-500">
           {articles.length > 0 ? `${articles.length} headlines` : ""}
         </span>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-1 flex flex-col min-h-0">
         {isLoading && articles.length === 0 ? (
-          <div className="flex items-center justify-center h-[200px]">
+          <div className="flex-1 flex items-center justify-center min-h-[200px]">
             <Loader2 className="w-5 h-5 text-zinc-500 animate-spin" />
           </div>
         ) : articles.length === 0 ? (
-          <div className="text-[11px] font-mono text-zinc-500 py-8 text-center tracking-wide uppercase">
+          <div className="flex-1 flex items-center justify-center text-[11px] font-mono text-zinc-500 py-8 text-center tracking-wide uppercase">
             No headlines right now
           </div>
         ) : (
-          <div className="flex flex-col gap-2 max-h-[200px] overflow-y-auto scrollbar-none pr-1 -mr-1">
+          <div className="flex flex-col gap-2 flex-1 overflow-y-auto scrollbar-none pr-1 -mr-1">
             {articles.map((a) => {
               const borderLeftClass =
                 a.sentiment === "BULLISH"
