@@ -316,6 +316,7 @@ Analyze the provided market data and generate concise, actionable decisions for 
       temperature: 0.3,
       maxTokens: 2048,
       onToken,
+      responseFormat: { type: "json" },
     });
 
     const result = parseMultiResponse(response, Array.from(symbolData.keys()));

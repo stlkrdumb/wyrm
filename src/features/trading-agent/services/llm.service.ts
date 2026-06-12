@@ -1,7 +1,7 @@
 import dotenv from "dotenv";
 import path from "node:path";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import { generateText } from "ai";
+import { generateText, Output } from "ai";
 
 // Load .env.local — does NOT override system env vars (safer for containers)
 dotenv.config({ path: path.join(process.cwd(), ".env.local"), override: false });
@@ -40,6 +40,7 @@ export async function chatCompletion(options: {
   temperature?: number;
   maxTokens?: number;
   onToken?: TokenCallback;
+  responseFormat?: { type: "json" | "text" };
 }): Promise<string> {
   const baseUrl = BASE_URL;
   const apiKey = API_KEY;
@@ -57,14 +58,15 @@ export async function chatCompletion(options: {
         // Attempt with quality model + timeout guard
         result = await _generateWithProviderWithTimeout(
           provider, MODEL_PLUS, options.messages, options.temperature, options.maxTokens, options.onToken,
-          PLUS_TIMEOUT_MS,
+          PLUS_TIMEOUT_MS, options.responseFormat,
         );
       } catch (timeoutErr) {
         if ((timeoutErr as Error).message.includes("timeout")) {
           console.log(`[LLM] ${MODEL_PLUS} timed out — permanently switching to ${MODEL_FAST}`);
           _modelPreference = "fast";
           result = await _generateWithProviderWith429Retry(
-            provider, MODEL_FAST, options.messages, options.temperature, options.maxTokens, options.onToken
+            provider, MODEL_FAST, options.messages, options.temperature, options.maxTokens, options.onToken,
+            3, options.responseFormat,
           );
         } else {
           throw timeoutErr;
@@ -72,7 +74,8 @@ export async function chatCompletion(options: {
       }
     } else {
       result = await _generateWithProviderWith429Retry(
-        provider, MODEL_FAST, options.messages, options.temperature, options.maxTokens, options.onToken
+        provider, MODEL_FAST, options.messages, options.temperature, options.maxTokens, options.onToken,
+        3, options.responseFormat,
       );
     }
 
@@ -92,7 +95,8 @@ export async function chatCompletion(options: {
     console.log(`[LLM] ${MODEL_PLUS} failed, trying ${MODEL_FAST}...`);
     try {
       const result = await _generateWithProviderWith429Retry(
-        provider, MODEL_FAST, options.messages, options.temperature, options.maxTokens, options.onToken
+        provider, MODEL_FAST, options.messages, options.temperature, options.maxTokens, options.onToken,
+        3, options.responseFormat,
       );
       if (result && result.trim().length > 0) return result;
     } catch (fastErr) {
@@ -105,7 +109,8 @@ export async function chatCompletion(options: {
       try {
         const cloudProvider = getProvider("https://api.openai.com/v1", apiKey);
         const result = await _generateWithProviderWith429Retry(
-          cloudProvider, MODEL_PLUS, options.messages, options.temperature, options.maxTokens, options.onToken
+          cloudProvider, MODEL_PLUS, options.messages, options.temperature, options.maxTokens, options.onToken,
+          3, options.responseFormat,
         );
         if (result && result.trim().length > 0) return result;
       } catch (cloudError) {
@@ -135,6 +140,7 @@ async function _generateWithProviderWithTimeout(
   maxTokens?: number,
   onToken?: TokenCallback,
   timeoutMs?: number,
+  responseFormat?: { type: "json" | "text" },
 ): Promise<string> {
   const { system, userMessages } = splitMessages(messages);
   const effectiveTimeout = timeoutMs ?? (_modelPreference === "plus" ? PLUS_TIMEOUT_MS : FAST_TIMEOUT_MS);
@@ -148,6 +154,7 @@ async function _generateWithProviderWithTimeout(
         messages: userMessages as any, // cast needed for ai SDK strict typing
         temperature: temperature ?? 0.3,
         maxOutputTokens: maxTokens ?? 4096,
+        output: responseFormat?.type === "json" ? Output.json() : Output.text(),
       }).then(({ text }) => {
         if (onToken) onToken(text);
         return text;
@@ -169,6 +176,7 @@ async function _generateWithProvider(
   temperature?: number,
   maxTokens?: number,
   onToken?: TokenCallback,
+  responseFormat?: { type: "json" | "text" },
 ): Promise<string> {
   const { system, userMessages } = splitMessages(messages);
 
@@ -178,6 +186,7 @@ async function _generateWithProvider(
     messages: userMessages as any, // cast needed for ai SDK strict typing
     temperature: temperature ?? 0.3,
     maxOutputTokens: maxTokens ?? 4096,
+    output: responseFormat?.type === "json" ? Output.json() : Output.text(),
   });
 
   if (onToken && text) onToken(text);
@@ -194,13 +203,14 @@ async function _generateWithProviderWith429Retry(
   maxTokens?: number,
   onToken?: TokenCallback | undefined,
   maxRetries: number = 3,
+  responseFormat?: { type: "json" | "text" },
 ): Promise<string> {
   let lastError: Error | null = null;
 
   // maxRetries = 3 means "try up to 3 times total" (1 initial + 2 retries)
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      return await _generateWithProvider(provider, model, messages, temperature, maxTokens, onToken);
+      return await _generateWithProvider(provider, model, messages, temperature, maxTokens, onToken, responseFormat);
     } catch (err) {
       const errStr = err instanceof Error ? err.message : String(err);
 
