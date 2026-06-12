@@ -273,6 +273,37 @@ export function executeTrades(
     state.portfolio.totalTrades++;
   }
 
+  // ─── Dust cleanup: close positions worth less than 1% of portfolio equity ───
+  const rawEquity = liquidBalance + state.positions.reduce((s, p) => {
+    const px = priceMap.get(p.symbol)?.lastPrice ?? p.entryPrice;
+    return s + (p.size * px);
+  }, 0);
+  const DUST_THRESHOLD = rawEquity * 0.01;
+  for (let i = state.positions.length - 1; i >= 0; i--) {
+    const pos = state.positions[i];
+    const px = priceMap.get(pos.symbol)?.lastPrice ?? pos.entryPrice;
+    const posValue = pos.size * px;
+
+    if (posValue < DUST_THRESHOLD) {
+      const revenue = (pos.entryPrice * pos.size) + (pos.unrealizedPnL || 0);
+      const fee = revenue * config.feePct;
+      const pnl = (pos.unrealizedPnL || 0) - fee;
+      const tc = getTradeCounter() + 1;
+      setTradeCounter(tc);
+
+      state.trades.push({
+        id: `T${tc}`, timestamp: new Date(), symbol: pos.symbol,
+        side: "sell", action: "exit", size: pos.size,
+        price: px, pnl, fee,
+      });
+
+      liquidBalance += revenue - fee;
+      state.positions.splice(i, 1);
+      state.portfolio.totalTrades++;
+      console.log(`[Dust] Closed ${pos.symbol} ($${posValue.toFixed(2)}) — below 1% threshold ($${DUST_THRESHOLD.toFixed(2)})`);
+    }
+  }
+
   // Mark-to-market all remaining positions
   let totalPosVal = 0;
   for (const p of state.positions) {
