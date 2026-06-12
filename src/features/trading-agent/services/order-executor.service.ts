@@ -201,19 +201,24 @@ export function executeTrades(
           state.positions.splice(idx, 1);
           livePositionCount = new Set(state.positions.map(p => p.symbol)).size;
         } else {
-          // Partial reduce
-          const reduceSize = Math.min(decision.size || pos.size, pos.size);
-          if (reduceSize >= pos.size - 0.0001) {
-            // Dust close — treat as full exit
-            const revenue = (pos.entryPrice * reduceSize) + (pos.unrealizedPnL * (reduceSize / pos.size));
+          // Partial reduce — compare in dollars using current position value
+          const rawDesiredSize = decision.size || (pos.size / 2);
+          const currentPrice = pos.entryPrice + (pos.unrealizedPnL / pos.size);
+          const sellValue = rawDesiredSize * currentPrice;
+          const posValue = pos.size * currentPrice;
+
+          if (sellValue >= posValue - 0.01) {
+            // Full exit — sell dollar covers the position
+            const revenue = (pos.entryPrice * pos.size) + pos.unrealizedPnL;
             const fee = revenue * config.feePct;
-            const pnl = (pos.unrealizedPnL * (reduceSize / pos.size)) - fee;
+            const pnl = pos.unrealizedPnL - fee;
             const avgPrice = pos.entryPrice + (pos.unrealizedPnL / pos.size);
-            state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "sell", action: "exit", size: reduceSize, price: avgPrice, pnl, fee });
+            state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "sell", action: "exit", size: pos.size, price: avgPrice, pnl, fee });
             liquidBalance += revenue - fee;
             state.positions.splice(idx, 1);
             livePositionCount = new Set(state.positions.map(p => p.symbol)).size;
           } else {
+            const reduceSize = Math.min(rawDesiredSize, pos.size - 0.0001);
             const pnlFraction = reduceSize / pos.size;
             const revenue = (pos.entryPrice * reduceSize) + (pos.unrealizedPnL * pnlFraction);
             const fee = revenue * config.feePct;
