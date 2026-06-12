@@ -152,14 +152,16 @@ export function executeTrades(
       continue;
     }
 
-    // Trade execution price MUST come from the WS feed — never REST. If no fresh WS
-    // data is available (cold cache, stale, or WS disconnected), skip the trade.
-    const wsPrice = resolveWsPrice(symbol);
-    if (!wsPrice) {
-      console.warn(`[Agent] ${symbol}: skipping ${decision.action} — no WS price data, won't fall back to REST`);
-      continue;
+    // Buy: require fresh WS price. Sell: use position's unrealizedPnL directly — no price lookup needed.
+    let execPrice: number | undefined;
+    if (decision.action !== "sell") {
+      const wsPrice = resolveWsPrice(symbol);
+      if (!wsPrice) {
+        console.warn(`[Agent] ${symbol}: skipping buy — no WS price data`);
+        continue;
+      }
+      execPrice = wsPrice.price;
     }
-    const execPrice = wsPrice.price;
 
     if (decision.action === "buy" && livePositionCount >= config.maxActivePositions) {
       console.log(`[Agent] ${symbol}: skipping buy — already at max open positions (${config.maxActivePositions})`);
@@ -179,9 +181,47 @@ export function executeTrades(
       return s + (p.size * posPrice);
     }, 0);
 
+    // ─── Sell handling — uses unrealizedPnL directly, no price lookup ───
+    if (decision.action === "sell") {
+      const idx = state.positions.findIndex(p => p.symbol === symbol);
+      if (idx >= 0) {
+        const pos = state.positions[idx];
+        const now = new Date();
+        const tc = getTradeCounter() + 1;
+        setTradeCounter(tc);
+
+        if (pos.size <= (decision.size || pos.size)) {
+          // Full exit
+          const revenue = pos.entryPrice * pos.size + pos.unrealizedPnL;
+          const fee = revenue * config.feePct;
+          const pnl = pos.unrealizedPnL - fee;
+          const avgPrice = pos.entryPrice + (pos.unrealizedPnL / pos.size);
+          state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "sell", action: "exit", size: pos.size, price: avgPrice, pnl, fee });
+          liquidBalance += revenue - fee;
+          state.positions.splice(idx, 1);
+          livePositionCount = new Set(state.positions.map(p => p.symbol)).size;
+        } else {
+          // Partial reduce
+          const reduceSize = decision.size || (pos.size / 2);
+          const pnlFraction = reduceSize / pos.size;
+          const revenue = (pos.entryPrice * reduceSize) + (pos.unrealizedPnL * pnlFraction);
+          const fee = revenue * config.feePct;
+          const pnl = (pos.unrealizedPnL * pnlFraction) - fee;
+          state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "sell", action: "reduce", size: reduceSize, price: pos.entryPrice + (pos.unrealizedPnL / pos.size), pnl, fee });
+          liquidBalance += revenue - fee;
+          state.positions[idx] = { ...state.positions[idx], size: pos.size - reduceSize };
+        }
+        state.portfolio.totalTrades++;
+      } else {
+        console.log(`[Agent] ${symbol}: skipping sell — no position to close`);
+      }
+      continue;
+    }
+
+    // ─── Buy path — requires fresh WS price ───
     const strengthFactor = Math.abs(strength);
     const allocationPct = config.orderSizePct * strengthFactor;
-    const tradeSize = decision.size ?? ((totalEquity * allocationPct) / execPrice);
+    const tradeSize = decision.size ?? ((totalEquity * allocationPct) / execPrice!);
 
     if (!Number.isFinite(tradeSize) || tradeSize <= 0) continue;
 
@@ -190,54 +230,28 @@ export function executeTrades(
     const tc = getTradeCounter() + 1;
     setTradeCounter(tc);
 
-    if (decision.action === "buy") {
-      const cost = execPrice * tradeSize;
-      const fee = cost * config.feePct;
-      const totalCost = cost + fee;
-      if (totalCost <= liquidBalance) {
+    const cost = execPrice! * tradeSize;
+    const fee = cost * config.feePct;
+    const totalCost = cost + fee;
+    if (totalCost <= liquidBalance) {
         if (idx >= 0) {
           const p = state.positions[idx];
           state.positions[idx] = {
             ...p,
             size: p.size + tradeSize,
-            entryPrice: (p.entryPrice * p.size + execPrice * tradeSize * (1 + config.feePct)) / (p.size + tradeSize),
+            entryPrice: (p.entryPrice * p.size + execPrice! * tradeSize * (1 + config.feePct)) / (p.size + tradeSize),
           };
-          state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "buy", action: "add", size: tradeSize, price: execPrice, fee });
+          state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "buy", action: "add", size: tradeSize, price: execPrice!, fee });
         } else {
           const sltp = resolveSLTP(decision);
-          state.positions.push({ symbol, side: "long", size: tradeSize, entryPrice: execPrice * (1 + config.feePct), unrealizedPnL: 0, ...sltp });
-          state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "buy", action: "entry", size: tradeSize, price: execPrice, fee });
+          state.positions.push({ symbol, side: "long", size: tradeSize, entryPrice: execPrice! * (1 + config.feePct), unrealizedPnL: 0, ...sltp });
+          state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "buy", action: "entry", size: tradeSize, price: execPrice!, fee });
           livePositionCount++;
         }
         liquidBalance -= totalCost;
       } else {
         console.log(`[Agent] ${symbol}: skipping buy — insufficient funds (need $${totalCost.toFixed(2)}, have $${liquidBalance.toFixed(2)})`);
       }
-    } else if (decision.action === "sell") {
-      if (idx >= 0) {
-        const pos = state.positions[idx];
-
-        if (pos.size <= tradeSize) {
-          const revenue = execPrice * pos.size;
-          const fee = revenue * config.feePct;
-          const pnl = (execPrice - pos.entryPrice) * pos.size - fee;
-          state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "sell", action: "exit", size: pos.size, price: execPrice, pnl, fee });
-          liquidBalance += revenue - fee;
-          state.positions.splice(idx, 1);
-          livePositionCount = new Set(state.positions.map(p => p.symbol)).size;
-        } else {
-          const avgEntry = pos.entryPrice;
-          const revenue = execPrice * tradeSize;
-          const fee = revenue * config.feePct;
-          const pnl = (execPrice - avgEntry) * tradeSize - fee;
-          state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "sell", action: "reduce", size: tradeSize, price: execPrice, pnl, fee });
-          liquidBalance += revenue - fee;
-          state.positions[idx] = { ...state.positions[idx], size: pos.size - tradeSize };
-        }
-      } else {
-        console.log(`[Agent] ${symbol}: skipping sell — no position to close`);
-      }
-    }
 
     state.portfolio.totalTrades++;
   }
