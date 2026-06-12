@@ -140,7 +140,7 @@ Rules:
 - ANTI-HALLUCINATION: NEVER refer to "current position", "our position", "we hold", "we are holding", or "maintaining" in your reason for any symbol UNLESS that symbol is explicitly listed in the Active Positions section above. If no positions are listed, we hold nothing — do not invent one.
 - ANTI-HALLUCINATION: If a symbol is listed in the Recent Auto-Exits section, it is NOT an active position — the system just closed it. Treat it as a fresh entry opportunity (buy) or a skip (hold). Do NOT say "hold to manage existing position" or "we already hold" for any symbol in that list.
 - For "hold" decisions on symbols we don't own, explain why the technical/fundamental signals don't warrant a fresh entry (e.g., weak RSI, unclear trend, low volume), NOT because you're "maintaining a position".
-- Strength: -1 (strong sell) to +1 (strong buy)
+- Strength: -1 (strong sell) to +1 (strong buy). For sell actions, the absolute value of strength scales the exit size (e.g., strength -0.5 means sell 50% of the position, strength -1.0 means sell 100%).
 - Confidence: 0-1
 ${process.env.LLM_RISKPROFILE === "true"
   ? `- LLM_RISKPROFILE MODE: For buy actions, decide your own stopLoss (slPct: number 1-50, e.g. 5 = 5%) and takeProfit (tpPct: number 1-100, e.g. 12 = 12%) based on ATR, volatility, and conviction. Output them as numbers in the JSON — do NOT use riskProfile. Tighter for calm markets / high conviction, wider for volatile / uncertain trades. NEVER leave slPct/tpPct blank for a buy action.`

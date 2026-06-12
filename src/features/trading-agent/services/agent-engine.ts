@@ -291,9 +291,14 @@ export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ ticker
 
     if (decision.action !== "hold" && (decision.size === undefined || decision.size === 0)) {
       if (decision.action === "sell") {
-        // Sells: use the full position size for a clean exit
+        // Sells: scale exit size by Math.abs(decision.strength) (e.g. strength -0.5 = sell 50% of position size)
         const pos = st.positions.find(p => p.symbol === sym);
-        decision.size = pos?.size ?? (ticker?.lastPrice ? (st.portfolio.equity * config.orderSizePct * Math.abs(decision.strength)) / ticker.lastPrice : Number.MAX_SAFE_INTEGER);
+        if (pos) {
+          const strengthFactor = Math.max(0.1, Math.min(1.0, Math.abs(decision.strength)));
+          decision.size = pos.size * strengthFactor;
+        } else {
+          decision.size = ticker?.lastPrice ? (st.portfolio.equity * config.orderSizePct * Math.abs(decision.strength)) / ticker.lastPrice : Number.MAX_SAFE_INTEGER;
+        }
       } else if (ticker?.lastPrice) {
         const totalEquity = st.portfolio.equity;
         const strengthFactor = Math.abs(decision.strength);
