@@ -42,6 +42,8 @@ export const runtimeConfigOverrides = {
   takeProfitPct: undefined as number | undefined,
   orderSizePct: undefined as number | undefined,
   cycleIntervalMs: undefined as number | undefined,
+  maxActivePositions: undefined as number | undefined,
+  convictionThreshold: undefined as number | undefined,
 };
 
 export const config = {
@@ -49,7 +51,9 @@ export const config = {
     return Number(process.env.SIM_INITIAL_CASH) || 1000;
   },
   tradingSymbols: (process.env.TRADING_SYMBOLS || "BTCUSDT").split(",").map(s => s.trim().toUpperCase()).filter(Boolean),
-  maxActivePositions: Number(process.env.MAX_ACTIVE_POSITIONS) || 3,
+  get maxActivePositions(): number {
+    return runtimeConfigOverrides.maxActivePositions ?? (Number(process.env.MAX_ACTIVE_POSITIONS) || 3);
+  },
   get stopLossPct(): number {
     return runtimeConfigOverrides.stopLossPct ?? (Number(process.env.SIM_STOP_LOSS_PCT) || 5);
   },

@@ -1,5 +1,6 @@
 import { RISK_CONFIG } from "@/features/trading-agent/constants/risk.constants";
 import { Position, TradingDecision, PortfolioSnapshot, TickerData } from "@/features/trading-agent/types";
+import { config, runtimeConfigOverrides } from "./state-store";
 
 export interface RiskValidationResult {
   isAllowed: boolean;
@@ -37,19 +38,21 @@ export class RiskManager {
     }
 
     // 1. Check Conviction Threshold
-    if (Math.abs(decision.strength) < RISK_CONFIG.MIN_CONVICTION_THRESHOLD) {
+    const threshold = runtimeConfigOverrides.convictionThreshold ?? RISK_CONFIG.MIN_CONVICTION_THRESHOLD;
+    if (Math.abs(decision.strength) < threshold) {
       return {
         isAllowed: false,
-        reason: `Conviction strength (${decision.strength.toFixed(2)}) is below threshold (${RISK_CONFIG.MIN_CONVICTION_THRESHOLD})`,
+        reason: `Conviction strength (${decision.strength.toFixed(2)}) is below threshold (${threshold.toFixed(2)})`,
       };
     }
 
     // 2. Check Concurrent Positions
     const openPositions = (positions || []).filter(p => p.side === "long" || p.side === "short");
-    if (openPositions.length >= RISK_CONFIG.MAX_CONCURRENT_POSITIONS) {
+    const maxPos = config.maxActivePositions;
+    if (openPositions.length >= maxPos) {
       return {
         isAllowed: false,
-        reason: `Maximum concurrent positions (${RISK_CONFIG.MAX_CONCURRENT_POSITIONS}) reached`,
+        reason: `Maximum concurrent positions (${maxPos}) reached`,
       };
     }
 

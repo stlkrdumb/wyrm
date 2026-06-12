@@ -12,12 +12,12 @@ export default function ConfigPage() {
   const { status } = agent.state;
 
   return (
-    <div className="min-h-screen bg-obsidian text-zinc-100">
+    <div className="h-screen flex flex-col bg-obsidian text-zinc-100">
       <div className="fixed inset-0 bg-gradient-radial pointer-events-none" />
       <div className="fixed inset-0 grid-bg pointer-events-none opacity-30" />
 
       {/* Minimal Header */}
-      <header className="relative z-20 flex items-center justify-between px-6 py-4 border-b border-obsidian-border bg-obsidian-light/80 backdrop-blur-xl">
+      <header className="relative z-20 flex items-center justify-between px-6 py-4 border-b border-obsidian-border bg-obsidian-light/80 backdrop-blur-xl flex-shrink-0">
         <div className="flex items-center gap-3">
           <Link
             href="/"
@@ -42,11 +42,11 @@ export default function ConfigPage() {
       </header>
 
       {/* Page Content */}
-      <main className="px-6 py-6 grid grid-cols-3 gap-4">
-        <div className="col-span-2 flex flex-col gap-4">
+      <main className="relative z-10 flex-1 px-6 py-6 grid grid-cols-3 gap-4 min-h-0">
+        <div className="col-span-2 flex flex-col gap-4 overflow-y-auto scrollbar-none">
           <StrategyPanel />
         </div>
-        <div className="col-span-1 flex flex-col gap-4">
+        <div className="col-span-1 flex flex-col gap-4 overflow-y-auto scrollbar-none">
           <BacktestPanel />
           <CircuitBreakerPanel
             circuitBreakerTripped={agent.state.circuitBreakerTripped}

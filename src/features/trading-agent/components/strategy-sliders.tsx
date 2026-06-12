@@ -9,6 +9,10 @@ interface SlidersProps {
   setStopLoss: (v: number) => void;
   takeProfit: number;
   setTakeProfit: (v: number) => void;
+  maxActivePositions: number;
+  setMaxActivePositions: (v: number) => void;
+  convictionThreshold: number;
+  setConvictionThreshold: (v: number) => void;
 }
 
 export function StrategySliders({
@@ -20,6 +24,10 @@ export function StrategySliders({
   setStopLoss,
   takeProfit,
   setTakeProfit,
+  maxActivePositions,
+  setMaxActivePositions,
+  convictionThreshold,
+  setConvictionThreshold,
 }: SlidersProps) {
   return (
     <div className="border-t border-zinc-800/60 pt-3 space-y-3 font-mono text-[11px]">
@@ -27,7 +35,7 @@ export function StrategySliders({
         Live Parameter Tuner
       </label>
 
-      {/* Order Size & Cycle Interval */}
+      {/* Row 1: Order Size & Cycle Interval */}
       <div className="grid grid-cols-2 gap-4">
         <div className="flex flex-col gap-1">
           <div className="flex justify-between text-zinc-400">
@@ -53,7 +61,7 @@ export function StrategySliders({
         </div>
       </div>
 
-      {/* SL & TP Sliders */}
+      {/* Row 2: SL & TP */}
       <div className="grid grid-cols-2 gap-4">
         <div className="flex flex-col gap-1">
           <div className="flex justify-between text-zinc-400">
@@ -74,6 +82,32 @@ export function StrategySliders({
           <input
             type="range" min={2} max={30} step={0.5} value={takeProfit}
             onChange={(e) => setTakeProfit(Number(e.target.value))}
+            className="w-full accent-white h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer"
+          />
+        </div>
+      </div>
+
+      {/* Row 3: Max Positions & Conviction Threshold */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="flex flex-col gap-1">
+          <div className="flex justify-between text-zinc-400">
+            <span>Max Positions</span>
+            <span className="text-zinc-300 font-bold">{maxActivePositions}</span>
+          </div>
+          <input
+            type="range" min={1} max={10} step={1} value={maxActivePositions}
+            onChange={(e) => setMaxActivePositions(Number(e.target.value))}
+            className="w-full accent-white h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer"
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <div className="flex justify-between text-zinc-400">
+            <span>Conviction</span>
+            <span className="text-zinc-300 font-bold">{convictionThreshold.toFixed(2)}</span>
+          </div>
+          <input
+            type="range" min={0.1} max={0.9} step={0.05} value={convictionThreshold}
+            onChange={(e) => setConvictionThreshold(Number(e.target.value))}
             className="w-full accent-white h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer"
           />
         </div>

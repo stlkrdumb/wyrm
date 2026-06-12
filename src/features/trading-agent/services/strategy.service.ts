@@ -13,6 +13,8 @@ export interface AgentStrategy {
   stopLossPct?: number;
   takeProfitPct?: number;
   cycleIntervalMs?: number;
+  maxActivePositions?: number;
+  convictionThreshold?: number;
 }
 
 const DEFAULT_STRATEGY: AgentStrategy = {
@@ -23,6 +25,8 @@ const DEFAULT_STRATEGY: AgentStrategy = {
   stopLossPct: 5,
   takeProfitPct: 10,
   cycleIntervalMs: 30000,
+  maxActivePositions: 3,
+  convictionThreshold: 0.3,
 };
 
 class StrategyService {
@@ -45,6 +49,8 @@ class StrategyService {
       if (parsed.stopLossPct == null) parsed.stopLossPct = 5;
       if (parsed.takeProfitPct == null) parsed.takeProfitPct = 10;
       if (parsed.cycleIntervalMs == null) parsed.cycleIntervalMs = 30000;
+      if (parsed.maxActivePositions == null) parsed.maxActivePositions = 3;
+      if (parsed.convictionThreshold == null) parsed.convictionThreshold = 0.3;
 
       this.cachedStrategy = parsed;
 
@@ -53,6 +59,8 @@ class StrategyService {
       runtimeConfigOverrides.takeProfitPct = parsed.takeProfitPct;
       runtimeConfigOverrides.orderSizePct = parsed.orderSizePct;
       runtimeConfigOverrides.cycleIntervalMs = parsed.cycleIntervalMs;
+      runtimeConfigOverrides.maxActivePositions = parsed.maxActivePositions;
+      runtimeConfigOverrides.convictionThreshold = parsed.convictionThreshold;
 
       return parsed;
     } catch (err) {
@@ -83,6 +91,8 @@ class StrategyService {
       runtimeConfigOverrides.takeProfitPct = strategy.takeProfitPct;
       runtimeConfigOverrides.orderSizePct = strategy.orderSizePct;
       runtimeConfigOverrides.cycleIntervalMs = strategy.cycleIntervalMs;
+      runtimeConfigOverrides.maxActivePositions = strategy.maxActivePositions;
+      runtimeConfigOverrides.convictionThreshold = strategy.convictionThreshold;
     } catch (err) {
       console.error("[StrategyService] Failed to save strategy:", err);
     }

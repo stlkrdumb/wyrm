@@ -75,6 +75,8 @@ export const StrategyPanel = memo(function StrategyPanel() {
   const [stopLoss, setStopLoss] = useState(5);
   const [takeProfit, setTakeProfit] = useState(10);
   const [cycleInterval, setCycleInterval] = useState(30);
+  const [maxActivePositions, setMaxActivePositions] = useState(3);
+  const [convictionThreshold, setConvictionThreshold] = useState(0.3);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [statusMsg, setStatusMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -92,6 +94,8 @@ export const StrategyPanel = memo(function StrategyPanel() {
         if (data.stopLossPct != null) setStopLoss(data.stopLossPct);
         if (data.takeProfitPct != null) setTakeProfit(data.takeProfitPct);
         if (data.cycleIntervalMs != null) setCycleInterval(Math.round(data.cycleIntervalMs / 1000));
+        if (data.maxActivePositions != null) setMaxActivePositions(data.maxActivePositions);
+        if (data.convictionThreshold != null) setConvictionThreshold(data.convictionThreshold);
       } catch (err) {
         console.error(err);
       } finally {
@@ -115,6 +119,8 @@ export const StrategyPanel = memo(function StrategyPanel() {
           stopLossPct: stopLoss,
           takeProfitPct: takeProfit,
           cycleIntervalMs: cycleInterval * 1000,
+          maxActivePositions,
+          convictionThreshold,
         }),
         headers: { "Content-Type": "application/json" },
       });
@@ -264,6 +270,10 @@ export const StrategyPanel = memo(function StrategyPanel() {
               setStopLoss={setStopLoss}
               takeProfit={takeProfit}
               setTakeProfit={setTakeProfit}
+              maxActivePositions={maxActivePositions}
+              setMaxActivePositions={setMaxActivePositions}
+              convictionThreshold={convictionThreshold}
+              setConvictionThreshold={setConvictionThreshold}
             />
 
             <div className="flex items-center gap-3 pt-2">
