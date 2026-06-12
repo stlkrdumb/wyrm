@@ -206,7 +206,7 @@ export const StrategyPanel = memo(function StrategyPanel() {
               <textarea
                 value={persona}
                 onChange={(e) => setPersona(e.target.value)}
-                rows={2}
+                rows={4}
                 placeholder="e.g. Conservative quant trading analyst focusing on long-term trends..."
                 className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-zinc-200 focus:outline-none focus:border-zinc-700 transition-all font-sans leading-relaxed text-[11px] resize-none"
               />
@@ -219,7 +219,7 @@ export const StrategyPanel = memo(function StrategyPanel() {
               <textarea
                 value={instructions}
                 onChange={(e) => setInstructions(e.target.value)}
-                rows={4}
+                rows={6}
                 placeholder="e.g. Respect strict RSI oversold limits..."
                 className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-zinc-200 focus:outline-none focus:border-zinc-700 transition-all font-sans leading-relaxed text-[11px] resize-none"
               />
