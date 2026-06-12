@@ -297,6 +297,11 @@ export function executeTrades(
         price: px, pnl, fee,
       });
 
+      // Notify the LLM via recentExits so it knows this symbol is closed
+      if (state.recentExits) {
+        state.recentExits.set(pos.symbol, { timestamp: Date.now(), reason: "Dust Cleanup" });
+      }
+
       liquidBalance += revenue - fee;
       state.positions.splice(i, 1);
       state.portfolio.totalTrades++;

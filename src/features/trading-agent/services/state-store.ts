@@ -34,7 +34,7 @@ export interface AgentState {
   /** Symbols recently exited by auto-bracket (SL/TP) with their exit timestamp + reason.
    *  Prevents the LLM from re-entering the same coin within the cooldown window.
    *  Also surfaces in the LLM prompt so the model knows it doesn't hold these positions anymore. */
-  recentExits: Map<string, { timestamp: number; reason: "Stop Loss" | "Take Profit" }>;
+  recentExits: Map<string, { timestamp: number; reason: "Stop Loss" | "Take Profit" | "Dust Cleanup" }>;
 }
 
 export const runtimeConfigOverrides = {

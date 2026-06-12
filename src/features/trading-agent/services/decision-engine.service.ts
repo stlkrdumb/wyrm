@@ -190,7 +190,7 @@ export async function evaluateMultiPair(
   priceMap: Map<string, TickerData>,
   activePositions: import("@/features/trading-agent/types").Position[] = [],
   onToken?: (token: string) => void,
-  recentExits: Array<{ symbol: string; reason: "Stop Loss" | "Take Profit"; timestamp: number }> = []
+  recentExits: Array<{ symbol: string; reason: "Stop Loss" | "Take Profit" | "Dust Cleanup"; timestamp: number }> = []
 ): Promise<MultiPairResult> {
   const symbols = Array.from(priceMap.keys());
   if (symbols.length === 0) {

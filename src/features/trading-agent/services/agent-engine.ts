@@ -112,7 +112,7 @@ function buildInitialState(): AgentState {
       : [],
     logs: [],
     decisionSource: null,
-    recentExits: new Map<string, { timestamp: number; reason: "Stop Loss" | "Take Profit" }>(),
+    recentExits: new Map<string, { timestamp: number; reason: "Stop Loss" | "Take Profit" | "Dust Cleanup" }>(),
   };
 }
 
