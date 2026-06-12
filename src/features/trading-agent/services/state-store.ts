@@ -37,6 +37,13 @@ export interface AgentState {
   recentExits: Map<string, { timestamp: number; reason: "Stop Loss" | "Take Profit" }>;
 }
 
+export const runtimeConfigOverrides = {
+  stopLossPct: undefined as number | undefined,
+  takeProfitPct: undefined as number | undefined,
+  orderSizePct: undefined as number | undefined,
+  cycleIntervalMs: undefined as number | undefined,
+};
+
 export const config = {
   get initialCash(): number {
     return Number(process.env.SIM_INITIAL_CASH) || 1000;
@@ -44,16 +51,19 @@ export const config = {
   tradingSymbols: (process.env.TRADING_SYMBOLS || "BTCUSDT").split(",").map(s => s.trim().toUpperCase()).filter(Boolean),
   maxActivePositions: Number(process.env.MAX_ACTIVE_POSITIONS) || 3,
   get stopLossPct(): number {
-    return Number(process.env.SIM_STOP_LOSS_PCT) || 5;
+    return runtimeConfigOverrides.stopLossPct ?? (Number(process.env.SIM_STOP_LOSS_PCT) || 5);
   },
   get takeProfitPct(): number {
-    return Number(process.env.SIM_TAKE_PROFIT_PCT) || 10;
+    return runtimeConfigOverrides.takeProfitPct ?? (Number(process.env.SIM_TAKE_PROFIT_PCT) || 10);
   },
   get orderSizePct(): number {
-    return Number(process.env.SIM_ORDER_SIZE_PCT) || 0.05;
+    return runtimeConfigOverrides.orderSizePct ?? (Number(process.env.SIM_ORDER_SIZE_PCT) || 0.05);
   },
   get feePct(): number {
     return Number(process.env.SIM_FEE_PCT) || 0.001;
+  },
+  get cycleIntervalMs(): number {
+    return runtimeConfigOverrides.cycleIntervalMs ?? (Number(process.env.AGENT_CYCLE_INTERVAL_MS) || 30000);
   },
 };
 

@@ -17,12 +17,13 @@ import { CircuitBreakerPanel } from "./circuit-breaker-panel";
 import { NewsPanel } from "./news-panel";
 import { TerminalLog } from "./terminal-log";
 import { TradeToast } from "./trade-toast";
+import { BrainLog } from "./brain-log";
 import { Tabs } from "@/shared/ui";
 import { Brain, Settings } from "lucide-react";
 
 export function Dashboard() {
   const agent = useAgent();
-  const [activeLogTab, setActiveLogTab] = useState<"execution" | "decision" | "console">("execution");
+  const [activeLogTab, setActiveLogTab] = useState<"execution" | "decision" | "brain" | "console">("execution");
   const [activeSidebarTab, setActiveSidebarTab] = useState<"intel" | "config">("intel");
 
   return (
@@ -96,16 +97,19 @@ export function Dashboard() {
               tabs={[
                 { key: "execution", label: "Execution" },
                 { key: "decision", label: "Decisions" },
+                { key: "brain", label: "Agent Brain" },
                 { key: "console", label: "Console" },
               ]}
               active={activeLogTab}
-              onChange={(key) => setActiveLogTab(key as "execution" | "decision" | "console")}
+              onChange={(key) => setActiveLogTab(key as "execution" | "decision" | "brain" | "console")}
             />
             <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
               {activeLogTab === "execution" ? (
                 <TradeLog trades={agent.state.trades} portfolio={agent.state.portfolio} isTabMode={true} />
               ) : activeLogTab === "decision" ? (
                 <DecisionHistory isTabMode={true} />
+              ) : activeLogTab === "brain" ? (
+                <BrainLog llmProgress={agent.state.llmProgress} lastDecision={agent.state.decision} isTabMode={true} />
               ) : (
                 <TerminalLog logs={agent.state.logs} isTabMode={true} />
               )}

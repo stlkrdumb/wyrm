@@ -33,7 +33,7 @@ export class MarketWebSocketService {
     this.agentCycleHandler = handler;
     if (!this.cycleTimer) {
       const warmupMs = 20_000;
-      const intervalMs = Number(process.env.AGENT_CYCLE_INTERVAL_MS) || 60_000;
+      const intervalMs = config.cycleIntervalMs;
       console.log(`[WS] Agent cycle timer started (warmup ${warmupMs / 1000}s, every ${(intervalMs / 1000).toFixed(0)}s)`);
       this.scheduleNextCycle(warmupMs);
     }
@@ -63,7 +63,7 @@ export class MarketWebSocketService {
   private async runCycle() {
     if (this.cycleInFlight) {
       console.warn("[WS] Cycle still in flight — skipping this tick");
-      this.scheduleNextCycle(Number(process.env.AGENT_CYCLE_INTERVAL_MS) || 60_000);
+      this.scheduleNextCycle(config.cycleIntervalMs);
       return;
     }
     if (!this.agentCycleHandler) return;
@@ -84,7 +84,7 @@ export class MarketWebSocketService {
       this.cycleInFlight = false;
     }
 
-    const intervalMs = Number(process.env.AGENT_CYCLE_INTERVAL_MS) || 60_000;
+    const intervalMs = config.cycleIntervalMs;
     // Use the full interval for the next cycle — a 100ms minimum was producing
     // double-fire patterns. Drift is naturally corrected by wall-clock subtraction.
     const nextDelay = Math.max(intervalMs, 1000);
