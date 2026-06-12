@@ -401,6 +401,61 @@ function findDecisionForSymbol(parsed: any, symbol: string): any {
   return search(parsed);
 }
 
+function extractJSONObjects(input: string): any[] {
+  const objects: any[] = [];
+  let braceCount = 0;
+  let startIdx = -1;
+  let inString = false;
+  let stringChar = "";
+
+  for (let i = 0; i < input.length; i++) {
+    const ch = input[i];
+
+    if (inString) {
+      if (ch === "\\" && i + 1 < input.length) {
+        i++;
+        continue;
+      }
+      if (ch === stringChar) {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (ch === '"' || ch === "'") {
+      inString = true;
+      stringChar = ch;
+      continue;
+    }
+
+    if (ch === "{") {
+      if (braceCount === 0) {
+        startIdx = i;
+      }
+      braceCount++;
+    } else if (ch === "}") {
+      braceCount--;
+      if (braceCount === 0 && startIdx !== -1) {
+        const candidate = input.slice(startIdx, i + 1);
+        try {
+          const parsed = JSON.parse(repairJSON(candidate));
+          objects.push(parsed);
+        } catch {
+          try {
+            const repaired = repairJSON(candidate);
+            objects.push(JSON.parse(repaired));
+          } catch {
+            // ignore invalid blocks
+          }
+        }
+        startIdx = -1;
+      }
+    }
+  }
+
+  return objects;
+}
+
 export function parseMultiResponse(
   response: string,
   symbols: string[]
@@ -414,7 +469,16 @@ export function parseMultiResponse(
 
   let parsed: any;
   try {
-    parsed = JSON.parse(repairJSON(jsonMatch[0]));
+    const extracted = extractJSONObjects(jsonMatch[0]);
+    if (extracted.length > 0) {
+      const merged: Record<string, any> = {};
+      for (const obj of extracted) {
+        Object.assign(merged, obj);
+      }
+      parsed = merged;
+    } else {
+      parsed = JSON.parse(repairJSON(jsonMatch[0]));
+    }
   } catch (_firstErr) {
     // Second pass: aggressive repair for stubborn LLM output patterns
     const aggressive = repairJSON(
