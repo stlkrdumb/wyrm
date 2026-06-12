@@ -78,39 +78,48 @@ export const SignalPanel = memo(function SignalPanel({ signals, decision, decisi
             <div className="mt-3 pt-3 border-t border-obsidian-border space-y-3 font-mono text-[12px]">
               <div className="grid grid-cols-2 gap-3">
                 {/* Left: Confidence Radial Gauge */}
-                <div className="flex flex-col items-center justify-center p-2.5 bg-obsidian-light/25 border border-obsidian-border/50 rounded">
-                  <RadialGauge value={activeDecision.confidence * 100} size={90} label="CONFIDENCE" />
-                  <span className="text-[12px] font-black text-zinc-100 mt-1">
-                    {(activeDecision.confidence * 100).toFixed(0)}%
-                  </span>
+                <div className="flex flex-col p-2.5 bg-obsidian-light/25 border border-obsidian-border/50 rounded gap-1.5">
+                  <div className="flex items-center justify-between text-[10px] text-zinc-500 uppercase font-bold tracking-wider">
+                    <span>Confidence</span>
+                    <span className="text-[11px] font-black text-zinc-300 font-mono">
+                      {(activeDecision.confidence * 100).toFixed(0)}%
+                    </span>
+                  </div>
+                  <div className="flex justify-center items-center mt-1">
+                    <RadialGauge value={activeDecision.confidence * 100} size={80} label="" />
+                  </div>
                 </div>
 
                 {/* Right: Conviction strength bar */}
-                <div className="flex flex-col justify-center p-2.5 bg-obsidian-light/25 border border-obsidian-border/50 rounded gap-1.5">
+                <div className="flex flex-col p-2.5 bg-obsidian-light/25 border border-obsidian-border/50 rounded gap-2.5 justify-between">
                   <div className="flex items-center justify-between text-[10px] text-zinc-500 uppercase font-bold tracking-wider">
                     <span>Conviction</span>
-                    {decisionTicker && (
-                      <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-obsidian-lighter text-zinc-400 border border-obsidian-border">
-                        {decisionTicker}
+                    <div className="flex items-center gap-1.5">
+                      {decisionTicker && (
+                        <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-obsidian-lighter text-zinc-400 border border-obsidian-border">
+                          {decisionTicker}
+                        </span>
+                      )}
+                      <span className={`text-[11px] font-black font-mono ${activeDecision.strength > 0 ? "text-emerald-400" : activeDecision.strength < 0 ? "text-rose-400" : "text-zinc-500"}`}>
+                        {activeDecision.strength > 0 ? "+" : ""}{(activeDecision.strength * 100).toFixed(0)}%
                       </span>
-                    )}
+                    </div>
                   </div>
-                  <span className={`text-[14px] font-black leading-none ${activeDecision.strength > 0 ? "text-emerald-400" : activeDecision.strength < 0 ? "text-rose-400" : "text-zinc-500"}`}>
-                    {activeDecision.strength > 0 ? "+" : ""}{(activeDecision.strength * 100).toFixed(0)}%
-                  </span>
                   
-                  <div className="w-full bg-obsidian-lighter rounded-full h-1 relative overflow-hidden mt-1">
-                    <div
-                      className={`h-full rounded-full transition-all duration-500 ${
-                        activeDecision.strength > 0 ? "bg-emerald-500" :
-                        activeDecision.strength < 0 ? "bg-rose-500" : "bg-zinc-600"
-                      }`}
-                      style={{
-                        width: `${Math.max(6, Math.abs(activeDecision.strength) * 50)}%`,
-                        marginLeft: activeDecision.strength >= 0 ? "50%" : `${50 - Math.abs(activeDecision.strength) * 50}%`
-                      }}
-                    />
-                    <div className="absolute left-1/2 top-0 w-0.5 h-full bg-obsidian-border" />
+                  <div className="flex-grow flex flex-col justify-center py-2">
+                    <div className="w-full bg-obsidian-lighter rounded-full h-1 relative overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          activeDecision.strength > 0 ? "bg-emerald-500" :
+                          activeDecision.strength < 0 ? "bg-rose-500" : "bg-zinc-600"
+                        }`}
+                        style={{
+                          width: `${Math.max(6, Math.abs(activeDecision.strength) * 50)}%`,
+                          marginLeft: activeDecision.strength >= 0 ? "50%" : `${50 - Math.abs(activeDecision.strength) * 50}%`
+                        }}
+                      />
+                      <div className="absolute left-1/2 top-0 w-0.5 h-full bg-obsidian-border" />
+                    </div>
                   </div>
                 </div>
               </div>
