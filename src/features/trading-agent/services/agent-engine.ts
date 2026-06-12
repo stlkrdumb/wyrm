@@ -323,7 +323,19 @@ export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ ticker
     if (vr.isAllowed) {
       const fd = vr.adjustedDecision ?? decision;
       validated[sym] = fd;
-      if (!best || Math.abs(fd.strength) > Math.abs(best.strength)) best = fd;
+      if (!best) {
+        best = fd;
+      } else if (fd.action !== "hold" && best.action === "hold") {
+        best = fd;
+      } else if (fd.action !== "hold" && best.action !== "hold") {
+        if (Math.abs(fd.strength) > Math.abs(best.strength)) {
+          best = fd;
+        }
+      } else if (fd.action === "hold" && best.action === "hold") {
+        if (Math.abs(fd.strength) > Math.abs(best.strength)) {
+          best = fd;
+        }
+      }
     } else { st.executionReason = `${sym}: ${vr.reason}`; }
   }
 

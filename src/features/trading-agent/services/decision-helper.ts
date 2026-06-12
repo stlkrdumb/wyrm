@@ -140,7 +140,10 @@ Rules:
 - ANTI-HALLUCINATION: NEVER refer to "current position", "our position", "we hold", "we are holding", or "maintaining" in your reason for any symbol UNLESS that symbol is explicitly listed in the Active Positions section above. If no positions are listed, we hold nothing — do not invent one.
 - ANTI-HALLUCINATION: If a symbol is listed in the Recent Auto-Exits section, it is NOT an active position — the system just closed it. Treat it as a fresh entry opportunity (buy) or a skip (hold). Do NOT say "hold to manage existing position" or "we already hold" for any symbol in that list.
 - For "hold" decisions on symbols we don't own, explain why the technical/fundamental signals don't warrant a fresh entry (e.g., weak RSI, unclear trend, low volume), NOT because you're "maintaining a position".
-- Strength: -1 (strong sell) to +1 (strong buy). For sell actions, the absolute value of strength scales the exit size (e.g., strength -0.5 means sell 50% of the position, strength -1.0 means sell 100%).
+- Strength and Action Rules:
+  * For "hold" decisions, "strength" MUST be 0.0. Do NOT include "riskProfile" (or "slPct"/"tpPct").
+  * For "sell" decisions, "strength" MUST be a negative number between -0.1 and -1.0 representing exit size percentage (e.g., strength -0.5 means sell 50% of the position, -1.0 means sell 100%). Do NOT include "riskProfile" (or "slPct"/"tpPct").
+  * For "buy" decisions, "strength" MUST be a positive number between 0.1 and 1.0. You MUST specify a "riskProfile" (or "slPct"/"tpPct").
 - Confidence: 0-1
 ${process.env.LLM_RISKPROFILE === "true"
   ? `- LLM_RISKPROFILE MODE: For buy actions, decide your own stopLoss (slPct: number 1-50, e.g. 5 = 5%) and takeProfit (tpPct: number 1-100, e.g. 12 = 12%) based on ATR, volatility, and conviction. Output them as numbers in the JSON — do NOT use riskProfile. Tighter for calm markets / high conviction, wider for volatile / uncertain trades. NEVER leave slPct/tpPct blank for a buy action.`
@@ -187,13 +190,30 @@ export function parseSingleResponse(response: string): { decision: TradingDecisi
     action = "hold";
   }
 
-  const strength = Math.max(-1, Math.min(1, parseFloat(parsed.strength) || 0));
+  let strength = Math.max(-1, Math.min(1, parseFloat(parsed.strength) || 0));
   const confidence = Math.max(0, Math.min(1, parseFloat(parsed.confidence) || 0.5));
-  const riskProfile = (parsed.riskProfile === "tight" || parsed.riskProfile === "normal" || parsed.riskProfile === "wide")
+  let riskProfile = (parsed.riskProfile === "tight" || parsed.riskProfile === "normal" || parsed.riskProfile === "wide")
     ? parsed.riskProfile
     : undefined;
-  const slPct = parsePercentField(parsed.slPct, 1, 50);
-  const tpPct = parsePercentField(parsed.tpPct, 1, 100);
+  let slPct = parsePercentField(parsed.slPct, 1, 50);
+  let tpPct = parsePercentField(parsed.tpPct, 1, 100);
+
+  // Sanitize values based on the parsed action
+  if (action === "hold") {
+    strength = 0;
+    riskProfile = undefined;
+    slPct = undefined;
+    tpPct = undefined;
+  } else if (action === "sell") {
+    if (strength > 0) strength = -strength;
+    if (strength === 0) strength = -1.0;
+    riskProfile = undefined;
+    slPct = undefined;
+    tpPct = undefined;
+  } else if (action === "buy") {
+    if (strength < 0) strength = Math.abs(strength);
+    if (strength === 0) strength = 0.5;
+  }
 
   return {
     decision: { action, strength, confidence, riskProfile, slPct, tpPct, reason: sanitizeReason(parsed.reason || "No reasoning provided") },
@@ -575,13 +595,30 @@ export function parseMultiResponse(
       action = "hold";
     }
 
-    const strength = Math.max(-1, Math.min(1, parseFloat(raw.strength) || 0));
+    let strength = Math.max(-1, Math.min(1, parseFloat(raw.strength) || 0));
     const confidence = Math.max(0, Math.min(1, parseFloat(raw.confidence) || 0.5));
-    const riskProfile = (raw.riskProfile === "tight" || raw.riskProfile === "normal" || raw.riskProfile === "wide")
+    let riskProfile = (raw.riskProfile === "tight" || raw.riskProfile === "normal" || raw.riskProfile === "wide")
       ? raw.riskProfile
       : undefined;
-    const slPct = parsePercentField(raw.slPct, 1, 50);
-    const tpPct = parsePercentField(raw.tpPct, 1, 100);
+    let slPct = parsePercentField(raw.slPct, 1, 50);
+    let tpPct = parsePercentField(raw.tpPct, 1, 100);
+
+    // Sanitize values based on the parsed action
+    if (action === "hold") {
+      strength = 0;
+      riskProfile = undefined;
+      slPct = undefined;
+      tpPct = undefined;
+    } else if (action === "sell") {
+      if (strength > 0) strength = -strength;
+      if (strength === 0) strength = -1.0;
+      riskProfile = undefined;
+      slPct = undefined;
+      tpPct = undefined;
+    } else if (action === "buy") {
+      if (strength < 0) strength = Math.abs(strength);
+      if (strength === 0) strength = 0.5;
+    }
 
     decisions[symbol] = { action, strength, confidence, riskProfile, slPct, tpPct, reason: sanitizeReason(raw.reason || "No reasoning") };
 
