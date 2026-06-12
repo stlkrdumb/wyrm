@@ -77,14 +77,23 @@ export function buildMultiPrompt(
     })
     .join("\n\n");
 
-  const exampleFormat = entries
-    .map(([symbol]) => {
-      const slTpFields = process.env.LLM_RISKPROFILE === "true"
-        ? '"slPct":4.2,"tpPct":12,'
-        : '"riskProfile":"normal",';
-      return `  "${symbol}": {"action":"buy","strength":0.5,"confidence":0.7,${slTpFields}"reason":"..."},`;
-    })
-    .join("\n");
+  const slTpFields = process.env.LLM_RISKPROFILE === "true"
+    ? '"slPct": 4.5, "tpPct": 12.0,'
+    : '"riskProfile": "normal",';
+
+  const exampleFormat = `  "BTCUSDT": {
+    "action": "buy",
+    "strength": 0.8,
+    "confidence": 0.9,
+    ${slTpFields}
+    "reason": "Strong RSI support on 1h and bullish MACD crossover."
+  },
+  "ETHUSDT": {
+    "action": "hold",
+    "strength": 0.0,
+    "confidence": 0.5,
+    "reason": "RSI is neutral at 50, waiting for clear trend direction."
+  }`;
 
   let positionsSection = "";
   if (activePositions.length > 0) {
@@ -100,8 +109,6 @@ export function buildMultiPrompt(
   }
 
   // Recent auto-exits — tells the LLM which symbols were just SL/TP'd and are no longer held.
-  // This prevents the LLM from hallucinating "manage existing position" / "hold to manage"
-  // on symbols that were just auto-closed by the system.
   const RECENT_EXITS_WINDOW_MS = 30 * 60 * 1000; // 30 min
   const freshExits = recentExits.filter(e => Date.now() - e.timestamp < RECENT_EXITS_WINDOW_MS);
   let recentExitsSection = "";
@@ -142,7 +149,7 @@ ${process.env.LLM_RISKPROFILE === "true"
 - Keep reason under 40 words with specific indicator values and sentiment/funding conditions if they influence your decision
 - Make a confident call per symbol — avoid defaulting to "hold" when signals are clear
 
-Respond with ONLY valid JSON (no comments, no TypeScript union syntax — write out the values directly):
+Respond with ONLY valid JSON (no comments, no conversational text, no markdown wrappers — write out the values directly):
 {
 ${exampleFormat}
 }`;
@@ -339,6 +346,61 @@ function sanitizeReason(reason: string): string {
   return out.replace(/\s{2,}/g, " ").trim();
 }
 
+function findDecisionForSymbol(parsed: any, symbol: string): any {
+  if (!parsed) return null;
+
+  const targetSymbol = symbol.toUpperCase();
+  const baseSymbol = symbol.replace(/USDT$/, "").toUpperCase();
+
+  const matchesSymbol = (str: unknown): boolean => {
+    if (typeof str !== "string") return false;
+    const s = str.toUpperCase();
+    return s === targetSymbol || s === baseSymbol;
+  };
+
+  const search = (node: any): any => {
+    if (!node) return null;
+
+    if (Array.isArray(node)) {
+      for (const item of node) {
+        if (item && typeof item === "object") {
+          if (matchesSymbol(item.symbol) || matchesSymbol(item.pair) || matchesSymbol(item.instId) || matchesSymbol(item.ticker)) {
+            return item;
+          }
+          const res = search(item);
+          if (res) return res;
+        }
+      }
+      return null;
+    }
+
+    if (typeof node === "object") {
+      const keys = Object.keys(node);
+      for (const key of keys) {
+        if (matchesSymbol(key)) {
+          return node[key];
+        }
+      }
+
+      if (matchesSymbol(node.symbol) || matchesSymbol(node.pair) || matchesSymbol(node.instId) || matchesSymbol(node.ticker)) {
+        if (node.action) return node;
+      }
+
+      for (const key of keys) {
+        const val = node[key];
+        if (val && typeof val === "object") {
+          const res = search(val);
+          if (res) return res;
+        }
+      }
+    }
+
+    return null;
+  };
+
+  return search(parsed);
+}
+
 export function parseMultiResponse(
   response: string,
   symbols: string[]
@@ -350,7 +412,7 @@ export function parseMultiResponse(
     throw new Error("Failed to extract JSON from LLM multi-pair response");
   }
 
-  let parsed: Record<string, any>;
+  let parsed: any;
   try {
     parsed = JSON.parse(repairJSON(jsonMatch[0]));
   } catch (_firstErr) {
@@ -372,7 +434,7 @@ export function parseMultiResponse(
   const allSignals: Signal[] = [];
 
   for (const symbol of symbols) {
-    const raw = parsed[symbol];
+    const raw = findDecisionForSymbol(parsed, symbol);
     if (!raw || !raw.action) {
       console.warn(`[DecisionHelper] Multi-response: missing decision for ${symbol} — defaulting to hold`);
       decisions[symbol] = { action: "hold", strength: 0, confidence: 0, reason: "No decision from LLM" };
