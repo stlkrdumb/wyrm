@@ -7,7 +7,7 @@ import type { TradeData, PortfolioData } from "@/features/trading-agent/hooks/us
 function formatTime(ts: string): string {
   try {
     const d = new Date(ts);
-    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
   } catch {
     return "--:--";
   }

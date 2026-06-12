@@ -85,7 +85,7 @@ export const BottomStatusBar = memo(function BottomStatusBar({ agent }: Props) {
     );
   };
 
-  const uptime = lastCycleAt ? new Date(lastCycleAt).toLocaleTimeString() : "--:--:--";
+  const uptime = lastCycleAt ? new Date(lastCycleAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }) : "--:--:--";
 
   return (
     <footer className="fixed bottom-0 left-0 right-0 z-50 border-t border-obsidian-border bg-obsidian-light/95 backdrop-blur-xl px-4 py-2 flex items-center justify-between text-[11px] font-mono">

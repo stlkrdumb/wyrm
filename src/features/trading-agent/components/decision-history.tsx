@@ -92,7 +92,7 @@ export function DecisionHistory({ onBack, isTabMode }: Props) {
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <span className="text-[11px] text-zinc-500">
-                    {new Date(record.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    {new Date(record.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}
                   </span>
                   <span className={`text-[11px] font-bold tabular-nums ${
                     (record.decision?.strength ?? 0) > 0 ? "text-emerald-400" :

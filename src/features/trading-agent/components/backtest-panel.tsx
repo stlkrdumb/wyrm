@@ -207,7 +207,7 @@ export function BacktestPanel({ onBack }: { onBack?: () => void }) {
                       {result.trades.length > 0 ? (
                         result.trades.map((trade, i) => (
                           <tr key={i} className="hover:bg-zinc-900/20 transition-all duration-100">
-                            <td className="p-2 text-zinc-500">{new Date(trade.timestamp).toLocaleTimeString()}</td>
+                            <td className="p-2 text-zinc-500">{new Date(trade.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false })}</td>
                             <td className="p-2 font-bold text-zinc-300">{trade.symbol}</td>
                             <td className="p-2">
                               <Badge variant={trade.side === "buy" ? "success" : "danger"} className="text-[10px]">
