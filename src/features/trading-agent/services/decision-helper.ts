@@ -458,49 +458,109 @@ function extractJSONObjects(input: string): any[] {
   return objects;
 }
 
+function parseSymbolDecisionFromText(text: string, symbol: string): any {
+  const lines = text.split("\n");
+  const clean = (str: string) => str.replace(/[^A-Z0-9]/g, "").toUpperCase();
+  const targetSymbol = clean(symbol);
+  const baseSymbol = clean(symbol.replace(/USDT$/, ""));
+
+  for (const line of lines) {
+    const upperLine = line.toUpperCase();
+    if (upperLine.includes(targetSymbol) || upperLine.includes(baseSymbol)) {
+      let action: string | undefined;
+      if (/\bbuy\b/i.test(line)) action = "buy";
+      else if (/\bsell\b/i.test(line)) action = "sell";
+      else if (/\bhold\b/i.test(line)) action = "hold";
+
+      if (!action) continue;
+
+      let strength = 0;
+      const strengthMatch = line.match(/strength\s*(-?[0-9.]+)/i);
+      if (strengthMatch) {
+        strength = parseFloat(strengthMatch[1]);
+      } else {
+        strength = action === "buy" ? 0.5 : action === "sell" ? -0.5 : 0;
+      }
+
+      let confidence = 0.5;
+      const confidenceMatch = line.match(/confidence\s*([0-9.]+)/i);
+      if (confidenceMatch) {
+        confidence = parseFloat(confidenceMatch[1]);
+      }
+
+      let slPct: number | undefined;
+      const slMatch = line.match(/sl\s*([0-9.]+)/i);
+      if (slMatch) slPct = parseFloat(slMatch[1]);
+
+      let tpPct: number | undefined;
+      const tpMatch = line.match(/tp\s*([0-9.]+)/i);
+      if (tpMatch) tpPct = parseFloat(tpMatch[1]);
+
+      const reason = line.replace(new RegExp(`${symbol}|${baseSymbol}`, "gi"), "").trim();
+
+      return {
+        action,
+        strength,
+        confidence,
+        slPct,
+        tpPct,
+        reason: reason.slice(0, 150),
+      };
+    }
+  }
+
+  return null;
+}
+
 export function parseMultiResponse(
   response: string,
   symbols: string[]
 ): { decisions: Record<string, TradingDecision>; allSignals: Signal[] } {
   let cleaned = response.replace(/```(?:json)?\s*/gi, "").replace(/\s*```/g, "").trim();
   const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
-    console.error(`[DecisionHelper] LLM raw response (no JSON found):\n${response.slice(0, 2000)}`);
-    throw new Error("Failed to extract JSON from LLM multi-pair response");
+
+  let parsed: any = null;
+  if (jsonMatch) {
+    try {
+      const extracted = extractJSONObjects(jsonMatch[0]);
+      if (extracted.length > 0) {
+        const merged: Record<string, any> = {};
+        for (const obj of extracted) {
+          Object.assign(merged, obj);
+        }
+        parsed = merged;
+      } else {
+        parsed = JSON.parse(repairJSON(jsonMatch[0]));
+      }
+    } catch (_firstErr) {
+      // Second pass: aggressive repair for stubborn LLM output patterns
+      const aggressive = repairJSON(
+        jsonMatch[0]
+          .replace(/[^\x20-\x7E{}[\],:.\-0-9a-zA-Z_" \n\r\t]/g, "")
+          .replace(/:\s*"[^"]*$/m, ': ""')
+          .replace(/:\s*[0-9.]*\s*$/m, ": 0")
+      );
+      try {
+        parsed = JSON.parse(aggressive);
+      } catch (_secondErr) {
+        console.warn("[DecisionHelper] JSON parsing failed completely. Will attempt regex fallback parsing.");
+      }
+    }
+  } else {
+    console.warn("[DecisionHelper] No JSON structure found in LLM response. Attempting regex fallback parsing.");
   }
 
-  let parsed: any;
-  try {
-    const extracted = extractJSONObjects(jsonMatch[0]);
-    if (extracted.length > 0) {
-      const merged: Record<string, any> = {};
-      for (const obj of extracted) {
-        Object.assign(merged, obj);
-      }
-      parsed = merged;
-    } else {
-      parsed = JSON.parse(repairJSON(jsonMatch[0]));
-    }
-  } catch (_firstErr) {
-    // Second pass: aggressive repair for stubborn LLM output patterns
-    const aggressive = repairJSON(
-      jsonMatch[0]
-        .replace(/[^\x20-\x7E{}[\],:.\-0-9a-zA-Z_" \n\r\t]/g, "")
-        .replace(/:\s*"[^"]*$/m, ': ""')
-        .replace(/:\s*[0-9.]*\s*$/m, ": 0")
-    );
-    try {
-      parsed = JSON.parse(aggressive);
-    } catch (_secondErr) {
-      console.error(`[DecisionHelper] JSON parse error — raw:\n${jsonMatch[0].slice(0, 2000)}`);
-      throw _secondErr;
-    }
-  }
   const decisions: Record<string, TradingDecision> = {};
   const allSignals: Signal[] = [];
 
   for (const symbol of symbols) {
-    const raw = findDecisionForSymbol(parsed, symbol);
+    let raw = parsed ? findDecisionForSymbol(parsed, symbol) : null;
+    
+    // Regex fallback if JSON parsing failed or symbol is missing from JSON
+    if (!raw || !raw.action) {
+      raw = parseSymbolDecisionFromText(response, symbol);
+    }
+
     if (!raw || !raw.action) {
       console.warn(`[DecisionHelper] Multi-response: missing decision for ${symbol} — defaulting to hold`);
       decisions[symbol] = { action: "hold", strength: 0, confidence: 0, reason: "No decision from LLM" };
