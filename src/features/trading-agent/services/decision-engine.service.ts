@@ -222,8 +222,8 @@ export async function evaluateMultiPair(
       await Promise.all(
         poolCandidates.map(async (symbol) => {
           try {
-            const candles = await getCandlesWithCache(symbol, "1h", 30);
-            if (candles && candles.length >= 15) {
+            const candles = await getCandlesWithCache(symbol, "1h", 50);
+            if (candles && candles.length >= 20) {
               const closes = candles.map(c => c.close);
               const rsi = calculateRsi(closes);
               const score = mode === "reversal" ? (100 - rsi) : rsi;
