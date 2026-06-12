@@ -85,6 +85,7 @@ export const StrategyPanel = memo(function StrategyPanel() {
   const [cycleInterval, setCycleInterval] = useState(30);
   const [maxActivePositions, setMaxActivePositions] = useState(3);
   const [convictionThreshold, setConvictionThreshold] = useState(0.3);
+  const [activePreset, setActivePreset] = useState("CUSTOM");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [statusMsg, setStatusMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -142,15 +143,7 @@ export const StrategyPanel = memo(function StrategyPanel() {
     }
   };
 
-  const getStrategyBias = () => {
-    if (!persona.trim() && !instructions.trim()) return "CUSTOM";
-    const text = (persona + " " + instructions).toLowerCase();
-    if (text.includes("aggressive") || text.includes("scalp") || text.includes("high-frequency") || text.includes("momentum")) return "AGGRESSIVE";
-    if (text.includes("conservative") || text.includes("preserve") || text.includes("safety") || text.includes("risk-averse")) return "CONSERVATIVE";
-    return "BALANCED";
-  };
-
-  const bias = getStrategyBias();
+  const isLocked = activePreset !== "CUSTOM";
   const THRESHOLD_PRESETS = [2, 3, 5, 8, 10, 12, 15, 20];
 
   if (loading) {
@@ -177,8 +170,8 @@ export const StrategyPanel = memo(function StrategyPanel() {
           <CardTitle>Agent Customizer</CardTitle>
         </div>
         <div className="flex items-center gap-2">
-          <Badge variant={bias === "AGGRESSIVE" ? "warning" : bias === "CONSERVATIVE" ? "success" : "neutral"}>
-            {bias}
+          <Badge variant={activePreset === "AGGRESSIVE" ? "warning" : activePreset === "CONSERVATIVE" ? "success" : "neutral"}>
+            {activePreset}
           </Badge>
           <span className="text-[10px] font-mono text-zinc-600 border border-zinc-800 px-1.5 py-0.2 rounded tracking-wider">
             DD {threshold}%
@@ -197,6 +190,7 @@ export const StrategyPanel = memo(function StrategyPanel() {
                   <button
                     key={preset.name}
                     onClick={() => {
+                      setActivePreset(preset.name);
                       setPersona(preset.persona);
                       setInstructions(preset.instructions);
                       setThreshold(preset.threshold);
@@ -207,7 +201,11 @@ export const StrategyPanel = memo(function StrategyPanel() {
                       setMaxActivePositions(preset.maxActivePositions ?? 3);
                       setConvictionThreshold(preset.convictionThreshold ?? 0.3);
                     }}
-                    className="py-1.5 px-2.5 rounded border border-zinc-800 bg-zinc-950/60 text-[11px] hover:bg-zinc-900 hover:text-zinc-200 hover:border-zinc-700 transition-all cursor-pointer font-bold tracking-wider uppercase text-zinc-400 text-center"
+                    className={`py-1.5 px-2.5 rounded border text-[11px] transition-all cursor-pointer font-bold tracking-wider uppercase text-center ${
+                      activePreset === preset.name
+                        ? "bg-white/15 text-white border-white/25"
+                        : "border-zinc-800 bg-zinc-950/60 text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200 hover:border-zinc-700"
+                    }`}
                   >
                     {preset.name}
                   </button>
@@ -216,28 +214,52 @@ export const StrategyPanel = memo(function StrategyPanel() {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
-                Agent Trading Persona
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
+                  Agent Trading Persona
+                </label>
+                {isLocked && (
+                  <span className="text-[9px] font-mono text-zinc-600 italic">
+                    Switch to CUSTOM to edit
+                  </span>
+                )}
+              </div>
               <textarea
                 value={persona}
                 onChange={(e) => setPersona(e.target.value)}
+                readOnly={isLocked}
                 rows={4}
                 placeholder="e.g. Conservative quant trading analyst focusing on long-term trends..."
-                className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-zinc-200 focus:outline-none focus:border-zinc-700 transition-all font-sans leading-relaxed text-[11px] resize-none"
+                className={`w-full bg-zinc-950 border rounded p-2.5 text-zinc-200 transition-all font-sans leading-relaxed text-[11px] resize-none ${
+                  isLocked
+                    ? "border-zinc-800/40 text-zinc-500 cursor-default"
+                    : "border-zinc-800 focus:outline-none focus:border-zinc-700"
+                }`}
               />
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
-                Custom Strategy Instructions
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
+                  Custom Strategy Instructions
+                </label>
+                {isLocked && (
+                  <span className="text-[9px] font-mono text-zinc-600 italic">
+                    Switch to CUSTOM to edit
+                  </span>
+                )}
+              </div>
               <textarea
                 value={instructions}
                 onChange={(e) => setInstructions(e.target.value)}
+                readOnly={isLocked}
                 rows={6}
                 placeholder="e.g. Respect strict RSI oversold limits..."
-                className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-zinc-200 focus:outline-none focus:border-zinc-700 transition-all font-sans leading-relaxed text-[11px] resize-none"
+                className={`w-full bg-zinc-950 border rounded p-2.5 text-zinc-200 transition-all font-sans leading-relaxed text-[11px] resize-none ${
+                  isLocked
+                    ? "border-zinc-800/40 text-zinc-500 cursor-default"
+                    : "border-zinc-800 focus:outline-none focus:border-zinc-700"
+                }`}
               />
             </div>
 
