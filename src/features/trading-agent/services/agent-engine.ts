@@ -290,7 +290,10 @@ export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ ticker
     }
 
     if (decision.action !== "hold" && (decision.size === undefined || decision.size === 0)) {
-      if (ticker?.lastPrice) {
+      if (decision.action === "sell") {
+        // Sells: pass risk validation — actual size resolved in executeTrades from position data
+        decision.size = 1;
+      } else if (ticker?.lastPrice) {
         const totalEquity = st.portfolio.equity;
         const strengthFactor = Math.abs(decision.strength);
         decision.size = (totalEquity * config.orderSizePct * strengthFactor) / ticker.lastPrice;
@@ -302,7 +305,7 @@ export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ ticker
     try {
       await historyService.saveDecision({
         id: `DEC-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-        timestamp: new Date(), symbol: sym, decision, riskStatus: "approved", riskReason: "",
+        timestamp: new Date(), symbol: sym, decision, riskStatus: vr.isAllowed ? "approved" : "blocked", riskReason: vr.reason || "",
         originalSize: decision.size ?? 0, adjustedSize: vr.adjustedDecision?.size ?? 0,
         marketContext: ticker ? { lastPrice: ticker.lastPrice, change24hPercent: ticker.change24hPercent } : undefined,
       });
