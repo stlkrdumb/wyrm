@@ -39,14 +39,19 @@ app.use((req, res, next) => {
     return next();
   }
 
-  const authHeader = req.headers.authorization;
   if (AUTH_TOKEN) {
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({ status: "error", message: "Unauthorized: Missing Bearer Token" });
+    const authHeader = req.headers.authorization;
+    const queryToken = req.query.token as string;
+    
+    let token = "";
+    if (authHeader?.startsWith("Bearer ")) {
+      token = authHeader.split(" ")[1];
+    } else if (queryToken) {
+      token = queryToken;
     }
-    const token = authHeader.split(" ")[1];
-    if (token !== AUTH_TOKEN) {
-      return res.status(401).json({ status: "error", message: "Unauthorized: Invalid Token" });
+
+    if (!token || token !== AUTH_TOKEN) {
+      return res.status(401).json({ status: "error", message: "Unauthorized: Invalid or missing token" });
     }
   }
   next();
