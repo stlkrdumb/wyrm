@@ -4,33 +4,88 @@ import { useEffect, useState, memo } from "react";
 import { Sliders, Save, CheckCircle, Loader2 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from "@/shared/ui";
 import { apiFetch } from "@/shared/utils/api-fetch";
+import { StrategySliders } from "./strategy-sliders";
 
 const STRATEGY_PRESETS = [
   {
     name: "CONSERVATIVE",
-    persona: "Conservative quantitative analyst prioritizing capital preservation and compounding.",
-    instructions: "Trade conservatively. Always favor 'hold' unless conviction is very high. Wait for strong oversold indicators (1h RSI < 30) and Bollinger Band lower border breaks. Limit trade sizes and take profits early.",
+    persona: "Defensive capital preserver. Only trade setups with clear 1d trend alignment and 1h confirmation.",
+    instructions: `Data Priority: 1d EMA20 direction > 1h RSI + Bollinger Bands > sentiment
+
+Entry: 1h RSI < 35 and price near lower Bollinger AND 1d EMA20 sloping up. Fear & Greed < 40 (fear selling into dip) strongly preferred.
+
+Exit: 1h RSI > 65 or MACD hist crosses below zero. Take partial at +5% (sell action with strength -0.5), full at +10% (sell action with strength -1.0).
+
+Risk: Limit to strongest single setup. Avoid coins with >5% 24h volatility.`,
     threshold: 5,
+    orderSize: 5,
+    stopLoss: 4,
+    takeProfit: 10,
+    cycleInterval: 60,
+    maxActivePositions: 3,
+    convictionThreshold: 0.3,
   },
   {
     name: "BALANCED",
-    persona: "Balanced macro trend strategist seeking medium-term swings while maintaining risk guardrails.",
-    instructions: "Execute a balanced profile. Buy support zones on 1-hour chart confirmations and take profits at daily resistance levels. Distribute sizes evenly. Do not enter trades during high-volatility spikes.",
+    persona: "Trend swing trader. Capture mid-frame momentum with EMA alignment and MACD confirmation.",
+    instructions: `Data Priority: 1h MACD hist trend + Bollinger squeeze > 1d EMA20 slope > 5m setup precision
+
+Entry: 1h MACD hist positive and increasing for 3+ bars AND price above EMA20 AND Bollinger Bands expanding from squeeze. RSI 1h ideally 45-60.
+
+Exit: 1h MACD hist decreasing by 50% from peak, or RSI > 70. Scale out at +10% (sell action with strength -0.5), full at +20% (sell action with strength -1.0).
+
+Risk: 2-3 concurrent positions. Prefer coins with 2-4% 24h volatility.`,
     threshold: 8,
+    orderSize: 15,
+    stopLoss: 5,
+    takeProfit: 20,
+    cycleInterval: 30,
+    maxActivePositions: 3,
+    convictionThreshold: 0.3,
   },
   {
     name: "AGGRESSIVE",
-    persona: "High-frequency momentum trader looking to scalp quick micro-trends in volatile conditions.",
-    instructions: "Look for quick momentum scalping on 5m chart trend changes. Enter trades on RSI breakouts above 55 or below 45. Target high-volatility moves. Accept higher drawdown limits to capture larger swings.",
+    persona: "Momentum scalper. Exploit high-volatility breakouts with 5m precision and 1h momentum alignment.",
+    instructions: `Data Priority: 5m RSI velocity > 1h MACD hist strength > 1h Bollinger breakout > volatility
+
+Entry: 5m RSI crossing above 55 with strong momentum + 1h MACD hist strongly positive AND 24h volatility > 4% AND Fear & Greed > 55 (greed amplifying momentum).
+
+Exit: 5m RSI crossing below 45 or 1h MACD hist declining. Quick partial at +5% (sell action with strength -0.5), full at +12% (sell action with strength -1.0).
+
+Risk: 1-2 concurrent positions. Accept 2-3% daily drawdown. High conviction only (strength > 0.5).`,
     threshold: 12,
+    orderSize: 25,
+    stopLoss: 5,
+    takeProfit: 12,
+    cycleInterval: 10,
+    maxActivePositions: 3,
+    convictionThreshold: 0.25,
+  },
+  {
+    name: "CUSTOM",
+    persona: "",
+    instructions: "",
+    threshold: 10,
+    orderSize: 5,
+    stopLoss: 5,
+    takeProfit: 10,
+    cycleInterval: 30,
+    maxActivePositions: 3,
+    convictionThreshold: 0.3,
   },
 ];
 
 export const StrategyPanel = memo(function StrategyPanel() {
-  const [isCollapsed, setIsCollapsed] = useState(true);
   const [persona, setPersona] = useState("");
   const [instructions, setInstructions] = useState("");
   const [threshold, setThreshold] = useState(10);
+  const [orderSize, setOrderSize] = useState(5);
+  const [stopLoss, setStopLoss] = useState(5);
+  const [takeProfit, setTakeProfit] = useState(10);
+  const [cycleInterval, setCycleInterval] = useState(30);
+  const [maxActivePositions, setMaxActivePositions] = useState(3);
+  const [convictionThreshold, setConvictionThreshold] = useState(0.3);
+  const [activePreset, setActivePreset] = useState("CUSTOM");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [statusMsg, setStatusMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -44,6 +99,12 @@ export const StrategyPanel = memo(function StrategyPanel() {
         setPersona(data.persona || "");
         setInstructions(data.customInstructions || "");
         if (data.circuitBreakerThresholdPct != null) setThreshold(data.circuitBreakerThresholdPct);
+        if (data.orderSizePct != null) setOrderSize(Math.round(data.orderSizePct * 100));
+        if (data.stopLossPct != null) setStopLoss(data.stopLossPct);
+        if (data.takeProfitPct != null) setTakeProfit(data.takeProfitPct);
+        if (data.cycleIntervalMs != null) setCycleInterval(Math.round(data.cycleIntervalMs / 1000));
+        if (data.maxActivePositions != null) setMaxActivePositions(data.maxActivePositions);
+        if (data.convictionThreshold != null) setConvictionThreshold(data.convictionThreshold);
       } catch (err) {
         console.error(err);
       } finally {
@@ -59,7 +120,17 @@ export const StrategyPanel = memo(function StrategyPanel() {
     try {
       const res = await apiFetch("/api/agent/strategy", {
         method: "POST",
-        body: JSON.stringify({ persona, customInstructions: instructions, circuitBreakerThresholdPct: threshold }),
+        body: JSON.stringify({
+          persona,
+          customInstructions: instructions,
+          circuitBreakerThresholdPct: threshold,
+          orderSizePct: orderSize / 100,
+          stopLossPct: stopLoss,
+          takeProfitPct: takeProfit,
+          cycleIntervalMs: cycleInterval * 1000,
+          maxActivePositions,
+          convictionThreshold,
+        }),
         headers: { "Content-Type": "application/json" },
       });
       if (!res.ok) throw new Error("Failed to save strategy");
@@ -72,14 +143,7 @@ export const StrategyPanel = memo(function StrategyPanel() {
     }
   };
 
-  const getStrategyBias = () => {
-    const text = (persona + " " + instructions).toLowerCase();
-    if (text.includes("aggressive") || text.includes("scalp") || text.includes("high-frequency") || text.includes("momentum")) return "AGGRESSIVE";
-    if (text.includes("conservative") || text.includes("preserve") || text.includes("safety") || text.includes("strict")) return "CONSERVATIVE";
-    return "BALANCED";
-  };
-
-  const bias = getStrategyBias();
+  const isLocked = activePreset !== "CUSTOM";
   const THRESHOLD_PRESETS = [2, 3, 5, 8, 10, 12, 15, 20];
 
   if (loading) {
@@ -100,39 +164,48 @@ export const StrategyPanel = memo(function StrategyPanel() {
 
   return (
     <Card>
-      <div onClick={() => setIsCollapsed(!isCollapsed)} className="cursor-pointer select-none">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Sliders className="w-3.5 h-3.5 text-zinc-500" />
-            <CardTitle>Agent Customizer</CardTitle>
-          </div>
-          <div className="flex items-center gap-2">
-            <Badge variant={bias === "AGGRESSIVE" ? "warning" : bias === "CONSERVATIVE" ? "success" : "neutral"}>
-              {bias}
-            </Badge>
-            <span className="text-[10px] font-mono text-zinc-600 border border-zinc-800 px-1.5 py-0.2 rounded tracking-wider">
-              DD {threshold}%
-            </span>
-            <span className="text-[10px] font-mono text-zinc-600 uppercase tracking-widest">
-              {isCollapsed ? "[EXPAND]" : "[COLLAPSE]"}
-            </span>
-          </div>
-        </CardHeader>
-      </div>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <Sliders className="w-3.5 h-3.5 text-zinc-500" />
+          <CardTitle>Agent Customizer</CardTitle>
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge variant={activePreset === "AGGRESSIVE" ? "warning" : activePreset === "CONSERVATIVE" ? "success" : "neutral"}>
+            {activePreset}
+          </Badge>
+          <span className="text-[10px] font-mono text-zinc-600 border border-zinc-800 px-1.5 py-0.2 rounded tracking-wider">
+            DD {threshold}%
+          </span>
+        </div>
+      </CardHeader>
 
-      {!isCollapsed && (
-        <CardContent>
+      <CardContent>
           <div className="flex flex-col gap-4 font-mono text-[11px]">
             <div className="flex flex-col gap-1.5">
               <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">
                 Cognitive Core Presets
               </label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-4 gap-2">
                 {STRATEGY_PRESETS.map((preset) => (
                   <button
                     key={preset.name}
-                    onClick={() => { setPersona(preset.persona); setInstructions(preset.instructions); setThreshold(preset.threshold); }}
-                    className="py-1.5 px-2.5 rounded border border-zinc-800 bg-zinc-950/60 text-[11px] hover:bg-zinc-900 hover:text-zinc-200 hover:border-zinc-700 transition-all cursor-pointer font-bold tracking-wider uppercase text-zinc-400 text-center"
+                    onClick={() => {
+                      setActivePreset(preset.name);
+                      setPersona(preset.persona);
+                      setInstructions(preset.instructions);
+                      setThreshold(preset.threshold);
+                      setOrderSize(preset.orderSize);
+                      setStopLoss(preset.stopLoss);
+                      setTakeProfit(preset.takeProfit);
+                      setCycleInterval(preset.cycleInterval);
+                      setMaxActivePositions(preset.maxActivePositions ?? 3);
+                      setConvictionThreshold(preset.convictionThreshold ?? 0.3);
+                    }}
+                    className={`py-1.5 px-2.5 rounded border text-[11px] transition-all cursor-pointer font-bold tracking-wider uppercase text-center ${
+                      activePreset === preset.name
+                        ? "bg-white/15 text-white border-white/25"
+                        : "border-zinc-800 bg-zinc-950/60 text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200 hover:border-zinc-700"
+                    }`}
                   >
                     {preset.name}
                   </button>
@@ -141,28 +214,52 @@ export const StrategyPanel = memo(function StrategyPanel() {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
-                Agent Trading Persona
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
+                  Agent Trading Persona
+                </label>
+                {isLocked && (
+                  <span className="text-[9px] font-mono text-zinc-600 italic">
+                    Switch to CUSTOM to edit
+                  </span>
+                )}
+              </div>
               <textarea
                 value={persona}
                 onChange={(e) => setPersona(e.target.value)}
-                rows={2}
+                readOnly={isLocked}
+                rows={4}
                 placeholder="e.g. Conservative quant trading analyst focusing on long-term trends..."
-                className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-zinc-200 focus:outline-none focus:border-zinc-700 transition-all font-sans leading-relaxed text-[11px] resize-none"
+                className={`w-full bg-zinc-950 border rounded p-2.5 text-zinc-200 transition-all font-sans leading-relaxed text-[11px] resize-none ${
+                  isLocked
+                    ? "border-zinc-800/40 text-zinc-500 cursor-default"
+                    : "border-zinc-800 focus:outline-none focus:border-zinc-700"
+                }`}
               />
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
-                Custom Strategy Instructions
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
+                  Custom Strategy Instructions
+                </label>
+                {isLocked && (
+                  <span className="text-[9px] font-mono text-zinc-600 italic">
+                    Switch to CUSTOM to edit
+                  </span>
+                )}
+              </div>
               <textarea
                 value={instructions}
                 onChange={(e) => setInstructions(e.target.value)}
-                rows={4}
+                readOnly={isLocked}
+                rows={6}
                 placeholder="e.g. Respect strict RSI oversold limits..."
-                className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-zinc-200 focus:outline-none focus:border-zinc-700 transition-all font-sans leading-relaxed text-[11px] resize-none"
+                className={`w-full bg-zinc-950 border rounded p-2.5 text-zinc-200 transition-all font-sans leading-relaxed text-[11px] resize-none ${
+                  isLocked
+                    ? "border-zinc-800/40 text-zinc-500 cursor-default"
+                    : "border-zinc-800 focus:outline-none focus:border-zinc-700"
+                }`}
               />
             </div>
 
@@ -196,6 +293,21 @@ export const StrategyPanel = memo(function StrategyPanel() {
               </div>
             </div>
 
+            <StrategySliders
+              orderSize={orderSize}
+              setOrderSize={setOrderSize}
+              cycleInterval={cycleInterval}
+              setCycleInterval={setCycleInterval}
+              stopLoss={stopLoss}
+              setStopLoss={setStopLoss}
+              takeProfit={takeProfit}
+              setTakeProfit={setTakeProfit}
+              maxActivePositions={maxActivePositions}
+              setMaxActivePositions={setMaxActivePositions}
+              convictionThreshold={convictionThreshold}
+              setConvictionThreshold={setConvictionThreshold}
+            />
+
             <div className="flex items-center gap-3 pt-2">
               <Button variant="primary" onClick={handleSave} disabled={saving} className="flex-1">
                 {saving ? (
@@ -218,7 +330,6 @@ export const StrategyPanel = memo(function StrategyPanel() {
             )}
           </div>
         </CardContent>
-      )}
     </Card>
   );
 });

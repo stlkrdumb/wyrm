@@ -1,9 +1,18 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
+import { useMemo, useState, useEffect, useRef } from "react";
+import {
+  createChart,
+  AreaSeries,
+  ColorType,
+  type IChartApi,
+  type ISeriesApi,
+  type Time,
+  type AreaData,
+} from "lightweight-charts";
 import { Card, CardHeader, CardTitle, CardContent } from "@/shared/ui";
-import type { PortfolioData, TickerData, TradeData } from "@/features/trading-agent/hooks/use-agent";
+import type { PortfolioData } from "@/features/trading-agent/hooks/use-agent";
+import { useAnimatedNumber } from "@/features/trading-agent/hooks/use-animated-number";
 
 const DEFAULT_INITIAL_CASH = 1000;
 
@@ -20,93 +29,223 @@ type TimeframeKey = (typeof TIMEFRAMES)[number]["key"];
 
 interface Props {
   portfolio: PortfolioData;
-  ticker: TickerData | null;
   equityCurve?: { timestamp: Date | string; equity: number }[];
   equityHistory?: { timestamp: string; equity: number }[];
-  trades?: TradeData[];
+  /** Set true once the WS has connected at least once. While false, the chart
+   *  shows a "connecting" placeholder instead of stale pre-connection data. */
+  everConnected?: boolean;
 }
 
-function formatAxisTime(ts: Date, tf: TimeframeKey): string {
-  if (tf === "1m" || tf === "5m") {
-    return `${ts.getHours().toString().padStart(2, "0")}:${ts.getMinutes().toString().padStart(2, "0")}:${ts.getSeconds().toString().padStart(2, "0")}`;
-  }
-  if (tf === "1h" || tf === "4h") {
-    return `${ts.getHours().toString().padStart(2, "0")}:${ts.getMinutes().toString().padStart(2, "0")}`;
-  }
-  if (tf === "24h") {
-    return ts.getHours().toString().padStart(2, "0") + ":00";
-  }
-  return `${ts.getMonth() + 1}/${ts.getDate()}`;
+interface ChartPoint {
+  time: Time;
+  value: number;
 }
 
-export function EquityChart({ portfolio, ticker, equityCurve, equityHistory, trades }: Props) {
+function filterByTimeframe(equityHistory: { timestamp: string; equity: number }[], tf: TimeframeKey): ChartPoint[] {
+  const cutoff = Date.now() - (TIMEFRAMES.find(t => t.key === tf)?.ms ?? 3_600_000);
+  const filtered = equityHistory
+    .map(e => {
+      const ts = new Date(e.timestamp).getTime();
+      return { ts, equity: e.equity };
+    })
+    .filter(e => !isNaN(e.ts) && e.ts >= cutoff);
+
+  // Convert to Lightweight Charts time format (UTC seconds)
+  let points: ChartPoint[] = filtered.map(e => ({
+    time: Math.floor(e.ts / 1000) as Time,
+    value: e.equity,
+  }));
+
+  if (points.length < 2) {
+    // Fall back to last 10 points
+    points = equityHistory
+      .slice(-10)
+      .map(e => {
+        const ts = new Date(e.timestamp).getTime();
+        return { time: Math.floor(ts / 1000) as Time, value: e.equity };
+      })
+      .filter(p => !isNaN(p.time as number));
+  }
+
+  // Lightweight Charts requires strictly increasing time — dedupe ties
+  const seen = new Set<number>();
+  return points
+    .filter(p => {
+      if (seen.has(p.time as number)) return false;
+      seen.add(p.time as number);
+      return true;
+    })
+    .sort((a, b) => (a.time as number) - (b.time as number));
+}
+
+export function EquityChart({ portfolio, equityCurve, equityHistory, everConnected = true }: Props) {
   const [mounted, setMounted] = useState(false);
   const [timeframe, setTimeframe] = useState<TimeframeKey>("1h");
+
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const chartRef = useRef<IChartApi | null>(null);
+  const seriesRef = useRef<ISeriesApi<"Area"> | null>(null);
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- standard hydration pattern
   useEffect(() => { setMounted(true); }, []);
 
   const initialCash = useMemo(() => portfolio.initialCash ?? DEFAULT_INITIAL_CASH, [portfolio.initialCash]);
-  const currentEquity = useMemo(() => portfolio.equity ?? portfolio.cash, [portfolio, ticker]);
 
-  const chartData = useMemo(() => {
-    // Backtest mode: use equityCurve prop
+  // Stable timestamp for fallback chart points — computed once at mount, not during render
+  const [mountTime] = useState(() => Math.floor(Date.now() / 1000));
+
+  // Build chart data — backtest mode takes precedence over live history
+  const chartData = useMemo<ChartPoint[]>(() => {
+    let points: ChartPoint[] = [];
     if (equityCurve && equityCurve.length > 0) {
-      return equityCurve.map((e) => {
-        const date = new Date(e.timestamp);
-        return { time: formatAxisTime(date, timeframe), equity: e.equity, isTrade: false };
-      });
+      points = equityCurve
+        .map(e => {
+          const ts = new Date(e.timestamp).getTime();
+          return { time: Math.floor(ts / 1000) as Time, value: e.equity };
+        })
+        .filter(p => !isNaN(p.time as number));
+    } else if (equityHistory && equityHistory.length > 0) {
+      points = filterByTimeframe(equityHistory, timeframe);
     }
 
-    // Live mode: use equityHistory from agent state
-    if (equityHistory && equityHistory.length > 0) {
-      const cutoff = Date.now() - (TIMEFRAMES.find(t => t.key === timeframe)?.ms ?? 3_600_000);
-      const filtered = equityHistory
-        .map(e => ({ ts: new Date(e.timestamp), equity: e.equity }))
-        .filter(e => e.ts.getTime() >= cutoff);
+    // Deduplicate ties just in case (lightweight-charts requires strictly increasing times)
+    const seen = new Set<number>();
+    const deduped = points
+      .filter(p => {
+        if (seen.has(p.time as number)) return false;
+        seen.add(p.time as number);
+        return true;
+      })
+      .sort((a, b) => (a.time as number) - (b.time as number));
 
-      if (filtered.length < 2) {
-        // Fall back to showing last handful if too few points
-        const recent = equityHistory.slice(-10).map(e => ({
-          ts: new Date(e.timestamp), equity: e.equity,
-        }));
-        return recent.map(e => ({ time: formatAxisTime(e.ts, timeframe), equity: e.equity, isTrade: false }));
-      }
-
-      return filtered.map(e => ({ time: formatAxisTime(e.ts, timeframe), equity: e.equity, isTrade: false }));
+    if (deduped.length >= 2) {
+      return deduped;
     }
 
-    // No data: simple flat line
+    // If we have exactly 1 point, pad it with a preceding point to satisfy lightweight-charts
+    if (deduped.length === 1) {
+      const p = deduped[0];
+      const t = p.time as number;
+      return [
+        { time: (t - 1) as Time, value: p.value },
+        p,
+      ];
+    }
+
+    // Default fallback if we have 0 points
     return [
-      { time: "", equity: initialCash, isTrade: false },
-      { time: "", equity: initialCash, isTrade: false },
+      { time: (mountTime - 1) as Time, value: initialCash },
+      { time: mountTime as Time, value: initialCash },
     ];
-  }, [portfolio, timeframe, equityCurve, equityHistory, initialCash]);
+  }, [equityCurve, equityHistory, timeframe, initialCash, mountTime]);
 
-  // Trade markers for chart
-  const tradeMarkers = useMemo(() => {
-    if (!trades || trades.length === 0 || chartData.length === 0) return [];
-    const markers: { time: string; equity: number; action: string; size: number }[] = [];
-    for (const trade of trades) {
-      const tradeTime = new Date(trade.timestamp);
-      const tradeTimeStr = formatAxisTime(tradeTime, timeframe);
-      // Find closest chart point or use the equity at that time
-      const closest = chartData.find(d => d.time === tradeTimeStr) || chartData[chartData.length - 1];
-      if (closest) {
-        markers.push({
-          time: tradeTimeStr,
-          equity: closest.equity,
-          action: trade.action,
-          size: trade.size,
-        });
-      }
+  // Equity color: green when profitable, red when in loss
+  const isProfit = portfolio.totalPnL >= 0;
+  const chartColor = isProfit ? "#10b981" : "#f43f5e";
+
+  // Displayed values come from the poll + SSE merge, animated smoothly
+  const rawEquity = portfolio.equity ?? portfolio.cash;
+  const rawTotalPnL = portfolio.totalPnL;
+  const rawCash = portfolio.cash;
+
+  const displayEquity = useAnimatedNumber(rawEquity);
+  const displayTotalPnL = useAnimatedNumber(rawTotalPnL);
+  const displayCash = useAnimatedNumber(rawCash);
+
+  // Render the chart immediately on mount to prevent any visual delay/lag
+  const showConnecting = false;
+
+  // Init the chart once
+  useEffect(() => {
+    if (!mounted || !containerRef.current || showConnecting) return;
+
+    const chart = createChart(containerRef.current, {
+      layout: {
+        background: { type: ColorType.Solid, color: "transparent" },
+        textColor: "#71717a",
+        fontFamily: "JetBrains Mono, monospace",
+        fontSize: 10,
+      },
+      grid: {
+        vertLines: { color: "rgba(63, 63, 70, 0.15)" },
+        horzLines: { color: "rgba(63, 63, 70, 0.15)" },
+      },
+      rightPriceScale: { borderColor: "rgba(63, 63, 70, 0.3)" },
+      timeScale: {
+        borderColor: "rgba(63, 63, 70, 0.3)",
+        timeVisible: true,
+        secondsVisible: false,
+      },
+      crosshair: {
+        vertLine: { color: "rgba(255, 255, 255, 0.2)", width: 1, style: 3 },
+        horzLine: { color: "rgba(255, 255, 255, 0.2)", width: 1, style: 3 },
+      },
+      autoSize: true,
+    });
+
+    chartRef.current = chart;
+
+    const series = chart.addSeries(AreaSeries, {
+      lineColor: chartColor,
+      topColor: `${chartColor}33`,
+      bottomColor: `${chartColor}00`,
+      lineWidth: 2,
+      priceFormat: { type: "price", precision: 2, minMove: 0.01 },
+    });
+    seriesRef.current = series;
+
+    // Load initial data if already available
+    if (chartData.length > 0) {
+      const areaData: AreaData[] = chartData.map(p => ({ time: p.time, value: p.value }));
+      series.setData(areaData);
+      
+      // Use setTimeout to ensure container has been sized by browser layout engine
+      const timer = setTimeout(() => {
+        if (chartRef.current) {
+          chartRef.current.timeScale().fitContent();
+        }
+      }, 50);
+      
+      return () => {
+        clearTimeout(timer);
+        seriesRef.current = null;
+        chartRef.current = null;
+        chart.remove();
+      };
     }
-    return markers.slice(-10); // Show last 10 trades
-  }, [trades, chartData, timeframe]);
 
-  const displayEquity = ticker ? currentEquity : chartData[chartData.length - 1]?.equity ?? initialCash;
-  const isProfitTotal = portfolio.totalPnL >= 0;
+    return () => {
+      seriesRef.current = null;
+      chartRef.current = null;
+      chart.remove();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mounted, showConnecting]);
 
-  const gradientId = "equityGrad";
-  const chartColor = isProfitTotal ? "#10b981" : "#f43f5e";
+  // Update series color when profit/loss flips
+  useEffect(() => {
+    if (!seriesRef.current) return;
+    seriesRef.current.applyOptions({
+      lineColor: chartColor,
+      topColor: `${chartColor}33`,
+      bottomColor: `${chartColor}00`,
+    });
+  }, [chartColor]);
+
+  // Update series data when chart data changes
+  useEffect(() => {
+    if (!seriesRef.current) return;
+    const areaData: AreaData[] = chartData.map(p => ({ time: p.time, value: p.value }));
+    seriesRef.current.setData(areaData);
+    
+    // Use setTimeout to ensure canvas has finished resizing
+    const timer = setTimeout(() => {
+      if (chartRef.current) {
+        chartRef.current.timeScale().fitContent();
+      }
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [chartData]);
 
   return (
     <Card>
@@ -120,7 +259,7 @@ export function EquityChart({ portfolio, ticker, equityCurve, equityHistory, tra
         {/* Main Equity Display */}
         <div className="flex items-baseline gap-4">
           <span className="text-3xl font-black font-mono tracking-tight text-zinc-100 tabular-nums">
-            ${displayEquity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {showConnecting ? "—.—" : `$${displayEquity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
           </span>
         </div>
 
@@ -128,26 +267,26 @@ export function EquityChart({ portfolio, ticker, equityCurve, equityHistory, tra
         <div className="grid grid-cols-4 gap-2 mt-3">
           <div className="flex flex-col gap-0.5">
             <span className="text-[10px] font-mono font-bold tracking-widest uppercase text-zinc-500">Total PnL</span>
-            <span className={`text-[13px] font-black font-mono tabular-nums ${isProfitTotal ? "text-emerald-400" : "text-rose-400"}`}>
-              {isProfitTotal ? "+" : ""}${portfolio.totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            <span className={`text-[13px] font-black font-mono tabular-nums ${isProfit ? "text-emerald-400" : "text-rose-400"}`}>
+              {showConnecting ? "—.—" : `${isProfit ? "+" : "-"}$${Math.abs(displayTotalPnL).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
             </span>
           </div>
           <div className="flex flex-col gap-0.5">
             <span className="text-[10px] font-mono font-bold tracking-widest uppercase text-zinc-500">Win Rate</span>
             <span className={`text-[13px] font-black font-mono tabular-nums ${portfolio.winRate >= 50 ? "text-emerald-400" : "text-zinc-300"}`}>
-              {portfolio.winRate.toFixed(1)}%
+              {showConnecting ? "—.—" : `${portfolio.winRate.toFixed(1)}%`}
             </span>
           </div>
           <div className="flex flex-col gap-0.5">
             <span className="text-[10px] font-mono font-bold tracking-widest uppercase text-zinc-500">Trades</span>
             <span className="text-[13px] font-black font-mono tabular-nums text-zinc-300">
-              {portfolio.totalTrades}
+              {showConnecting ? "—" : portfolio.totalTrades}
             </span>
           </div>
           <div className="flex flex-col gap-0.5">
             <span className="text-[10px] font-mono font-bold tracking-widest uppercase text-zinc-500">Cash</span>
             <span className="text-[13px] font-black font-mono tabular-nums text-zinc-300">
-              ${portfolio.cash.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              {showConnecting ? "—.—" : `$${displayCash.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
             </span>
           </div>
         </div>
@@ -169,65 +308,14 @@ export function EquityChart({ portfolio, ticker, equityCurve, equityHistory, tra
           ))}
         </div>
 
-        <div className="w-full h-[240px] mt-3">
-          {mounted ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData} margin={{ top: 10, right: 0, left: -25, bottom: 0 }}>
-                <defs>
-                  <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={chartColor} stopOpacity={0.2} />
-                    <stop offset="100%" stopColor={chartColor} stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <XAxis
-                  dataKey="time"
-                  tick={{ fill: "#71717a", fontSize: 9, fontFamily: "JetBrains Mono, monospace" }}
-                  axisLine={false}
-                  tickLine={false}
-                  interval={Math.max(0, Math.floor(chartData.length / 6))}
-                />
-                <YAxis
-                  domain={["auto", "auto"]}
-                  tick={{ fill: "#71717a", fontSize: 9, fontFamily: "JetBrains Mono, monospace" }}
-                  axisLine={false}
-                  tickLine={false}
-                  tickFormatter={(v) => `$${v.toFixed(0)}`}
-                />
-                <Tooltip
-                  content={({ active, payload, label }) => {
-                    if (active && payload && payload.length) {
-                      const val = payload[0].value as number;
-                      return (
-                        <div className="bg-obsidian-light/90 border border-obsidian-border rounded px-3 py-2 backdrop-blur-md text-[12px] font-mono shadow-2xl">
-                          <span className="text-zinc-500 block mb-1">{label}</span>
-                          <span className="text-zinc-100 font-bold text-sm">${val.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                        </div>
-                      );
-                    }
-                    return null;
-                  }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="equity"
-                  stroke={chartColor}
-                  fill={`url(#${gradientId})`}
-                  strokeWidth={2}
-                  dot={false}
-                  activeDot={{ r: 4, fill: chartColor, stroke: "#fff", strokeWidth: 2 }}
-                />
-                {tradeMarkers.map((marker, i) => (
-                  <ReferenceLine
-                    key={i}
-                    x={marker.time}
-                    stroke={marker.action === "entry" || marker.action === "add" ? "#10b981" : "#f43f5e"}
-                    strokeDasharray="3 3"
-                    strokeWidth={1}
-                    opacity={0.6}
-                  />
-                ))}
-              </AreaChart>
-            </ResponsiveContainer>
+        <div className="w-full h-[240px] mt-3 relative">
+          {showConnecting ? (
+            <div className="flex items-center justify-center h-full text-[12px] font-mono text-zinc-500 uppercase tracking-widest">
+              <span className="w-1.5 h-1.5 rounded-full bg-zinc-500 animate-pulse mr-2" />
+              Connecting to market…
+            </div>
+          ) : mounted ? (
+            <div ref={containerRef} className="w-full h-full relative" />
           ) : (
             <div className="flex items-center justify-center h-full text-[12px] font-mono text-zinc-600 uppercase tracking-widest animate-pulse">
               Plotting market curve...

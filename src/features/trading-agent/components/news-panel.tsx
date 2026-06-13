@@ -68,50 +68,59 @@ export const NewsPanel = memo(function NewsPanel() {
   };
 
   return (
-    <Card>
+    <Card className="flex flex-col flex-1 min-h-0 h-full">
       <CardHeader>
         <CardTitle>Macro News</CardTitle>
         <span className="text-[11px] font-mono text-zinc-500">
           {articles.length > 0 ? `${articles.length} headlines` : ""}
         </span>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-1 flex flex-col min-h-0">
         {isLoading && articles.length === 0 ? (
-          <div className="flex items-center justify-center h-[200px]">
+          <div className="flex-1 flex items-center justify-center min-h-[200px]">
             <Loader2 className="w-5 h-5 text-zinc-500 animate-spin" />
           </div>
         ) : articles.length === 0 ? (
-          <div className="text-[11px] font-mono text-zinc-500 py-8 text-center tracking-wide uppercase">
+          <div className="flex-1 flex items-center justify-center text-[11px] font-mono text-zinc-500 py-8 text-center tracking-wide uppercase">
             No headlines right now
           </div>
         ) : (
-          <div className="flex flex-col gap-2 max-h-[200px] overflow-y-auto scrollbar-none pr-1 -mr-1">
-            {articles.map((a) => (
-              <a
-                key={a.id}
-                href={a.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block p-2.5 rounded border border-zinc-800/40 hover:border-zinc-700/60 bg-zinc-950/30 hover:bg-zinc-900/30 transition-all duration-150 group"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[11px] text-zinc-200 font-medium leading-relaxed line-clamp-2 group-hover:text-zinc-100 transition-colors font-sans">
-                      {a.title}
-                    </p>
-                    <div className="flex items-center gap-2 mt-1.5">
-                      <span className="text-[10px] font-mono text-zinc-600 uppercase tracking-wider">{a.source}</span>
-                      <span className="text-[10px] font-mono text-zinc-700">•</span>
-                      <span className="text-[10px] font-mono text-zinc-600">{timeAgo(a.publishedOn)} ago</span>
+          <div className="flex flex-col gap-2 flex-1 overflow-y-auto scrollbar-none pr-1 -mr-1">
+            {articles.map((a) => {
+              const borderLeftClass =
+                a.sentiment === "BULLISH"
+                  ? "border-l-emerald-500/60"
+                  : a.sentiment === "BEARISH"
+                  ? "border-l-rose-500/60"
+                  : "border-l-zinc-700/60";
+
+              return (
+                <a
+                  key={a.id}
+                  href={a.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`block p-2.5 rounded border border-zinc-800/40 border-l-2 ${borderLeftClass} hover:border-zinc-700/60 hover:border-l-2 hover:${borderLeftClass} bg-zinc-950/30 hover:bg-zinc-900/35 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200 group`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] text-zinc-200 font-medium leading-relaxed line-clamp-2 group-hover:text-zinc-100 transition-colors font-sans">
+                        {a.title}
+                      </p>
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <span className="text-[10px] font-mono text-zinc-600 uppercase tracking-wider">{a.source}</span>
+                        <span className="text-[10px] font-mono text-zinc-700">•</span>
+                        <span className="text-[10px] font-mono text-zinc-600">{timeAgo(a.publishedOn)} ago</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      {sentimentBadge(a.sentiment)}
+                      <ExternalLink className="w-3 h-3 text-zinc-600 opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
                   </div>
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
-                    {sentimentBadge(a.sentiment)}
-                    <ExternalLink className="w-3 h-3 text-zinc-600 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </div>
-                </div>
-              </a>
-            ))}
+                </a>
+              );
+            })}
           </div>
         )}
       </CardContent>

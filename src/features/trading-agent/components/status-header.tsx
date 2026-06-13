@@ -1,6 +1,6 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useEffect, useState } from "react";
 import type { useAgent } from "@/features/trading-agent/hooks/use-agent";
 
 interface Props {
@@ -10,6 +10,15 @@ interface Props {
 export const StatusHeader = memo(function StatusHeader({ agent }: Props) {
   const { state } = agent;
   const { status } = state;
+  const [staleSec, setStaleSec] = useState(0);
+
+  useEffect(() => {
+    if (!state.lastFetchAt) return;
+    const tick = () => setStaleSec(Math.round((Date.now() - state.lastFetchAt) / 1000));
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [state.lastFetchAt]);
 
   return (
     <header className="relative z-20 flex items-center justify-between px-6 py-4 border-b border-obsidian-border bg-obsidian-light/80 backdrop-blur-xl">
@@ -25,8 +34,16 @@ export const StatusHeader = memo(function StatusHeader({ agent }: Props) {
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
-        {/* Model Indicator */}
+      <div className="flex items-center gap-4">
+        {/* Staleness */}
+        <span className={`text-[10px] font-mono font-bold tracking-widest uppercase ${
+          staleSec > 30 ? "text-rose-400" :
+          staleSec > 15 ? "text-yellow-400" : "text-zinc-600"
+        }`}>
+          {state.lastFetchAt > 0 ? `${staleSec}s ago` : "IDLE"}
+        </span>
+        
+        {/* Model/Status Indicator */}
         <div className="flex items-center gap-2 px-3 py-1.5 rounded bg-obsidian-lighter border border-obsidian-border">
           <div className={`w-2 h-2 rounded-full ${
             status === "running" 
@@ -45,6 +62,7 @@ export const StatusHeader = memo(function StatusHeader({ agent }: Props) {
 }, (prev, next) => {
   return (
     prev.agent.state.status === next.agent.state.status &&
-    prev.agent.state.modelName === next.agent.state.modelName
+    prev.agent.state.modelName === next.agent.state.modelName &&
+    prev.agent.state.lastFetchAt === next.agent.state.lastFetchAt
   );
 });

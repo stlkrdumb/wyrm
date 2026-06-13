@@ -131,6 +131,11 @@ export class PriceStore {
   }
 }
 
-// ─────────────── singleton export ───────────────────
+// Share the PriceStore instance across Next.js bundles using Node's global object
+const globalForPriceStore = global as unknown as { priceStore?: PriceStore };
 
-export const priceStore = new PriceStore();
+export const priceStore = globalForPriceStore.priceStore ?? new PriceStore();
+
+if (process.env.NODE_ENV !== "production") {
+  globalForPriceStore.priceStore = priceStore;
+}

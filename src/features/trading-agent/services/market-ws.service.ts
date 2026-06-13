@@ -2,8 +2,10 @@ import type { PriceSnapshot } from "./price-store";
 import { updatePositionUnrealizedPnL, getAgentState } from "./agent-engine";
 import { priceStore, type PriceStore } from "./price-store";
 import { config } from "./agent-engine";
+import { agentEvents } from "./agent-events";
 import { WebSocket as WSClient } from "ws";
-import { optionalFetch, getProxyAgentForWS, PROXIES, mask } from "./proxy-client";
+import { getProxyAgentForWS, PROXIES, mask } from "./proxy-client";
+import { bitgetClient } from "@/lib/bitget-client";
 import { dispatchWsMessage } from "./ws-helpers";
 
 export interface WSSubscription {
@@ -23,29 +25,70 @@ export class MarketWebSocketService {
   private maxReconnectDelay = 30_000;
   private baseReconnectDelay = 1_000;
   private proxyIndex = 0;
-  private agentCycleTimer: ReturnType<typeof setInterval> | null = null;
+  private cycleTimer: ReturnType<typeof setTimeout> | null = null;
+  private cycleInFlight = false;
   private agentCycleHandler: (() => Promise<void>) | null = null;
-  private restFallbackTimer: ReturnType<typeof setInterval> | null = null;
 
   setAgentCycleHandler(handler: () => Promise<void>) {
     this.agentCycleHandler = handler;
-    if (!this.agentCycleTimer) {
-      this.agentCycleTimer = setInterval(async () => {
-        if (this.agentCycleHandler) {
-          await this.agentCycleHandler();
-        }
-      }, Number(process.env.AGENT_CYCLE_INTERVAL_MS) || 60_000);
-      console.log("[WS] Agent cycle timer started (every 60s)");
+    if (!this.cycleTimer) {
+      const warmupMs = 20_000;
+      const intervalMs = config.cycleIntervalMs;
+      console.log(`[WS] Agent cycle timer started (warmup ${warmupMs / 1000}s, every ${(intervalMs / 1000).toFixed(0)}s)`);
+      this.scheduleNextCycle(warmupMs);
     }
   }
 
   stopAgentCycles() {
-    if (this.agentCycleTimer) {
-      clearInterval(this.agentCycleTimer);
-      this.agentCycleTimer = null;
-      this.agentCycleHandler = null;
-      console.log("[WS] Agent cycle timer stopped");
+    if (this.cycleTimer) {
+      clearTimeout(this.cycleTimer);
+      this.cycleTimer = null;
     }
+    this.cycleInFlight = false;
+    this.agentCycleHandler = null;
+    console.log("[WS] Agent cycle timer stopped");
+  }
+
+  private scheduleNextCycle(delayMs: number) {
+    // Guard against leaked previous timers
+    if (this.cycleTimer) {
+      clearTimeout(this.cycleTimer);
+    }
+    this.cycleTimer = setTimeout(() => {
+      this.cycleTimer = null;
+      this.runCycle();
+    }, delayMs);
+  }
+
+  private async runCycle() {
+    if (this.cycleInFlight) {
+      console.warn("[WS] Cycle still in flight — skipping this tick");
+      this.scheduleNextCycle(config.cycleIntervalMs);
+      return;
+    }
+    if (!this.agentCycleHandler) return;
+
+    this.cycleInFlight = true;
+    let timeoutTimer: ReturnType<typeof setTimeout> | null = null;
+    try {
+      await Promise.race([
+        this.agentCycleHandler(),
+        new Promise<never>((_, reject) => {
+          timeoutTimer = setTimeout(() => reject(new Error("Cycle timed out after 90s")), 90_000);
+        }),
+      ]);
+    } catch (err) {
+      console.error("[AGENT CYCLE] Cycle failed or timed out:", err instanceof Error ? err.message : String(err));
+    } finally {
+      if (timeoutTimer) clearTimeout(timeoutTimer);
+      this.cycleInFlight = false;
+    }
+
+    const intervalMs = config.cycleIntervalMs;
+    // Use the full interval for the next cycle — a 100ms minimum was producing
+    // double-fire patterns. Drift is naturally corrected by wall-clock subtraction.
+    const nextDelay = Math.max(intervalMs, 1000);
+    this.scheduleNextCycle(nextDelay);
   }
 
 
@@ -57,26 +100,50 @@ export class MarketWebSocketService {
         proxy: proxyUrl ? mask(proxyUrl) : null,
       };
     }
-    return {
-      type: "fallback",
-      proxy: null,
-    };
+    return { type: "fallback", proxy: null };
+  }
+
+  /** Send unsubscribe for channels no longer in the new set */
+  private sendUnsubscribe(removed: WSSubscription[]): void {
+    if (!this.ws || this.ws.readyState !== WSClient.OPEN || removed.length === 0) return;
+    try {
+      const msg = JSON.stringify({ op: "unsubscribe", args: removed });
+      this.ws.send(msg);
+      console.log("[WS] Unsubscribe:", removed.map(c => `${c.channel}/${c.instId}`).join(", "));
+    } catch (err) {
+      console.warn("[WS] Unsubscribe send failed:", err instanceof Error ? err.message : String(err));
+    }
   }
 
   async subscribe(channels: WSSubscription[]): Promise<void> {
+    // Compute the diff: only subscribe to NEW channels, only unsubscribe from REMOVED ones.
+    // Once a symbol is subscribed and the WS connection stays alive (kept by ping every 30s),
+    // the server keeps pushing ticks. Re-subscribing the same symbol every cycle is wasteful.
+    const newKeys = new Set(channels.map(c => `${c.channel}:${c.instId}`));
+    const oldKeys = new Set(this.subscriptions.map(c => `${c.channel}:${c.instId}`));
+
+    const removed = this.subscriptions.filter(c => !newKeys.has(`${c.channel}:${c.instId}`));
+    const added = channels.filter(c => !oldKeys.has(`${c.channel}:${c.instId}`));
+
+    // No-op when the subscription set is unchanged
+    if (added.length === 0 && removed.length === 0) return;
+
     this.subscriptions = channels;
     console.log(`[WS] Subscribing to ${channels.length} channel(s):`, channels.map(c => `${c.instType}/${c.channel}/${c.instId}`).join(", "));
 
     if (!this.ws || this.ws.readyState === WSClient.CLOSED) {
       await this.connect();
+    } else if (this.ws.readyState === WSClient.OPEN) {
+      if (removed.length > 0) this.sendUnsubscribe(removed);
+      if (added.length > 0) this.sendSubscribe(added);
     } else {
-      this.sendSubscribe(channels);
+      // CONNECTING or CLOSING — subscriptions are stored; the 'open' handler will re-send them.
+      console.warn(`[WS] subscribe() called while socket is ${this.ws.readyState === WSClient.CONNECTING ? "connecting" : "closing"} — queued for open`);
     }
   }
 
   disconnect(): void {
     this.clearPingTimer();
-    this.clearRestFallbackTimer();
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
@@ -94,7 +161,12 @@ export class MarketWebSocketService {
     try {
       await new Promise<void>((resolve, reject) => {
         const agent = getProxyAgentForWS(this.proxyIndex);
-        const options = agent ? { agent } : {};
+        const options: Record<string, any> = agent ? { agent } : {};
+
+        // If local ISP hijacks DNS or filters connection, allow disabling TLS reject verification via env config
+        if (process.env.WS_REJECT_UNAUTHORIZED === "false" || process.env.NODE_ENV === "development" || process.env.NODE_TLS_REJECT_UNAUTHORIZED === "0") {
+          options.rejectUnauthorized = false;
+        }
 
         if (agent) {
           const proxyUrl = PROXIES[this.proxyIndex % PROXIES.length];
@@ -112,8 +184,6 @@ export class MarketWebSocketService {
           }
           this.reconnectAttempt = 0;
           this.ws = ws;
-          // Stop REST fallback timer when WS is live
-          this.clearRestFallbackTimer();
           if (this.subscriptions.length > 0) {
             this.sendSubscribe(this.subscriptions);
           }
@@ -122,15 +192,17 @@ export class MarketWebSocketService {
         });
 
         ws.on("message", (data) => {
-          try { this.processWsMsg(data.toString("utf-8")); } catch (err) { console.error("[WS] Msg parse error:", err); }
+          try { this.processWsMsg(data.toString("utf-8")); } catch (err) { console.error("[WS] Handler error:", err); }
         });
 
         ws.on("error", (err) => {
           console.warn("[WS] Socket error:", err.message);
         });
 
-        ws.on("close", (code, reason) => {
-          this.ws = null;
+        ws.on("close", (code) => {
+          // Only null the reference if this is still the current socket — prevents
+          // a late close event from a replaced connection destroying the new one
+          if (this.ws === ws) this.ws = null;
           this.clearPingTimer();
           if (code !== 1000) {
             if (PROXIES.length > 0) {
@@ -149,70 +221,11 @@ export class MarketWebSocketService {
     } catch (err) {
       if (PROXIES.length > 0) {
         this.proxyIndex = (this.proxyIndex + 1) % PROXIES.length;
-        console.warn(`[WS] Connection failed (proxy) — trying next proxy/REST fallback:`, err instanceof Error ? err.message : String(err));
+        console.warn(`[WS] Connection failed (proxy) — trying next proxy:`, err instanceof Error ? err.message : String(err));
       } else {
-        console.warn(`[WS] Connection failed — trying REST fallback:`, err instanceof Error ? err.message : String(err));
+        console.warn(`[WS] Connection failed:`, err instanceof Error ? err.message : String(err));
       }
-      await this.fallbackToRest();
-    }
-  }
-
-  private fallbackToRest(): Promise<void> {
-    console.log("[WS] Starting REST ticker fallback...");
-
-    // Clear any existing fallback timer to prevent accumulation
-    this.clearRestFallbackTimer();
-
-    const fetchAllTickers = async () => {
-      try {
-        for (const symbol of config.tradingSymbols) {
-          const resp = await optionalFetch<{
-            code: string;
-            msg: string;
-            data: Array<Record<string, string>>;
-          }>(`https://api.bitget.com/api/v2/spot/market/tickers?symbol=${symbol}`);
-
-          const ticker = resp.data.find((t) => t.symbol === symbol || t.instId === symbol);
-          if (!ticker) continue;
-
-          const lastPrice = Number(ticker.lastPrice ?? ticker.lastPr ?? ticker.close ?? "0");
-          if (lastPrice <= 0) continue;
-
-          const high24h = Number(ticker.high24h ?? ticker.high ?? "0");
-          const low24h = Number(ticker.low24h ?? ticker.low ?? "0");
-          const quoteVol = Number(ticker.volValue24h ?? ticker.quoteVolume ?? ticker.volumeValue24h ?? "0");
-          const changePctRaw = Number(ticker.changeUtc24h ?? ticker.priceRate ?? ticker.changingPercent24h ?? "0");
-          const tsNum = Number(ticker.ts ?? Date.now());
-
-          const snapshot: PriceSnapshot = {
-            symbol,
-            lastPrice: Math.round(lastPrice * 100) / 100,
-            high24h,
-            low24h,
-            baseVolume: 0,
-            quoteVolume: quoteVol,
-            changePercent: Number((changePctRaw * 100).toFixed(2)),
-            updatedAt: new Date(tsNum),
-          };
-
-          priceStore.updateTicker(snapshot);
-        }
-
-        console.log(`[WS] REST fallback cached ${priceStore.getSymbolCount()} ticker(s)`);
-      } catch (err) {
-        console.warn("[WS] REST fetch error:", err instanceof Error ? err.message : String(err));
-      }
-    };
-
-    this.restFallbackTimer = setInterval(fetchAllTickers, 30_000);
-
-    return Promise.resolve();
-  }
-
-  private clearRestFallbackTimer(): void {
-    if (this.restFallbackTimer) {
-      clearInterval(this.restFallbackTimer);
-      this.restFallbackTimer = null;
+      this.scheduleReconnect();
     }
   }
 
@@ -238,38 +251,62 @@ export class MarketWebSocketService {
 
   private sendSubscribe(channels: WSSubscription[]): void {
     if (!this.ws || this.ws.readyState !== WSClient.OPEN) return;
-    const msg = JSON.stringify({ op: "subscribe", args: channels });
-    this.ws.send(msg);
-    console.log("[WS] Subscribe:", channels.map(c => `${c.channel}/${c.instId}`).join(", "));
+    try {
+      const msg = JSON.stringify({ op: "subscribe", args: channels });
+      this.ws.send(msg);
+      console.log("[WS] Subscribe:", channels.map(c => `${c.channel}/${c.instId}`).join(", "));
+    } catch (err) {
+      console.warn("[WS] Subscribe send failed:", err instanceof Error ? err.message : String(err));
+    }
   }
 
   private processWsMsg(data: string): void {
-    dispatchWsMessage(
-      data,
-      (snapshots) => { for (const s of snapshots) { priceStore.updateTicker(s); updatePositionUnrealizedPnL(s.symbol, s.lastPrice); } },
-      (msg: Record<string, unknown>) => {
-        const arg = msg.arg! as { channel?: string; instId?: string };
-        const dataArr = msg.data as string[][] | undefined;
-        if (!arg?.channel || !dataArr) return;
-        const interval = arg.channel.replace(/^candle/, "");
-        for (const row of dataArr) {
-          if (row.length < 6) continue;
-          priceStore.updateCandle(arg.instId ?? "UNKNOWN", interval, { timestamp: Number(row[0]), open: Number(row[1]), high: Number(row[2]), low: Number(row[3]), close: Number(row[4]), volume: Number(row[5]) });
-        }
-      },
-      (channel, instId) => console.log("[WS] Subscribed:", `${channel}/${instId ?? "*"}`),
-      (code, msg) => console.warn(`[WS] Server error: code=${code}, msg="${msg}"`),
-    );
-
+    // Check for heartbeat frames FIRST so they never reach dispatchWsMessage
     if (data === "ping") {
-      // Server sent heartbeat request — respond with pong
-      this.ws?.send("pong");
+      try { this.ws?.send("pong"); } catch (err) { console.warn("[WS] Pong send failed:", err instanceof Error ? err.message : String(err)); }
       return;
     }
     if (data === "pong") {
       console.log("[WS] Server pong ✓");
       this.reconnectAttempt = 0;
+      return;
     }
+
+    dispatchWsMessage(
+      data,
+      (snapshots) => {
+        for (const s of snapshots) {
+          priceStore.updateTicker(s);
+          updatePositionUnrealizedPnL(s.symbol, s.lastPrice);
+          agentEvents.emitPrice({
+            symbol: s.symbol,
+            lastPrice: s.lastPrice,
+            change24hPercent: s.changePercent,
+            high24h: s.high24h,
+            low24h: s.low24h,
+            volume24h: s.quoteVolume,
+            timestamp: Date.now(),
+          });
+        }
+      },
+      (msg: Record<string, unknown>) => {
+        const arg = msg.arg as { channel?: string; instId?: string } | undefined;
+        const dataArr = msg.data as string[][] | undefined;
+        if (!arg?.channel || !dataArr) return;
+        const interval = arg.channel.replace(/^candle/, "");
+        const instId = arg.instId;
+        if (!instId) {
+          console.warn("[WS] Candle message missing instId — skipping");
+          return;
+        }
+        for (const row of dataArr) {
+          if (row.length < 6) continue;
+          priceStore.updateCandle(instId, interval, { timestamp: Number(row[0]), open: Number(row[1]), high: Number(row[2]), low: Number(row[3]), close: Number(row[4]), volume: Number(row[5]) });
+        }
+      },
+      (channel, instId) => console.log("[WS] Subscribed:", `${channel}/${instId ?? "*"}`),
+      (code, msg) => console.warn(`[WS] Server error: code=${code}, msg="${msg}"`),
+    );
   }
 
   private startPingTimer(): void {
@@ -277,7 +314,7 @@ export class MarketWebSocketService {
     this.pingTimer = setInterval(() => {
       if (this.ws?.readyState === WSClient.OPEN) {
         // Client initiated heartbeat — send ping to keep connection alive
-        this.ws.send("ping");
+        try { this.ws.send("ping"); } catch (err) { console.warn("[WS] Ping send failed:", err instanceof Error ? err.message : String(err)); }
       } else {
         this.clearPingTimer();
       }
@@ -300,22 +337,25 @@ export class MarketWebSocketService {
     }));
   }
 
-  /** Subscribe to TRADING_SYMBOLS + current position symbols */
-  syncSubscriptionsForPositions(): void {
+  /** Subscribe to TRADING_SYMBOLS + current position + watchlist symbols */
+  syncSubscriptionsForPositions(extraSymbols?: string[]): void {
     const st = getAgentState();
     const posSymbols = st.positions.map(p => p.symbol);
-    const all = [...new Set([...config.tradingSymbols, ...posSymbols])];
-    const channels = all.map((symbol): WSSubscription => ({
+    const all = [...new Set([...config.tradingSymbols, ...posSymbols, ...(extraSymbols ?? [])])];
+    const tickerChannels: WSSubscription[] = all.map((symbol): WSSubscription => ({
       instType: "SPOT",
       channel: "ticker",
       instId: symbol.toUpperCase(),
     }));
-    this.subscribe(channels).catch(err =>
+    // Keep existing candle subscriptions
+    const candleChannels = this.subscriptions.filter(s => s.channel !== "ticker");
+    const merged = [...candleChannels, ...tickerChannels];
+    this.subscribe(merged).catch(err =>
       console.warn("[WS] syncSubscriptions failed:", err instanceof Error ? err.message : String(err))
     );
   }
 
-/** Initialize WebSocket connection — call once on app startup */
+  /** Initialize WebSocket connection — call once on app startup */
   async initialize(): Promise<{ type: "direct" | "proxy" | "fallback"; proxy: string | null }> {
     const channels = this.buildSubscriptions();
     await this.subscribe(channels);
@@ -327,9 +367,18 @@ export class MarketWebSocketService {
   }
 }
 
-export const marketWS = new MarketWebSocketService();
+// Share the MarketWebSocketService instance across Next.js bundles using Node's global object
+const globalForMarketWS = global as unknown as { marketWS?: MarketWebSocketService };
+
+export const marketWS = globalForMarketWS.marketWS ?? new MarketWebSocketService();
+
+if (process.env.NODE_ENV !== "production") {
+  globalForMarketWS.marketWS = marketWS;
+}
 
 // Auto-initialize WebSocket on module load (connects at server startup)
-marketWS.initialize().catch(err => {
-  console.warn("[WS] Auto-initialize failed (will retry on demand):", err instanceof Error ? err.message : String(err));
-});
+if (!globalForMarketWS.marketWS) {
+  marketWS.initialize().catch(err => {
+    console.warn("[WS] Auto-initialize failed (will retry on demand):", err instanceof Error ? err.message : String(err));
+  });
+}

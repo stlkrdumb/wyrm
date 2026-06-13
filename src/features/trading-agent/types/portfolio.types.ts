@@ -8,6 +8,8 @@ export interface Position {
   size: number;
   entryPrice: number;
   unrealizedPnL: number;
+  stopLossPct: number;
+  takeProfitPct: number;
 }
 
 export interface TradeRecord {

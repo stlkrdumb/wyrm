@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resetBalanceState, type PortfolioState } from "@/features/trading-agent/services/balance-store";
-import { setAgentStatus } from "@/features/trading-agent/services/agent-engine";
+import { setAgentStatus, resetInMemoryState } from "@/features/trading-agent/services/agent-engine";
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,6 +11,7 @@ export async function POST(request: NextRequest) {
 
     // Reset state from scratch
     resetBalanceState(initialCash);
+    resetInMemoryState();
 
     const fresh: PortfolioState = {
       initialCash,

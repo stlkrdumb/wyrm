@@ -1,5 +1,6 @@
 import { RISK_CONFIG } from "@/features/trading-agent/constants/risk.constants";
 import { Position, TradingDecision, PortfolioSnapshot, TickerData } from "@/features/trading-agent/types";
+import { config, runtimeConfigOverrides } from "./state-store";
 
 export interface RiskValidationResult {
   isAllowed: boolean;
@@ -25,7 +26,7 @@ export class RiskManager {
     tickerData?: TickerData,
     positions?: Position[]
   ): RiskValidationResult {
-    if (!decision || decision.action === "hold") {
+    if (!decision || decision.action !== "buy") {
       return { isAllowed: true };
     }
 
@@ -37,19 +38,21 @@ export class RiskManager {
     }
 
     // 1. Check Conviction Threshold
-    if (Math.abs(decision.strength) < RISK_CONFIG.MIN_CONVICTION_THRESHOLD) {
+    const threshold = runtimeConfigOverrides.convictionThreshold ?? RISK_CONFIG.MIN_CONVICTION_THRESHOLD;
+    if (Math.abs(decision.strength) < threshold) {
       return {
         isAllowed: false,
-        reason: `Conviction strength (${decision.strength.toFixed(2)}) is below threshold (${RISK_CONFIG.MIN_CONVICTION_THRESHOLD})`,
+        reason: `Conviction strength (${decision.strength.toFixed(2)}) is below threshold (${threshold.toFixed(2)})`,
       };
     }
 
     // 2. Check Concurrent Positions
     const openPositions = (positions || []).filter(p => p.side === "long" || p.side === "short");
-    if (openPositions.length >= RISK_CONFIG.MAX_CONCURRENT_POSITIONS) {
+    const maxPos = config.maxActivePositions;
+    if (openPositions.length >= maxPos) {
       return {
         isAllowed: false,
-        reason: `Maximum concurrent positions (${RISK_CONFIG.MAX_CONCURRENT_POSITIONS}) reached`,
+        reason: `Maximum concurrent positions (${maxPos}) reached`,
       };
     }
 
@@ -67,7 +70,8 @@ export class RiskManager {
     // 4. Check Position Size Limit
     if (tickerData && tickerData.lastPrice > 0) {
       const positionValue = decision.size * tickerData.lastPrice;
-      const maxAllowedValue = portfolio.equity * RISK_CONFIG.MAX_POSITION_SIZE_PCT;
+      const maxPct = Math.max(RISK_CONFIG.MAX_POSITION_SIZE_PCT, config.orderSizePct);
+      const maxAllowedValue = portfolio.equity * maxPct;
 
       if (positionValue > maxAllowedValue) {
         // Adjust the decision to fit within limits
@@ -77,7 +81,7 @@ export class RiskManager {
         const adjustedDecision = {
           ...decision,
           size: adjustedSize,
-          reason: `Adjusted: Original size exceeded max position limit (${(RISK_CONFIG.MAX_POSITION_SIZE_PCT * 100).toFixed(0)}% of equity)`,
+          reason: `Adjusted: Original size exceeded max position limit (${(maxPct * 100).toFixed(0)}% of equity)`,
         };
 
         return {

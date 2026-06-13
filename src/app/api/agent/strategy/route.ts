@@ -23,6 +23,12 @@ export async function POST(request: Request) {
       persona: body.persona,
       customInstructions: body.customInstructions,
       circuitBreakerThresholdPct: body.circuitBreakerThresholdPct ?? 10,
+      orderSizePct: body.orderSizePct ?? 0.05,
+      stopLossPct: body.stopLossPct ?? 5,
+      takeProfitPct: body.takeProfitPct ?? 10,
+      cycleIntervalMs: body.cycleIntervalMs ?? 30000,
+      maxActivePositions: body.maxActivePositions ?? 3,
+      convictionThreshold: body.convictionThreshold ?? 0.3,
     });
     return NextResponse.json({ status: "success", message: "Strategy updated successfully" });
   } catch (error: any) {

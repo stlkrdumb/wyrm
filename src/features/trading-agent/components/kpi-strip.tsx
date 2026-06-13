@@ -11,13 +11,13 @@ interface Props {
   status: string;
 }
 
-const CountUp = memo(function CountUp({ value, prefix = "", suffix = "", decimals = 0 }: { value: number; prefix?: string; suffix?: string; decimals?: number }) {
+const StaticNumber = memo(function StaticNumber({ value, prefix = "", suffix = "", decimals = 0 }: { value: number; prefix?: string; suffix?: string; decimals?: number }) {
   const formatted = value.toLocaleString(undefined, {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   });
   return (
-    <span className="tabular-nums transition-all duration-300">
+    <span className="tabular-nums">
       {prefix}{formatted}{suffix}
     </span>
   );
@@ -97,7 +97,7 @@ export const KpiStrip = memo(function KpiStrip({ portfolio, positions, peakEquit
                 {kpi.label}
               </div>
               <div className={`text-[18px] font-black font-mono tracking-tight ${kpi.color}`}>
-                <CountUp value={kpi.value} prefix={kpi.prefix} suffix={kpi.suffix} decimals={kpi.decimals} />
+                <StaticNumber value={kpi.value} prefix={kpi.prefix} suffix={kpi.suffix} decimals={kpi.decimals} />
               </div>
             </div>
             {isRunning && (

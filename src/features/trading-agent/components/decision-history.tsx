@@ -30,6 +30,8 @@ export function DecisionHistory({ onBack, isTabMode }: Props) {
       }
     };
     fetchHistory();
+    const id = setInterval(fetchHistory, 10_000);
+    return () => clearInterval(id);
   }, []);
 
   const filteredHistory = history.filter(h =>
@@ -90,13 +92,13 @@ export function DecisionHistory({ onBack, isTabMode }: Props) {
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <span className="text-[11px] text-zinc-500">
-                    {new Date(record.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    {new Date(record.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}
                   </span>
                   <span className={`text-[11px] font-bold tabular-nums ${
                     (record.decision?.strength ?? 0) > 0 ? "text-emerald-400" :
                     (record.decision?.strength ?? 0) < 0 ? "text-rose-400" : "text-zinc-500"
                   }`}>
-                    {(record.decision?.strength ?? 0) > 0 ? "+" : ""}{(record.decision?.strength ?? 0 * 100).toFixed(0)}%
+                    {(record.decision?.strength ?? 0) > 0 ? "+" : ""}{((record.decision?.strength ?? 0) * 100).toFixed(0)}%
                   </span>
                 </div>
               </div>

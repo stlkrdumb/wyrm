@@ -6,9 +6,10 @@ interface Props {
   value: number;
   size?: number;
   strokeWidth?: number;
+  label?: string;
 }
 
-export const RadialGauge = memo(function RadialGauge({ value, size = 120, strokeWidth = 8 }: Props) {
+export const RadialGauge = memo(function RadialGauge({ value, size = 120, strokeWidth = 8, label = "F&G" }: Props) {
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * Math.PI; // half circle
   const normalizedValue = Math.max(0, Math.min(100, value));
@@ -95,9 +96,11 @@ export const RadialGauge = memo(function RadialGauge({ value, size = 120, stroke
         })()}
       </svg>
       {/* Value label */}
-      <div className="absolute bottom-0 flex flex-col items-center">
-        <span className="text-[12px] font-mono font-bold text-zinc-500 tracking-widest uppercase">F&G</span>
-      </div>
+      {label && (
+        <div className="absolute bottom-0 flex flex-col items-center">
+          <span className="text-[12px] font-mono font-bold text-zinc-500 tracking-widest uppercase">{label}</span>
+        </div>
+      )}
     </div>
   );
 });

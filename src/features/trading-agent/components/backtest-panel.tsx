@@ -8,7 +8,6 @@ import type { BacktestResult } from "@/features/trading-agent/types/backtest.typ
 import { apiFetch } from "@/shared/utils/api-fetch";
 
 export function BacktestPanel({ onBack }: { onBack?: () => void }) {
-  const [isCollapsed, setIsCollapsed] = useState(true);
   const [result, setResult] = useState<BacktestResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,18 +37,15 @@ export function BacktestPanel({ onBack }: { onBack?: () => void }) {
 
   return (
     <Card>
-      <div onClick={() => setIsCollapsed(!isCollapsed)} className="cursor-pointer select-none">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Activity className="w-3.5 h-3.5 text-zinc-500" />
-            <CardTitle>Simulation Sandbox</CardTitle>
-          </div>
-          <Badge variant="neutral" className="text-[10px]">{result ? "RESULTS" : "SETUP"}</Badge>
-        </CardHeader>
-      </div>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <Activity className="w-3.5 h-3.5 text-zinc-500" />
+          <CardTitle>Simulation Sandbox</CardTitle>
+        </div>
+        <Badge variant="neutral" className="text-[10px]">{result ? "RESULTS" : "SETUP"}</Badge>
+      </CardHeader>
 
-      {!isCollapsed && (
-        <CardContent>
+      <CardContent>
           {!result ? (
             <div className="flex flex-col gap-5">
               <div className="space-y-1.5 font-mono text-[11px] text-zinc-400">
@@ -189,7 +185,6 @@ export function BacktestPanel({ onBack }: { onBack?: () => void }) {
                       totalPnL: result.totalReturn,
                       winRate: result.winRate
                     }}
-                    ticker={null}
                     equityCurve={result.equityCurve}
                   />
                 </div>
@@ -212,7 +207,7 @@ export function BacktestPanel({ onBack }: { onBack?: () => void }) {
                       {result.trades.length > 0 ? (
                         result.trades.map((trade, i) => (
                           <tr key={i} className="hover:bg-zinc-900/20 transition-all duration-100">
-                            <td className="p-2 text-zinc-500">{new Date(trade.timestamp).toLocaleTimeString()}</td>
+                            <td className="p-2 text-zinc-500">{new Date(trade.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false })}</td>
                             <td className="p-2 font-bold text-zinc-300">{trade.symbol}</td>
                             <td className="p-2">
                               <Badge variant={trade.side === "buy" ? "success" : "danger"} className="text-[10px]">
@@ -241,7 +236,6 @@ export function BacktestPanel({ onBack }: { onBack?: () => void }) {
             </div>
           )}
         </CardContent>
-      )}
     </Card>
   );
 }

@@ -22,10 +22,10 @@ export async function POST() {
       });
     }
 
-    console.log(`[API] POST /api/agent/cycle — LLM_MODEL=${process.env.LLM_MODEL} API_KEY=${process.env.OPENAI_API_KEY ? '***' + process.env.OPENAI_API_KEY.slice(-4) : 'MISSING'}`);
+    console.log(`[API] POST /api/agent/cycle — MODEL=${process.env.LLM_MODEL} API_KEY=${process.env.OPENAI_API_KEY ? 'configured' : 'MISSING'}`);
 
     const result = await runAgentCycle();
-    marketWS.syncSubscriptionsForPositions();
+    marketWS.syncSubscriptionsForPositions(getAgentState().watchlist);
 
     const allSnapshots = priceStore.getAll();
     const tickersMap: Record<string, any> = {};
@@ -34,8 +34,23 @@ export async function POST() {
       if (obj) tickersMap[symbol] = obj;
     }
 
+    // Same dual-layer WS status check as the GET handler
     let wsStatus: "connected" | "connecting" | "reconnecting" = "connected";
-    if (allSnapshots.size === 0) wsStatus = "reconnecting";
+    const ci = marketWS.getConnectionInfo();
+    if (ci.type === "fallback") {
+      wsStatus = "reconnecting";
+    } else if (allSnapshots.size === 0) {
+      wsStatus = currentState.lastCycleAt ? "reconnecting" : "connecting";
+    } else {
+      const activeSymbols = new Set([
+        ...currentState.watchlist,
+        ...currentState.positions.map(p => p.symbol),
+      ]);
+      const anyActiveStale = activeSymbols.size > 0 && [...allSnapshots.entries()]
+        .filter(([symbol]) => activeSymbols.has(symbol))
+        .some(([, s]) => Date.now() - s.updatedAt.getTime() > WS_STALENESS_THRESHOLD_MS);
+      if (anyActiveStale) wsStatus = "reconnecting";
+    }
 
     console.log("[POST /api/agent/cycle] Cycle complete — decision:", currentState.decision?.action, "signals:", currentState.signals.length);
 
@@ -74,15 +89,29 @@ export async function GET(request: NextRequest) {
     if (obj) tickersMap[symbol] = obj;
   }
 
-  // Determine WS status from store freshness
+  // Determine WS status — two layers:
+  //   Layer 1: Is the WebSocket physically connected? (getConnectionInfo)
+  //   Layer 2: If WS is open, are actively-watched symbols getting fresh data?
+  // This avoids false "RECON" from stale price-store artifacts (old watchlist
+  // symbols) while still catching real disconnects and data starvation.
   let wsStatus: "connected" | "connecting" | "reconnecting" = "connected";
-  if (allSnapshots.size === 0) {
-    wsStatus = currentState.lastCycleAt ? "reconnecting" : "connecting";
+  const ci = marketWS.getConnectionInfo();
+  if (ci.type === "fallback") {
+    wsStatus = "reconnecting";
+  } else if (allSnapshots.size === 0 && currentState.lastCycleAt) {
+    wsStatus = "reconnecting";
+  } else if (allSnapshots.size === 0) {
+    wsStatus = "connecting";
   } else {
-    const isAnyStale = [...allSnapshots.values()].some(s =>
-      Date.now() - s.updatedAt.getTime() > WS_STALENESS_THRESHOLD_MS
-    );
-    if (isAnyStale) wsStatus = "reconnecting";
+    // Only check staleness for symbols we actually care about (watchlist + positions)
+    const activeSymbols = new Set([
+      ...currentState.watchlist,
+      ...currentState.positions.map(p => p.symbol),
+    ]);
+    const anyActiveStale = activeSymbols.size > 0 && [...allSnapshots.entries()]
+      .filter(([symbol]) => activeSymbols.has(symbol))
+      .some(([, s]) => Date.now() - s.updatedAt.getTime() > WS_STALENESS_THRESHOLD_MS);
+    if (anyActiveStale) wsStatus = "reconnecting";
   }
 
   console.log(`[API] GET /api/agent/cycle — status=${currentState.status} equity=$${Math.round(currentState.portfolio.equity).toLocaleString()} symbols=${Object.keys(tickersMap).join(",")}`);
@@ -106,6 +135,8 @@ export async function GET(request: NextRequest) {
       size: p.size,
       entryPrice: p.entryPrice,
       unrealizedPnL,
+      stopLossPct: p.stopLossPct,
+      takeProfitPct: p.takeProfitPct,
     };
   });
 
@@ -151,23 +182,28 @@ export async function GET(request: NextRequest) {
       initialCash: currentState.portfolio.initialCash,
       totalTrades: currentState.portfolio.totalTrades,
       winRate: currentState.portfolio.winRate,
-      totalPnL: currentState.portfolio.totalPnL,
+      totalPnL: liveEquity - currentState.startEquity,
     },
     positions: livePositions,
     trades: currentState.trades.map((t) => ({
       id: t.id, timestamp: t.timestamp.toISOString(), symbol: t.symbol, side: t.side,
-      action: t.action, size: t.size, price: t.price, pnl: t.pnl ?? null,
+      action: t.action, size: t.size, price: t.price, pnl: t.pnl ?? null, fee: t.fee ?? null,
     })),
     llmProgress: llmProgress || currentState.llmProgress || null,
     circuitBreakerTripped: currentState.circuitBreakerTripped,
     circuitBreakerThresholdPct: currentState.circuitBreakerThresholdPct,
     peakEquity: currentState.peakEquity,
     modelName: currentState.modelName,
+    decisionSource: currentState.decisionSource ?? null,
     watchlist: currentState.watchlist || [],
     logs: (currentState.logs || []).map(l => ({
       timestamp: l.timestamp instanceof Date ? l.timestamp.toISOString() : l.timestamp,
       level: l.level,
       message: l.message,
+    })),
+    equityHistory: (currentState.equityHistory || []).map(e => ({
+      timestamp: e.timestamp instanceof Date ? e.timestamp.toISOString() : e.timestamp,
+      equity: e.equity,
     })),
   });
 }
@@ -192,31 +228,19 @@ export async function PUT(request: NextRequest) {
     // Initialize WS and start auto-cycling interval
     await marketWS.initialize();
     
-    // Register the cycle handler for the periodic interval
+    // Register the cycle handler (first cycle fires after 20s warmup, then at interval)
     marketWS.setAgentCycleHandler(async () => {
       if (getAgentState().status === "running") {
         try {
-          const initResult = await runAgentCycle();
-          marketWS.syncSubscriptionsForPositions();
-          console.log("[AGENT CYCLE] LLM analysis done — ticker price:", initResult.tickerPrice,
+          const cycleResult = await runAgentCycle();
+          marketWS.syncSubscriptionsForPositions(getAgentState().watchlist);
+          console.log("[AGENT CYCLE] Cycle done — ticker:", cycleResult.tickerPrice,
             "signals:", getAgentState().signals.length);
         } catch (err) {
           console.error("[AGENT CYCLE] Cycle failed:", err instanceof Error ? err.message : String(err));
         }
       }
     });
-    
-    // Warmup delay before first cycle — let WS data settle
-    console.log("[AGENT CYCLE] Warming up — first cycle in 20s");
-    setTimeout(async () => {
-      if (getAgentState().status !== "running") {
-        console.log("[AGENT CYCLE] Warmup aborted — agent no longer running");
-        return;
-      }
-      const initResult = await runAgentCycle();
-      marketWS.syncSubscriptionsForPositions();
-      console.log("[PUT /api/agent/cycle] Agent started — initial cycle done, ticker price:", initResult.tickerPrice);
-    }, 20_000);
   } else {
     // Stop auto-cycling for stopped/paused states
     marketWS.stopAgentCycles();

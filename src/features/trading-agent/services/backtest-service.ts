@@ -3,8 +3,10 @@ import path from "node:path";
 import { evaluateMultiPair } from "./decision-engine.service";
 import { riskManager } from "./risk-manager.service";
 import { priceStore } from "./price-store";
+import { config } from "./state-store";
 import type { BacktestResult } from "@/features/trading-agent/types/backtest.types";
 import type { Candlestick } from "@/features/trading-agent/types";
+import { getCandlesWithCache } from "./market-data.service";
 
 const DATA_FILE = path.join(process.cwd(), ".data", "backtests", "backtest-data.json");
 
@@ -20,7 +22,39 @@ export class BacktestService {
    */
   public async runBacktest(initialEquity: number): Promise<BacktestResult> {
     if (!fs.existsSync(DATA_FILE)) {
-      throw new Error(`Backtest data file not found at ${DATA_FILE}`);
+      console.log(`[Backtest] Data file not found. Fetching fresh historical candles for backtesting...`);
+      const folder = path.dirname(DATA_FILE);
+      if (!fs.existsSync(folder)) {
+        fs.mkdirSync(folder, { recursive: true });
+      }
+
+      const freshData: Record<string, { "5m": Candlestick[]; "1h": Candlestick[]; "1d": Candlestick[] }> = {};
+      const symbolsToFetch = [...new Set(["BTCUSDT", ...config.tradingSymbols])];
+
+      for (const symbol of symbolsToFetch) {
+        console.log(`[Backtest] Fetching candles for ${symbol}...`);
+        try {
+          const [candles5m, candles1h, candles1d] = await Promise.all([
+            getCandlesWithCache(symbol, "5m", 1000),
+            getCandlesWithCache(symbol, "1h", 200),
+            getCandlesWithCache(symbol, "1d", 200),
+          ]);
+          freshData[symbol] = {
+            "5m": candles5m,
+            "1h": candles1h,
+            "1d": candles1d,
+          };
+        } catch (err) {
+          console.error(`[Backtest] Failed to fetch candles for ${symbol}:`, err);
+        }
+      }
+
+      if (Object.keys(freshData).length === 0 || !freshData["BTCUSDT"]) {
+        throw new Error("Failed to fetch historical backtest data from public endpoints");
+      }
+
+      fs.writeFileSync(DATA_FILE, JSON.stringify(freshData, null, 2));
+      console.log(`[Backtest] Saved historical candles to ${DATA_FILE}`);
     }
 
     const rawData = fs.readFileSync(DATA_FILE, "utf-8");
@@ -48,9 +82,10 @@ export class BacktestService {
       let wins = 0;
       const equityCurve: { timestamp: Date; equity: number }[] = [];
       const trades: Array<{ timestamp: Date; symbol: string; side: "buy" | "sell"; price: number; pnl: number }> = [];
+      const recentExits: Array<{ symbol: string; reason: "Stop Loss" | "Take Profit" | "Dust Cleanup"; timestamp: number }> = [];
 
       // Tracks open spot positions: symbol -> { size, entryPrice }
-      const currentPositions: Record<string, { size: number; entryPrice: number }> = {};
+      const currentPositions: Record<string, { size: number; entryPrice: number; stopLossPct: number; takeProfitPct: number }> = {};
 
       // Run backtest over the last 30 snapshots to keep LLM calls fast but allow a rich lookback
       const stepsToRun = 30;
@@ -96,6 +131,62 @@ export class BacktestService {
           priceStore.setCandles(symbol, "1d", sliced1d);
         }
 
+        // Check SL/TP auto-bracket exits on the current step candles
+        for (const [symbol, pos] of Object.entries(currentPositions)) {
+          const symData = historicalData[symbol];
+          if (!symData) continue;
+          const candle1h = symData["1h"][idx];
+          if (!candle1h) continue;
+
+          const slPrice = pos.entryPrice * (1 - pos.stopLossPct / 100);
+          const tpPrice = pos.entryPrice * (1 + pos.takeProfitPct / 100);
+
+          let exited = false;
+          let exitPrice = 0;
+          let reason: "Stop Loss" | "Take Profit" = "Stop Loss";
+
+          // If low price breaches stop loss, trigger stop loss
+          if (candle1h.low <= slPrice) {
+            exited = true;
+            exitPrice = slPrice;
+            reason = "Stop Loss";
+          }
+          // If high price breaches take profit, trigger take profit
+          else if (candle1h.high >= tpPrice) {
+            exited = true;
+            exitPrice = tpPrice;
+            reason = "Take Profit";
+          }
+
+          if (exited) {
+            const revenue = pos.size * exitPrice;
+            const fee = revenue * config.feePct;
+            cash += revenue - fee;
+
+            const realizedPnL = pos.size * (exitPrice - pos.entryPrice) - fee;
+            tradeCount++;
+            if (realizedPnL > 0) wins++;
+
+            trades.push({
+              timestamp: new Date(timestamp),
+              symbol,
+              side: "sell",
+              price: exitPrice,
+              pnl: realizedPnL
+            });
+
+            // Track the exit in recentExits (cooldown window / anti-hallucination)
+            recentExits.push({
+              symbol,
+              reason,
+              timestamp
+            });
+
+            console.log(`[Backtest] ${symbol} auto-bracket exit: ${reason} at $${exitPrice.toFixed(2)} (entry $${pos.entryPrice.toFixed(2)}, PnL: $${realizedPnL.toFixed(2)})`);
+            delete currentPositions[symbol];
+          }
+        }
+
         // Calculate portfolio equity at the start of this step
         const startEquity = cash + Object.entries(currentPositions).reduce((sum, [symbol, pos]) => {
           const currentPrice = priceMap.get(symbol)?.lastPrice ?? pos.entryPrice;
@@ -110,12 +201,14 @@ export class BacktestService {
             side: "long" as const,
             size: pos.size,
             entryPrice: pos.entryPrice,
-            unrealizedPnL: pos.size * (currentPrice - pos.entryPrice)
+            unrealizedPnL: pos.size * (currentPrice - pos.entryPrice),
+            stopLossPct: pos.stopLossPct,
+            takeProfitPct: pos.takeProfitPct,
           };
         });
 
         // 1. Evaluate decisions based on historical snapshot
-        const multiResult = await evaluateMultiPair(priceMap, activePositionsList);
+        const multiResult = await evaluateMultiPair(priceMap, activePositionsList, undefined, recentExits);
 
         // 2. Validate and Execute simulated trades
         for (const [symbol, decision] of Object.entries(multiResult.decisions)) {
@@ -138,18 +231,37 @@ export class BacktestService {
             const finalDecision = validation.adjustedDecision ?? decision;
 
             if (finalDecision.action === "buy") {
+              // Check recent exits cooldown
+              const lastExit = recentExits.find(e => e.symbol === symbol);
+              if (lastExit) {
+                const elapsed = timestamp - lastExit.timestamp;
+                const recentExitCooldownMs = Number(process.env.RECENT_EXIT_COOLDOWN_MS) || 600_000;
+                if (elapsed < recentExitCooldownMs) {
+                  console.log(`[Backtest] ${symbol}: skipping buy — auto-bracket cooldown (${Math.round(elapsed / 1000)}s / ${Math.round(recentExitCooldownMs / 1000)}s)`);
+                  continue;
+                }
+              }
+
               const size = finalDecision.size ?? 0;
               const cost = size * price;
+              const fee = cost * config.feePct;
+              const totalCost = cost + fee;
 
-              if (cost > 0 && cost <= cash) {
-                cash -= cost;
+              if (totalCost > 0 && totalCost <= cash) {
+                cash -= totalCost;
                 const existing = currentPositions[symbol];
+                const stopLossPct = finalDecision.slPct ?? (finalDecision.riskProfile === "tight" ? 3 : finalDecision.riskProfile === "wide" ? 8 : config.stopLossPct);
+                const takeProfitPct = finalDecision.tpPct ?? (finalDecision.riskProfile === "tight" ? 9 : finalDecision.riskProfile === "wide" ? 16 : config.takeProfitPct);
+
+                // Capitalize entry price with fee to match order-executor behavior
+                const entryPriceWithFee = price * (1 + config.feePct);
+
                 if (existing) {
                   const newSize = existing.size + size;
-                  const newEntryPrice = (existing.entryPrice * existing.size + price * size) / newSize;
-                  currentPositions[symbol] = { size: newSize, entryPrice: newEntryPrice };
+                  const newEntryPrice = (existing.entryPrice * existing.size + entryPriceWithFee * size) / newSize;
+                  currentPositions[symbol] = { size: newSize, entryPrice: newEntryPrice, stopLossPct, takeProfitPct };
                 } else {
-                  currentPositions[symbol] = { size, entryPrice: price };
+                  currentPositions[symbol] = { size, entryPrice: entryPriceWithFee, stopLossPct, takeProfitPct };
                 }
 
                 tradeCount++;
@@ -166,9 +278,10 @@ export class BacktestService {
               if (existing && existing.size > 0) {
                 const size = Math.min(finalDecision.size ?? existing.size, existing.size);
                 const revenue = size * price;
-                cash += revenue;
+                const fee = revenue * config.feePct;
+                cash += revenue - fee;
 
-                const realizedPnL = size * (price - existing.entryPrice);
+                const realizedPnL = size * (price - existing.entryPrice) - fee;
                 tradeCount++;
                 if (realizedPnL > 0) wins++;
 
@@ -185,7 +298,9 @@ export class BacktestService {
                 } else {
                   currentPositions[symbol] = {
                     size: existing.size - size,
-                    entryPrice: existing.entryPrice
+                    entryPrice: existing.entryPrice,
+                    stopLossPct: existing.stopLossPct,
+                    takeProfitPct: existing.takeProfitPct
                   };
                 }
               }
@@ -228,7 +343,7 @@ export class BacktestService {
       });
       const avgReturn = returns.reduce((a, b) => a + b, 0) / (returns.length || 1);
       const variance = returns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) / (returns.length || 1);
-      const sharpe = variance > 0 ? (avgReturn / Math.sqrt(variance)) * Math.sqrt(365) : 0;
+      const sharpe = variance > 0 ? (avgReturn / Math.sqrt(variance)) * Math.sqrt(8760) : 0;
 
       // Average win/loss
       const winTrades = trades.filter(t => t.pnl > 0);

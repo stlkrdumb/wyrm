@@ -140,7 +140,6 @@ export const SentimentPanel = memo(function SentimentPanel() {
                 <span className="text-xs font-bold text-zinc-300">
                   ${formatNumber(activeData.openInterest)}
                 </span>
-                <span className="text-[10px] text-zinc-600 block">USDT</span>
               </div>
             </div>
           </div>

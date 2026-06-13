@@ -3,6 +3,7 @@
 import { memo } from "react";
 import { Card, CardHeader, CardTitle, CardContent, Badge } from "@/shared/ui";
 import { DecisionPipeline } from "./decision-pipeline";
+import { RadialGauge } from "./radial-gauge";
 import type { SignalData, DecisionData } from "@/features/trading-agent/hooks/use-agent";
 
 function tickerFromSignalName(name: string): string {
@@ -14,9 +15,10 @@ function tickerFromSignalName(name: string): string {
 interface Props {
   signals: SignalData[];
   decision: DecisionData | null;
+  decisionSource?: "llm" | "heuristic" | null;
 }
 
-export const SignalPanel = memo(function SignalPanel({ signals, decision }: Props) {
+export const SignalPanel = memo(function SignalPanel({ signals, decision, decisionSource }: Props) {
   if (signals.length === 0 && !decision) {
     return (
       <Card>
@@ -44,7 +46,14 @@ export const SignalPanel = memo(function SignalPanel({ signals, decision }: Prop
     <Card>
       <CardHeader>
         <CardTitle>Decision Signals</CardTitle>
-        <div className="flex items-center gap-2 font-mono">{actionBadge()}</div>
+        <div className="flex items-center gap-2 font-mono">
+          {decisionSource === "heuristic" && (
+            <span className="text-[9px] font-bold tracking-widest uppercase text-yellow-400 bg-yellow-400/10 px-1.5 py-0.5 rounded border border-yellow-400/30">
+              FALLBACK
+            </span>
+          )}
+          {actionBadge()}
+        </div>
       </CardHeader>
       <CardContent>
         <DecisionPipeline
@@ -58,7 +67,7 @@ export const SignalPanel = memo(function SignalPanel({ signals, decision }: Prop
             action: "hold" as const, strength: 0, confidence: 0,
             reason: "System active. Standard monitoring mode.",
           };
-          const rsiMatch = activeDecision.reason.match(/RSI\s*\?(\d+(?:\.\d+)?)\)?/i);
+          const rsiMatch = activeDecision.reason.match(/RSI\s*(?:is|at|of)?\s*(\d+(?:\.\d+)?)/i);
           const rsi = rsiMatch ? parseFloat(rsiMatch[1]) : null;
           const topSignal = signals.reduce((best, s) =>
             Math.abs(s.strength) > Math.abs(best.strength) ? s : best, signals[0] ?? null
@@ -67,32 +76,52 @@ export const SignalPanel = memo(function SignalPanel({ signals, decision }: Prop
 
           return (
             <div className="mt-3 pt-3 border-t border-obsidian-border space-y-3 font-mono text-[12px]">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-zinc-500 uppercase text-[11px]">Decision Strength</span>
-                  {decisionTicker && (
-                    <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-obsidian-lighter text-zinc-400 border border-obsidian-border">
-                      {decisionTicker}
+              <div className="grid grid-cols-2 gap-3">
+                {/* Left: Confidence Radial Gauge */}
+                <div className="flex flex-col p-2.5 bg-obsidian-light/25 border border-obsidian-border/50 rounded gap-1.5">
+                  <div className="flex items-center justify-between text-[9px] text-zinc-500 uppercase font-bold tracking-wider">
+                    <span>Confidence</span>
+                    <span className="text-[10px] font-bold text-zinc-300 font-mono">
+                      {(activeDecision.confidence * 100).toFixed(0)}%
                     </span>
-                  )}
+                  </div>
+                  <div className="flex justify-center items-center mt-1">
+                    <RadialGauge value={activeDecision.confidence * 100} size={80} label="" />
+                  </div>
                 </div>
-                <span className={`font-bold ${activeDecision.strength > 0 ? "text-emerald-400" : activeDecision.strength < 0 ? "text-rose-400" : "text-zinc-500"}`}>
-                  {activeDecision.strength > 0 ? "+" : ""}{(activeDecision.strength * 100).toFixed(0)}%
-                </span>
-              </div>
 
-              <div className="w-full bg-obsidian-lighter rounded-full h-1 relative overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all duration-500 ${
-                    activeDecision.strength > 0 ? "bg-emerald-500" :
-                    activeDecision.strength < 0 ? "bg-rose-500" : "bg-zinc-600"
-                  }`}
-                  style={{
-                    width: `${Math.max(6, Math.abs(activeDecision.strength) * 50)}%`,
-                    marginLeft: activeDecision.strength >= 0 ? "50%" : `${50 - Math.abs(activeDecision.strength) * 50}%`
-                  }}
-                />
-                <div className="absolute left-1/2 top-0 w-0.5 h-full bg-obsidian-border" />
+                {/* Right: Conviction strength bar */}
+                <div className="flex flex-col p-2.5 bg-obsidian-light/25 border border-obsidian-border/50 rounded gap-2.5 justify-between">
+                  <div className="flex items-center justify-between text-[9px] text-zinc-500 uppercase font-bold tracking-wider">
+                    <span>Conviction</span>
+                    <div className="flex items-center gap-1.5">
+                      {decisionTicker && (
+                        <span className="px-1 py-0.2 rounded text-[8px] font-bold bg-obsidian-lighter text-zinc-500 border border-obsidian-border/40 font-mono">
+                          {decisionTicker}
+                        </span>
+                      )}
+                      <span className={`text-[10px] font-bold font-mono ${activeDecision.strength > 0 ? "text-emerald-400" : activeDecision.strength < 0 ? "text-rose-400" : "text-zinc-500"}`}>
+                        {activeDecision.strength > 0 ? "+" : ""}{(activeDecision.strength * 100).toFixed(0)}%
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex-grow flex flex-col justify-center py-2">
+                    <div className="w-full bg-obsidian-lighter rounded-full h-1 relative overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          activeDecision.strength > 0 ? "bg-emerald-500" :
+                          activeDecision.strength < 0 ? "bg-rose-500" : "bg-zinc-600"
+                        }`}
+                        style={{
+                          width: `${Math.max(6, Math.abs(activeDecision.strength) * 50)}%`,
+                          marginLeft: activeDecision.strength >= 0 ? "50%" : `${50 - Math.abs(activeDecision.strength) * 50}%`
+                        }}
+                      />
+                      <div className="absolute left-1/2 top-0 w-0.5 h-full bg-obsidian-border" />
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {rsi !== null && (
@@ -115,7 +144,7 @@ export const SignalPanel = memo(function SignalPanel({ signals, decision }: Prop
                 </div>
               )}
 
-              <p className="text-[12px] text-zinc-400 leading-relaxed italic font-sans">
+              <p className="text-[12px] text-zinc-400 leading-relaxed italic font-sans border-t border-obsidian-border/30 pt-2">
                 {activeDecision.reason}
               </p>
             </div>
@@ -128,6 +157,7 @@ export const SignalPanel = memo(function SignalPanel({ signals, decision }: Prop
   return (
     prev.signals.length === next.signals.length &&
     JSON.stringify(prev.decision) === JSON.stringify(next.decision) &&
-    prev.signals.every((s, i) => s.strength === next.signals[i]?.strength && s.direction === next.signals[i]?.direction)
+    prev.signals.every((s, i) => s.strength === next.signals[i]?.strength && s.direction === next.signals[i]?.direction) &&
+    prev.decisionSource === next.decisionSource
   );
 });

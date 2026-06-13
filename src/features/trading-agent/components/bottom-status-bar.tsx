@@ -1,5 +1,4 @@
 import { memo } from "react";
-import { Badge } from "@/shared/ui";
 import type { useAgent } from "@/features/trading-agent/hooks/use-agent";
 
 interface Props {
@@ -69,13 +68,31 @@ export const BottomStatusBar = memo(function BottomStatusBar({ agent }: Props) {
     );
   };
 
-  const uptime = lastCycleAt ? new Date(lastCycleAt).toLocaleTimeString() : "--:--:--";
+  const renderSSEBadge = () => {
+    if (state.sseConnected) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold tracking-wider uppercase bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+          SSE
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold tracking-wider uppercase bg-zinc-500/10 text-zinc-500 border border-zinc-500/20">
+        <span className="w-1.5 h-1.5 rounded-full bg-zinc-600" />
+        SSE
+      </span>
+    );
+  };
+
+  const uptime = lastCycleAt ? new Date(lastCycleAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }) : "--:--:--";
 
   return (
     <footer className="fixed bottom-0 left-0 right-0 z-50 border-t border-obsidian-border bg-obsidian-light/95 backdrop-blur-xl px-4 py-2 flex items-center justify-between text-[11px] font-mono">
       <div className="flex items-center gap-2">
         {renderBadge()}
         {renderWSBadge()}
+        {renderSSEBadge()}
         {state.circuitBreakerTripped && (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold tracking-wider uppercase bg-rose-500/10 text-rose-400 border border-rose-500/20 animate-pulse">
             BREAKER
@@ -89,7 +106,7 @@ export const BottomStatusBar = memo(function BottomStatusBar({ agent }: Props) {
         )}
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-4">
         <span className="text-zinc-600 tracking-widest uppercase">WYRM // V0.1.0</span>
       </div>
     </footer>

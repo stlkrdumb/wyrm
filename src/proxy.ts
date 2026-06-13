@@ -8,7 +8,6 @@ export default function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const authHeader = request.headers.get("authorization");
   const token = process.env.NEXT_PUBLIC_AUTH_TOKEN;
 
   if (!token) {
@@ -18,7 +17,10 @@ export default function proxy(request: NextRequest) {
     );
   }
 
-  if (!authHeader || authHeader !== `Bearer ${token}`) {
+  const authHeader = request.headers.get("authorization");
+  const queryToken = request.nextUrl.searchParams.get("token");
+
+  if (authHeader !== `Bearer ${token}` && queryToken !== token) {
     return NextResponse.json(
       { status: "error", message: "Unauthorized — invalid or missing Bearer token" },
       { status: 401 }
