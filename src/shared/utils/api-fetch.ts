@@ -16,8 +16,17 @@ export function apiFetch(url: string, init?: RequestInit): Promise<Response> {
     headers.set("Authorization", `Bearer ${TOKEN}`);
   }
   
-  // Prepend backend URL for absolute routing if it is set and the url is relative
-  const targetUrl = BACKEND_URL && url.startsWith("/") ? `${BACKEND_URL.replace(/\/$/, "")}${url}` : url;
+  // Dynamically resolve target backend host interface
+  let activeBackendUrl = BACKEND_URL;
+  if (!activeBackendUrl) {
+    // Fallback: assume backend is on port 3001 of the current page host
+    activeBackendUrl = `${window.location.protocol}//${window.location.hostname}:3001`;
+  } else if (activeBackendUrl.includes("localhost") && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
+    // Swap localhost with current network IP interface (e.g. 192.168.x.x) to avoid CORS block
+    activeBackendUrl = activeBackendUrl.replace("localhost", window.location.hostname);
+  }
+
+  const targetUrl = url.startsWith("/") ? `${activeBackendUrl.replace(/\/$/, "")}${url}` : url;
   
   return fetch(targetUrl, { ...init, headers });
 }
