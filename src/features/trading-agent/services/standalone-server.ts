@@ -22,12 +22,22 @@ import { backtestService } from "./backtest-service";
 const app = express();
 const PORT = process.env.BACKEND_PORT || 3001;
 
-app.use(cors({ origin: "*" }));
+app.use(cors({
+  origin: "*",
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
+
 app.use(express.json());
 
 // Bearer Token Middleware
 const AUTH_TOKEN = process.env.NEXT_PUBLIC_AUTH_TOKEN || "wyrm-hackathon-demo-2026";
 app.use((req, res, next) => {
+  // Allow browser preflight OPTIONS requests to bypass Bearer check
+  if (req.method === "OPTIONS") {
+    return next();
+  }
+
   const authHeader = req.headers.authorization;
   if (AUTH_TOKEN) {
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
