@@ -29,6 +29,15 @@ app.use(cors({
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
 
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on("finish", () => {
+    const duration = Date.now() - start;
+    console.log(`[Backend REST] ${req.method} ${req.url} - ${res.statusCode} (${duration}ms) (Origin: ${req.headers.origin || "none"})`);
+  });
+  next();
+});
+
 app.use(express.json());
 
 // Bearer Token Middleware
