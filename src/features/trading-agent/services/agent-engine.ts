@@ -321,3 +321,10 @@ export function updateCircuitBreakerThreshold(pct: number): void {
   const st = getState();
   if (pct >= 1 && pct <= 50) st.circuitBreakerThresholdPct = pct;
 }
+
+export function resetInMemoryState(): void {
+  const fresh = buildInitialState();
+  if (state) {
+    Object.assign(state, fresh);
+  }
+}

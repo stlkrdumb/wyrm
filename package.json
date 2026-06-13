@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "backend": "tsx src/features/trading-agent/services/standalone-server.ts",
+    "control": "tsx scripts/control-panel.ts"
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "^2.0.48",
@@ -15,8 +17,10 @@
     "ai": "^6.0.197",
     "bitget-client": "^1.1.1",
     "clsx": "^2.1.1",
+    "cors": "^2.8.6",
     "date-fns": "^4.4.0",
     "dotenv": "^17.4.2",
+    "express": "^5.2.1",
     "https-proxy-agent": "^9.1.0",
     "lucide-react": "^1.17.0",
     "next": "16.2.7",
@@ -30,6 +34,8 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
@@ -37,6 +43,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.7",
     "tailwindcss": "^4",
+    "tsx": "^4.22.4",
     "typescript": "^5"
   }
 }
