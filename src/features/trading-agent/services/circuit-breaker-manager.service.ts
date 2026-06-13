@@ -1,6 +1,7 @@
 import { config } from "./state-store";
 import type { AgentState } from "@/features/trading-agent/services/state-store";
 import { saveBalanceState, type PortfolioState } from "./balance-store";
+import { flattenPositions } from "./order-executor.service";
 
 function buildSavePayload(state: AgentState): PortfolioState {
   const savedPositions: Array<{ symbol: string; side: "long" | "short"; size: number; entryPrice: number; stopLossPct: number; takeProfitPct: number }> =
@@ -38,7 +39,11 @@ export function checkCircuitBreaker(state: AgentState): void {
     state.executionReason = `BREAKER TRIPPED: Drawdown of ${drawdownPct.toFixed(2)}% exceeded limit of ${state.circuitBreakerThresholdPct}%`;
     console.warn(`[Agent] [CIRCUIT BREAKER] DRAWDOWN EXCEEDED LIMIT! Tripping circuit breaker and emergency flattening all positions.`);
 
-    // Note: flattenPositions is called externally by the lifecycle service
+    // Trigger emergency position flattening
+    flattenPositions(state).catch(err => {
+      console.error("[CircuitBreaker] Failed to flatten positions on trip:", err instanceof Error ? err.message : String(err));
+    });
+
     try {
       saveBalanceState(buildSavePayload(state));
     } catch (err) {

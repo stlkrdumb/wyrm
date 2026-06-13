@@ -23,7 +23,7 @@ function parseTicker(resp: Record<string, unknown>, symbol: string): TickerData 
 
   return {
     symbol,
-    lastPrice: Math.round(lastPrice * 100) / 100, // keep cents precision
+    lastPrice,
     high24h,
     low24h,
     volume24h: quoteVolume,

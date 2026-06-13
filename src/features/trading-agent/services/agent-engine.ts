@@ -13,6 +13,7 @@ import { riskManager } from "./risk-manager.service";
 import { historyService } from "./history-service";
 import { loadBalanceState, saveBalanceState } from "./balance-store";
 import { marketWS } from "./market-ws.service";
+import { checkCircuitBreaker } from "./circuit-breaker-manager.service";
 
 // Load .env.local to ensure env vars are available
 dotenv.config({ path: path.join(process.cwd(), ".env.local"), override: false });
@@ -143,6 +144,7 @@ export function updatePositionUnrealizedPnL(symbol: string, currentPrice: number
   const unrealizedPnL = (currentPrice - pos.entryPrice) * pos.size;
   st.positions[idx] = { ...pos, unrealizedPnL };
   recalcEquity(st);
+  checkCircuitBreaker(st);
 
   // Use per-position SL/TP with global config as fallback
   const slPct = pos.stopLossPct ?? config.stopLossPct;
@@ -356,6 +358,7 @@ export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ ticker
 
   // Record equity snapshot for chart history
   recalcEquity(st);
+  checkCircuitBreaker(st);
   st.equityHistory.push({ timestamp: new Date(), equity: st.portfolio.equity });
   if (st.equityHistory.length > 500) st.equityHistory.splice(0, st.equityHistory.length - 500);
 
@@ -416,7 +419,7 @@ export async function setAgentStatus(s: "running" | "stopped" | "paused"): Promi
   const st = getState();
   st.status = s;
 
-  if (s !== "paused" && s !== "stopped") return {};
+  if (s !== "stopped") return {};
 
   // Snapshot positions BEFORE any await — WS ticks can splice positions during the await
   const snapshot = st.positions.filter(p => p.size > 0).map(p => ({
@@ -498,4 +501,9 @@ export function resetCircuitBreaker(): void {
 export function updateCircuitBreakerThreshold(pct: number): void {
   const st = getState();
   if (pct >= 1 && pct <= 50) st.circuitBreakerThresholdPct = pct;
+}
+
+export function resetInMemoryState(): void {
+  const fresh = buildInitialState();
+  Object.assign(state, fresh);
 }

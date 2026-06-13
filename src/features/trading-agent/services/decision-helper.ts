@@ -680,6 +680,7 @@ export function fallbackMultiAnalysis(
       strength,
       confidence: Math.min(1, Math.abs(strength)),
       reason: `Fallback Heuristic: RSI 1h(${t1h.rsi.toFixed(0)}) 5m(${t5m.rsi.toFixed(0)}) | BB ${t1h.close < t1h.bollLower ? "below lower" : t1h.close > t1h.bollUpper ? "above upper" : "within"} | MACD ${t1h.macdHist > 0 ? "bullish" : "bearish"}`,
+      ...(action === "buy" ? { riskProfile: "normal" } : {}),
     };
 
     allSignals.push({
