@@ -74,8 +74,23 @@ export function usePriceStream(): PriceStreamState {
   function connect() {
     if (!mountedRef.current) return;
 
-    const es = createEventSource();
-    esRef.current = es;
+    let es: EventSource;
+    try {
+      es = createEventSource();
+      esRef.current = es;
+    } catch (err) {
+      console.error("[SSE] Failed to initialize EventSource:", err);
+      setConnected(false);
+      esRef.current = null;
+      if (!mountedRef.current) return;
+      const delay = RECONNECT_BACKOFF_MS[Math.min(reconnectAttempt.current, RECONNECT_BACKOFF_MS.length - 1)];
+      reconnectAttempt.current++;
+      connectTimerRef.current = setTimeout(() => {
+        connectTimerRef.current = null;
+        connect();
+      }, delay);
+      return;
+    }
 
     es.addEventListener("hello", () => {
       reconnectAttempt.current = 0;
