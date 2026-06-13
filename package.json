@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "backend": "tsx src/features/trading-agent/services/standalone-server.ts",
-    "control": "tsx scripts/control-panel.ts"
+    "control": "tsx scripts/control-panel.ts",
+    "postinstall": "node scripts/fix-deps.js"
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "^2.0.48",
