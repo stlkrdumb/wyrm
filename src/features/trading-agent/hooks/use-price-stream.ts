@@ -22,10 +22,18 @@ const STALE_THRESHOLD_MS = 10_000;
 
 function createEventSource(): EventSource {
   const token = process.env.NEXT_PUBLIC_AUTH_TOKEN ?? "";
-  const url = token
-    ? `/api/agent/stream?token=${encodeURIComponent(token)}`
-    : "/api/agent/stream";
-  return new EventSource(url);
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL ?? "";
+  
+  let path = "/api/agent/stream";
+  if (token) {
+    path += `?token=${encodeURIComponent(token)}`;
+  }
+  
+  const targetUrl = backendUrl 
+    ? `${backendUrl.replace(/\/$/, "")}${path}` 
+    : path;
+
+  return new EventSource(targetUrl);
 }
 
 export function usePriceStream(): PriceStreamState {

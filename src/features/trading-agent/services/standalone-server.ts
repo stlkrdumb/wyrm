@@ -18,6 +18,7 @@ import { newsService } from "./news.service";
 import { resetBalanceState } from "./balance-store";
 import { historyService } from "./history-service";
 import { backtestService } from "./backtest-service";
+import { agentEvents } from "./agent-events";
 
 const app = express();
 const PORT = process.env.BACKEND_PORT || 3001;
@@ -338,6 +339,33 @@ app.post("/api/agent/backtest", async (req, res) => {
   const { initialEquity } = req.body;
   const result = await backtestService.runBacktest(initialEquity);
   res.json(result);
+});
+
+// GET /api/agent/stream (SSE)
+app.get("/api/agent/stream", (req, res) => {
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache, no-transform",
+    "Connection": "keep-alive",
+    "X-Accel-Buffering": "no",
+  });
+
+  res.write(`event: hello\ndata: ${JSON.stringify({ timestamp: Date.now() })}\n\n`);
+
+  const onPrice = (payload: any) => {
+    res.write(`event: price\ndata: ${JSON.stringify(payload)}\n\n`);
+  };
+
+  agentEvents.onPrice(onPrice);
+
+  const heartbeat = setInterval(() => {
+    res.write(`event: ping\ndata: ${Date.now()}\n\n`);
+  }, 15000);
+
+  req.on("close", () => {
+    clearInterval(heartbeat);
+    agentEvents.offPrice(onPrice);
+  });
 });
 
 const server = http.createServer(app);
