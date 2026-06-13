@@ -24,25 +24,25 @@ function createEventSource(): EventSource {
   const token = process.env.NEXT_PUBLIC_AUTH_TOKEN ?? "";
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL ?? "";
   
-  let activeBackendUrl = backendUrl;
-  if (!activeBackendUrl) {
-    // Fallback: assume backend is on port 3001 of the current page host
-    activeBackendUrl = `${window.location.protocol}//${window.location.hostname}:3001`;
-  } else if (
-    activeBackendUrl.includes("localhost") &&
-    window.location.hostname !== "localhost" &&
-    window.location.hostname !== "127.0.0.1"
-  ) {
-    // Swap localhost with current network IP interface (e.g. 192.168.x.x) to avoid CORS block
-    activeBackendUrl = activeBackendUrl.replace("localhost", window.location.hostname);
-  }
-  
   let path = "/api/agent/stream";
   if (token) {
     path += `?token=${encodeURIComponent(token)}`;
   }
-  
-  const targetUrl = `${activeBackendUrl.replace(/\/$/, "")}${path}`;
+
+  const isLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+  let targetUrl = "";
+
+  if (isLocalhost) {
+    let activeBackendUrl = backendUrl;
+    if (!activeBackendUrl) {
+      // Fallback: assume backend is on port 3001 of the current page host
+      activeBackendUrl = `${window.location.protocol}//${window.location.hostname}:3001`;
+    }
+    targetUrl = `${activeBackendUrl.replace(/\/$/, "")}${path}`;
+  } else {
+    // Relative path (port 3000 proxy)
+    targetUrl = path;
+  }
 
   return new EventSource(targetUrl);
 }

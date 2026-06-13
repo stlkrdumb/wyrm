@@ -16,17 +16,19 @@ export function apiFetch(url: string, init?: RequestInit): Promise<Response> {
     headers.set("Authorization", `Bearer ${TOKEN}`);
   }
   
-  // Dynamically resolve target backend host interface
-  let activeBackendUrl = BACKEND_URL;
-  if (!activeBackendUrl) {
-    // Fallback: assume backend is on port 3001 of the current page host
-    activeBackendUrl = `${window.location.protocol}//${window.location.hostname}:3001`;
-  } else if (activeBackendUrl.includes("localhost") && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
-    // Swap localhost with current network IP interface (e.g. 192.168.x.x) to avoid CORS block
-    activeBackendUrl = activeBackendUrl.replace("localhost", window.location.hostname);
-  }
+  const isLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+  let targetUrl = url;
 
-  const targetUrl = url.startsWith("/") ? `${activeBackendUrl.replace(/\/$/, "")}${url}` : url;
+  if (isLocalhost) {
+    let activeBackendUrl = BACKEND_URL;
+    if (!activeBackendUrl) {
+      activeBackendUrl = `${window.location.protocol}//${window.location.hostname}:3001`;
+    }
+    targetUrl = url.startsWith("/") ? `${activeBackendUrl.replace(/\/$/, "")}${url}` : url;
+  } else {
+    // Relative URL: routes through the Next.js port 3000 proxy rewrite
+    targetUrl = url;
+  }
   
   return fetch(targetUrl, {
     cache: "no-store",
