@@ -28,5 +28,9 @@ export function apiFetch(url: string, init?: RequestInit): Promise<Response> {
 
   const targetUrl = url.startsWith("/") ? `${activeBackendUrl.replace(/\/$/, "")}${url}` : url;
   
-  return fetch(targetUrl, { ...init, headers });
+  return fetch(targetUrl, {
+    cache: "no-store",
+    ...init,
+    headers,
+  });
 }
