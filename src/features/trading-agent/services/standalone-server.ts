@@ -105,17 +105,19 @@ app.post("/api/agent/cycle", async (req, res) => {
     const ci = marketWS.getConnectionInfo();
     if (ci.type === "fallback") {
       wsStatus = "reconnecting";
-    } else if (allSnapshots.size === 0) {
-      wsStatus = "reconnecting";
     } else {
       const activeSymbols = new Set([
         ...currentState.watchlist,
         ...currentState.positions.map(p => p.symbol),
       ]);
-      const anyActiveStale = activeSymbols.size > 0 && [...allSnapshots.entries()]
-        .filter(([symbol]) => activeSymbols.has(symbol))
-        .some(([, s]) => Date.now() - s.updatedAt.getTime() > WS_STALENESS_THRESHOLD_MS);
-      if (anyActiveStale) wsStatus = "reconnecting";
+      const activeSnapshots = [...allSnapshots.entries()]
+        .filter(([symbol]) => activeSymbols.has(symbol));
+      if (activeSymbols.size > 0 && activeSnapshots.length > 0) {
+        const isAnyActiveStale = activeSnapshots.some(([, s]) =>
+          Date.now() - s.updatedAt.getTime() > WS_STALENESS_THRESHOLD_MS
+        );
+        if (isAnyActiveStale) wsStatus = "reconnecting";
+      }
     }
 
     res.json({
@@ -153,17 +155,23 @@ app.get("/api/agent/cycle", (req, res) => {
   const ci = marketWS.getConnectionInfo();
   if (ci.type === "fallback") {
     wsStatus = "reconnecting";
-  } else if (allSnapshots.size === 0) {
-    wsStatus = currentState.lastCycleAt ? "reconnecting" : "connecting";
   } else {
     const activeSymbols = new Set([
       ...currentState.watchlist,
       ...currentState.positions.map(p => p.symbol),
     ]);
-    const anyActiveStale = activeSymbols.size > 0 && [...allSnapshots.entries()]
-      .filter(([symbol]) => activeSymbols.has(symbol))
-      .some(([, s]) => Date.now() - s.updatedAt.getTime() > WS_STALENESS_THRESHOLD_MS);
-    if (anyActiveStale) wsStatus = "reconnecting";
+    const activeSnapshots = [...allSnapshots.entries()]
+      .filter(([symbol]) => activeSymbols.has(symbol));
+    if (activeSymbols.size > 0 && activeSnapshots.length > 0) {
+      const isAnyActiveStale = activeSnapshots.some(([, s]) =>
+        Date.now() - s.updatedAt.getTime() > WS_STALENESS_THRESHOLD_MS
+      );
+      if (isAnyActiveStale) {
+        wsStatus = "reconnecting";
+      }
+    } else if (allSnapshots.size === 0 && !currentState.lastCycleAt) {
+      wsStatus = "connecting";
+    }
   }
 
   const livePositions = currentState.positions.map((p) => {
