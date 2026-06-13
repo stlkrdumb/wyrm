@@ -161,7 +161,12 @@ export class MarketWebSocketService {
     try {
       await new Promise<void>((resolve, reject) => {
         const agent = getProxyAgentForWS(this.proxyIndex);
-        const options = agent ? { agent } : {};
+        const options: Record<string, any> = agent ? { agent } : {};
+
+        // If local ISP hijacks DNS or filters connection, allow disabling TLS reject verification via env config
+        if (process.env.WS_REJECT_UNAUTHORIZED === "false" || process.env.NODE_ENV === "development" || process.env.NODE_TLS_REJECT_UNAUTHORIZED === "0") {
+          options.rejectUnauthorized = false;
+        }
 
         if (agent) {
           const proxyUrl = PROXIES[this.proxyIndex % PROXIES.length];
