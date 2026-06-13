@@ -102,7 +102,44 @@ npm run dev
 
 ## 🏃 Controlling the Agent
 
-All agent control is via API (no UI buttons — intended for hackathon/public deployment).
+Use the included `wyrmctl` CLI so you don't have to remember `curl` incantations.
+
+```bash
+# Start / pause / stop
+npm run wyrmctl start
+npm run wyrmctl pause
+npm run wyrmctl stop
+
+# Read current state
+npm run wyrmctl status
+
+# Run one manual cycle
+npm run wyrmctl cycle
+
+# Update strategy from a JSON file
+npm run wyrmctl strategy-set -f strategy.json
+
+# Or update strategy inline
+npm run wyrmctl strategy-set \
+  --persona "Aggressive scalper" \
+  --instructions "Only enter on confirmed breakouts..." \
+  --pct 10
+
+# Reset circuit breaker
+npm run wyrmctl breaker-reset
+
+# Run backtest
+npm run wyrmctl backtest -e 1000
+
+# Reset all state
+npm run wyrmctl reset
+```
+
+`wyrmctl` reads `NEXT_PUBLIC_AUTH_TOKEN` and `AGENT_BASE_URL` from `.env.local`.
+Override with `--token` or `--base-url`.
+
+<details>
+<summary>Equivalent curl commands</summary>
 
 ```bash
 # Start (opens WebSocket, begins cycles after 20s warmup)
@@ -143,6 +180,7 @@ curl -X POST "localhost:3000/api/agent/backtest" \
 curl -X POST "localhost:3000/api/agent/reset" \
   -H "Authorization: Bearer example-bearer-token"
 ```
+</details>
 
 ### API Reference
 
