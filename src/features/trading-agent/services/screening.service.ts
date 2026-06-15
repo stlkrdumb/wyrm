@@ -36,7 +36,7 @@ async function fetchRawTickers(): Promise<RawTicker[]> {
       symbol,
       lastPrice,
       volume24h: Number(t.volValue24h ?? t.quoteVolume ?? t.volumeValue24h ?? "0"),
-      change24hPercent: Number((Number(t.changeUtc24h ?? t.priceRate ?? t.changingPercent24h ?? "0") * 100).toFixed(2)),
+      change24hPercent: Number((Number(t.change24h ?? t.changeUtc24h ?? t.priceRate ?? t.changingPercent24h ?? "0") * 100).toFixed(2)),
     });
   }
 

@@ -13,6 +13,7 @@ export interface WSTickerRaw {
   quoteVol?: string;
   volValue24h?: string;
   priceRate?: string;
+  change24h?: string;
   changeUtc24h?: string;
   cap24hSwing?: string;
   ts?: string;
@@ -33,11 +34,12 @@ export function parseTicker(raw: WSTickerRaw): PriceSnapshot | null {
 
   const changePct = (() => {
     let p: number;
-    if (raw.priceRate) p = Number(raw.priceRate) * 100;
+    if (raw.change24h) p = Number(raw.change24h) * 100;
+    else if (raw.priceRate) p = Number(raw.priceRate) * 100;
     else if (raw.changeUtc24h) p = Number(raw.changeUtc24h) * 100;
     else if (raw.cap24hSwing) p = Number(raw.cap24hSwing) * 100;
     else return 0;
-    return Math.round(p);
+    return Number(p.toFixed(2));
   })();
 
   let ts = Date.now();

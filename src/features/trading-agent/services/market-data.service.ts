@@ -16,7 +16,7 @@ function parseTicker(resp: Record<string, unknown>, symbol: string): TickerData 
   const high24h = Number(ticker.high24h ?? ticker.high ?? "0");
   const low24h = Number(ticker.low24h ?? ticker.low ?? "0");
   const quoteVolume = Number(ticker.volValue24h ?? ticker.quoteVolume ?? ticker.volumeValue24h ?? "0");
-  const changePctRaw = Number(ticker.changeUtc24h ?? ticker.priceRate ?? ticker.changingPercent24h ?? "0");
+  const changePctRaw = Number(ticker.change24h ?? ticker.changeUtc24h ?? ticker.priceRate ?? ticker.changingPercent24h ?? "0");
   const ts = Number(ticker.ts ?? ticker.time ?? Date.now());
 
   if (lastPrice <= 0) return null;
