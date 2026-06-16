@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect, useRef } from "react";
+import { memo, useMemo, useState, useEffect, useRef } from "react";
 import {
   createChart,
   AreaSeries,
@@ -78,7 +78,7 @@ function filterByTimeframe(equityHistory: { timestamp: string; equity: number }[
     .sort((a, b) => (a.time as number) - (b.time as number));
 }
 
-export function EquityChart({ portfolio, equityCurve, equityHistory, everConnected = true }: Props) {
+export const EquityChart = memo(function EquityChart({ portfolio, equityCurve, equityHistory, everConnected = true }: Props) {
   const [mounted, setMounted] = useState(false);
   const [timeframe, setTimeframe] = useState<TimeframeKey>("1h");
 
@@ -325,4 +325,4 @@ export function EquityChart({ portfolio, equityCurve, equityHistory, everConnect
       </CardContent>
     </Card>
   );
-}
+});

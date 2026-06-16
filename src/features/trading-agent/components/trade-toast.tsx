@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { memo, useEffect, useState, useRef } from "react";
 import { Badge } from "@/shared/ui";
 import type { TradeData } from "@/features/trading-agent/hooks/use-agent";
 
@@ -22,7 +22,7 @@ const actionLabel: Record<string, string> = {
   entry: "BOUGHT", exit: "SOLD", add: "ADDED", reduce: "REDUCED",
 };
 
-export function TradeToast({ trades }: Props) {
+export const TradeToast = memo(function TradeToast({ trades }: Props) {
   const [toasts, setToasts] = useState<ToastTrade[]>([]);
   const lastTradeCountRef = useRef(trades.length);
 
@@ -76,4 +76,4 @@ export function TradeToast({ trades }: Props) {
       ))}
     </div>
   );
-}
+});

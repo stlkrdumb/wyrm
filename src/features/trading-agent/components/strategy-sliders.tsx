@@ -1,5 +1,7 @@
 "use client";
 
+import { memo } from "react";
+
 interface SlidersProps {
   orderSize: number;
   setOrderSize: (v: number) => void;
@@ -15,7 +17,7 @@ interface SlidersProps {
   setConvictionThreshold: (v: number) => void;
 }
 
-export function StrategySliders({
+export const StrategySliders = memo(function StrategySliders({
   orderSize,
   setOrderSize,
   cycleInterval,
@@ -114,4 +116,4 @@ export function StrategySliders({
       </div>
     </div>
   );
-}
+});

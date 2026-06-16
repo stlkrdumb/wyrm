@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { memo, useState } from "react";
 import { Shield, RefreshCw, AlertTriangle } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button, Progress } from "@/shared/ui";
 
@@ -12,7 +12,7 @@ interface Props {
   resetBreaker: () => Promise<void>;
 }
 
-export function CircuitBreakerPanel({
+export const CircuitBreakerPanel = memo(function CircuitBreakerPanel({
   circuitBreakerTripped, circuitBreakerThresholdPct, peakEquity, currentEquity, resetBreaker,
 }: Props) {
   const [isResetting, setIsResetting] = useState(false);
@@ -125,4 +125,4 @@ export function CircuitBreakerPanel({
         </CardContent>
     </Card>
   );
-}
+});
