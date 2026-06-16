@@ -48,3 +48,6 @@ __pycache__/
 
 # local data database
 /.data/
+
+# Hackathon Submission Plan
+SUBMISSION_HACKATHON.md
