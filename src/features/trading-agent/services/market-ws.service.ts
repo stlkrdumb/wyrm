@@ -1,235 +1,82 @@
-import type { PriceSnapshot } from "./price-store";
-import { updatePositionUnrealizedPnL, getAgentState } from "./agent-engine";
+import { WSSubscription, WebSocketConnection } from "./market-ws/connection";
+import { SubscriptionManager } from "./market-ws/subscriptions";
+import { CycleScheduler } from "./market-ws/cycle-scheduler";
+import { processWsMessage } from "./market-ws/message-processor";
+import { getAgentState } from "./agent-engine";
 import { priceStore, type PriceStore } from "./price-store";
 import { config } from "./agent-engine";
-import { agentEvents } from "./agent-events";
-import { WebSocket as WSClient } from "ws";
-import { getProxyAgentForWS, PROXIES, mask } from "./proxy-client";
-import { bitgetClient } from "@/lib/bitget-client";
-import { dispatchWsMessage } from "./ws-helpers";
 
-export interface WSSubscription {
-  instType: "SPOT";
-  channel: "ticker" | `candle${string}`;
-  instId: string;
-}
-
-
+export type { WSSubscription } from "./market-ws/connection";
 
 export class MarketWebSocketService {
-  private ws: WSClient | null = null;
-  private subscriptions: WSSubscription[] = [];
-  private pingTimer: ReturnType<typeof setInterval> | null = null;
+  private connection = new WebSocketConnection();
+  private subscriptions = new SubscriptionManager(() => this.connection.getWebSocket());
+  private cycleScheduler = new CycleScheduler();
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private reconnectAttempt = 0;
   private maxReconnectDelay = 30_000;
   private baseReconnectDelay = 1_000;
-  private proxyIndex = 0;
-  private cycleTimer: ReturnType<typeof setTimeout> | null = null;
-  private cycleInFlight = false;
-  private agentCycleHandler: (() => Promise<void>) | null = null;
+
+  constructor() {
+    // Wire up connection callbacks
+    this.connection.setMessageHandler((msg) => processWsMessage(msg));
+    this.connection.setReconnectHandler(() => this.scheduleReconnect());
+  }
 
   setAgentCycleHandler(handler: () => Promise<void>) {
-    this.agentCycleHandler = handler;
-    if (!this.cycleTimer) {
-      const warmupMs = 20_000;
-      const intervalMs = config.cycleIntervalMs;
-      console.log(`[WS] Agent cycle timer started (warmup ${warmupMs / 1000}s, every ${(intervalMs / 1000).toFixed(0)}s)`);
-      this.scheduleNextCycle(warmupMs);
-    }
+    this.cycleScheduler.setAgentCycleHandler(handler);
   }
 
   stopAgentCycles() {
-    if (this.cycleTimer) {
-      clearTimeout(this.cycleTimer);
-      this.cycleTimer = null;
-    }
-    this.cycleInFlight = false;
-    this.agentCycleHandler = null;
-    console.log("[WS] Agent cycle timer stopped");
+    this.cycleScheduler.stopAgentCycles();
   }
 
-  private scheduleNextCycle(delayMs: number) {
-    // Guard against leaked previous timers
-    if (this.cycleTimer) {
-      clearTimeout(this.cycleTimer);
-    }
-    this.cycleTimer = setTimeout(() => {
-      this.cycleTimer = null;
-      this.runCycle();
-    }, delayMs);
-  }
-
-  private async runCycle() {
-    if (this.cycleInFlight) {
-      console.warn("[WS] Cycle still in flight — skipping this tick");
-      this.scheduleNextCycle(config.cycleIntervalMs);
-      return;
-    }
-    if (!this.agentCycleHandler) return;
-
-    this.cycleInFlight = true;
-    let timeoutTimer: ReturnType<typeof setTimeout> | null = null;
-    try {
-      await Promise.race([
-        this.agentCycleHandler(),
-        new Promise<never>((_, reject) => {
-          timeoutTimer = setTimeout(() => reject(new Error("Cycle timed out after 90s")), 90_000);
-        }),
-      ]);
-    } catch (err) {
-      console.error("[AGENT CYCLE] Cycle failed or timed out:", err instanceof Error ? err.message : String(err));
-    } finally {
-      if (timeoutTimer) clearTimeout(timeoutTimer);
-      this.cycleInFlight = false;
-    }
-
-    const intervalMs = config.cycleIntervalMs;
-    // Use the full interval for the next cycle — a 100ms minimum was producing
-    // double-fire patterns. Drift is naturally corrected by wall-clock subtraction.
-    const nextDelay = Math.max(intervalMs, 1000);
-    this.scheduleNextCycle(nextDelay);
-  }
-
-
-  getConnectionInfo(): { type: "direct" | "proxy" | "fallback"; proxy: string | null } {
-    if (this.ws && this.ws.readyState === WSClient.OPEN) {
-      const proxyUrl = PROXIES.length > 0 ? PROXIES[this.proxyIndex % PROXIES.length] : null;
-      return {
-        type: proxyUrl ? "proxy" : "direct",
-        proxy: proxyUrl ? mask(proxyUrl) : null,
-      };
-    }
-    return { type: "fallback", proxy: null };
-  }
-
-  /** Send unsubscribe for channels no longer in the new set */
-  private sendUnsubscribe(removed: WSSubscription[]): void {
-    if (!this.ws || this.ws.readyState !== WSClient.OPEN || removed.length === 0) return;
-    try {
-      const msg = JSON.stringify({ op: "unsubscribe", args: removed });
-      this.ws.send(msg);
-      console.log("[WS] Unsubscribe:", removed.map(c => `${c.channel}/${c.instId}`).join(", "));
-    } catch (err) {
-      console.warn("[WS] Unsubscribe send failed:", err instanceof Error ? err.message : String(err));
-    }
+  getConnectionInfo() {
+    return this.connection.getConnectionInfo();
   }
 
   async subscribe(channels: WSSubscription[]): Promise<void> {
-    // Compute the diff: only subscribe to NEW channels, only unsubscribe from REMOVED ones.
-    // Once a symbol is subscribed and the WS connection stays alive (kept by ping every 30s),
-    // the server keeps pushing ticks. Re-subscribing the same symbol every cycle is wasteful.
-    const newKeys = new Set(channels.map(c => `${c.channel}:${c.instId}`));
-    const oldKeys = new Set(this.subscriptions.map(c => `${c.channel}:${c.instId}`));
-
-    const removed = this.subscriptions.filter(c => !newKeys.has(`${c.channel}:${c.instId}`));
-    const added = channels.filter(c => !oldKeys.has(`${c.channel}:${c.instId}`));
-
-    // No-op when the subscription set is unchanged
+    const { added, removed } = this.subscriptions.updateSubscriptions(channels);
     if (added.length === 0 && removed.length === 0) return;
 
-    this.subscriptions = channels;
     console.log(`[WS] Subscribing to ${channels.length} channel(s):`, channels.map(c => `${c.instType}/${c.channel}/${c.instId}`).join(", "));
 
-    if (!this.ws || this.ws.readyState === WSClient.CLOSED) {
+    if (!this.connection.isOpen()) {
       await this.connect();
-    } else if (this.ws.readyState === WSClient.OPEN) {
-      if (removed.length > 0) this.sendUnsubscribe(removed);
-      if (added.length > 0) this.sendSubscribe(added);
     } else {
-      // CONNECTING or CLOSING — subscriptions are stored; the 'open' handler will re-send them.
-      console.warn(`[WS] subscribe() called while socket is ${this.ws.readyState === WSClient.CONNECTING ? "connecting" : "closing"} — queued for open`);
+      if (removed.length > 0) this.subscriptions.sendUnsubscribe(removed);
+      if (added.length > 0) this.subscriptions.sendSubscribe(added);
     }
   }
 
   disconnect(): void {
-    this.clearPingTimer();
+    this.stopAgentCycles();
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
-    if (this.ws) {
-      this.ws.onclose = null;
-      this.ws.close(1000, "manual shutdown");
-      this.ws = null;
-    }
+    this.connection.disconnect();
   }
 
   private async connect(): Promise<void> {
-    console.log("[WS] Connecting to wss://ws.bitget.com/v2/ws/public...");
-
-    try {
-      await new Promise<void>((resolve, reject) => {
-        const agent = getProxyAgentForWS(this.proxyIndex);
-        const options: Record<string, any> = agent ? { agent } : {};
-
-        // If local ISP hijacks DNS or filters connection, allow disabling TLS reject verification via env config
-        if (process.env.WS_REJECT_UNAUTHORIZED === "false" || process.env.NODE_ENV === "development" || process.env.NODE_TLS_REJECT_UNAUTHORIZED === "0") {
-          options.rejectUnauthorized = false;
-        }
-
-        if (agent) {
-          const proxyUrl = PROXIES[this.proxyIndex % PROXIES.length];
-          console.log(`[WS] Routing through proxy: ${mask(proxyUrl)}`);
-        }
-
-        const ws = new WSClient("wss://ws.bitget.com/v2/ws/public", options);
-
-        ws.on("open", () => {
-          if (agent) {
-            const proxyUrl = PROXIES[this.proxyIndex % PROXIES.length];
-            console.log(`[WS] Connected ✓ (via ${mask(proxyUrl)})`);
-          } else {
-            console.log("[WS] Connected ✓ (direct)");
-          }
-          this.reconnectAttempt = 0;
-          this.ws = ws;
-          if (this.subscriptions.length > 0) {
-            this.sendSubscribe(this.subscriptions);
-          }
-          this.startPingTimer();
-          resolve();
-        });
-
-        ws.on("message", (data) => {
-          try { this.processWsMsg(data.toString("utf-8")); } catch (err) { console.error("[WS] Handler error:", err); }
-        });
-
-        ws.on("error", (err) => {
-          console.warn("[WS] Socket error:", err.message);
-        });
-
-        ws.on("close", (code) => {
-          // Only null the reference if this is still the current socket — prevents
-          // a late close event from a replaced connection destroying the new one
-          if (this.ws === ws) this.ws = null;
-          this.clearPingTimer();
-          if (code !== 1000) {
-            if (PROXIES.length > 0) {
-              this.proxyIndex = (this.proxyIndex + 1) % PROXIES.length;
-            }
-            this.scheduleReconnect();
-          }
-        });
-
-        const timeout = setTimeout(() => {
-          ws.terminate();
-          reject(new Error("WS connection timed out (10s)"));
-        }, 10_000);
-        ws.once("open", () => clearTimeout(timeout));
-      });
-    } catch (err) {
-      if (PROXIES.length > 0) {
-        this.proxyIndex = (this.proxyIndex + 1) % PROXIES.length;
-        console.warn(`[WS] Connection failed (proxy) — trying next proxy:`, err instanceof Error ? err.message : String(err));
-      } else {
-        console.warn(`[WS] Connection failed:`, err instanceof Error ? err.message : String(err));
-      }
-      this.scheduleReconnect();
+    if (this.connection.isOpen()) {
+      // Re-send subscriptions if reconnecting
+      const subs = this.subscriptions.getSubscriptions();
+      if (subs.length > 0) this.subscriptions.sendSubscribe(subs);
+      return;
     }
+    if (this.connection.isConnecting()) {
+      // Wait for pending connection
+      return;
+    }
+
+    await this.connection.connect();
+    // Resend subscriptions after connect
+    const subs = this.subscriptions.getSubscriptions();
+    if (subs.length > 0) this.subscriptions.sendSubscribe(subs);
   }
 
-  private async scheduleReconnect(): Promise<void> {
+  private scheduleReconnect(): void {
     if (this.reconnectTimer) return;
 
     const delay = Math.min(
@@ -249,113 +96,21 @@ export class MarketWebSocketService {
     }, delay);
   }
 
-  private sendSubscribe(channels: WSSubscription[]): void {
-    if (!this.ws || this.ws.readyState !== WSClient.OPEN) return;
-    try {
-      const msg = JSON.stringify({ op: "subscribe", args: channels });
-      this.ws.send(msg);
-      console.log("[WS] Subscribe:", channels.map(c => `${c.channel}/${c.instId}`).join(", "));
-    } catch (err) {
-      console.warn("[WS] Subscribe send failed:", err instanceof Error ? err.message : String(err));
-    }
-  }
-
-  private processWsMsg(data: string): void {
-    // Check for heartbeat frames FIRST so they never reach dispatchWsMessage
-    if (data === "ping") {
-      try { this.ws?.send("pong"); } catch (err) { console.warn("[WS] Pong send failed:", err instanceof Error ? err.message : String(err)); }
-      return;
-    }
-    if (data === "pong") {
-      console.log("[WS] Server pong ✓");
-      this.reconnectAttempt = 0;
-      return;
-    }
-
-    dispatchWsMessage(
-      data,
-      (snapshots) => {
-        for (const s of snapshots) {
-          priceStore.updateTicker(s);
-          updatePositionUnrealizedPnL(s.symbol, s.lastPrice);
-          agentEvents.emitPrice({
-            symbol: s.symbol,
-            lastPrice: s.lastPrice,
-            change24hPercent: s.changePercent,
-            high24h: s.high24h,
-            low24h: s.low24h,
-            volume24h: s.quoteVolume,
-            timestamp: Date.now(),
-          });
-        }
-      },
-      (msg: Record<string, unknown>) => {
-        const arg = msg.arg as { channel?: string; instId?: string } | undefined;
-        const dataArr = msg.data as string[][] | undefined;
-        if (!arg?.channel || !dataArr) return;
-        const interval = arg.channel.replace(/^candle/, "");
-        const instId = arg.instId;
-        if (!instId) {
-          console.warn("[WS] Candle message missing instId — skipping");
-          return;
-        }
-        for (const row of dataArr) {
-          if (row.length < 6) continue;
-          priceStore.updateCandle(instId, interval, { timestamp: Number(row[0]), open: Number(row[1]), high: Number(row[2]), low: Number(row[3]), close: Number(row[4]), volume: Number(row[5]) });
-        }
-      },
-      (channel, instId) => console.log("[WS] Subscribed:", `${channel}/${instId ?? "*"}`),
-      (code, msg) => console.warn(`[WS] Server error: code=${code}, msg="${msg}"`),
-    );
-  }
-
-  private startPingTimer(): void {
-    this.clearPingTimer();
-    this.pingTimer = setInterval(() => {
-      if (this.ws?.readyState === WSClient.OPEN) {
-        // Client initiated heartbeat — send ping to keep connection alive
-        try { this.ws.send("ping"); } catch (err) { console.warn("[WS] Ping send failed:", err instanceof Error ? err.message : String(err)); }
-      } else {
-        this.clearPingTimer();
-      }
-    }, 30_000);
-  }
-
-  private clearPingTimer(): void {
-    if (this.pingTimer) {
-      clearInterval(this.pingTimer);
-      this.pingTimer = null;
-    }
-  }
-
-  /** Build subscription channels for all configured trading symbols */
   buildSubscriptions(): WSSubscription[] {
-    return config.tradingSymbols.map((symbol): WSSubscription => ({
-      instType: "SPOT",
-      channel: "ticker",
-      instId: symbol.toUpperCase(),
-    }));
+    return this.subscriptions.buildSubscriptions(config.tradingSymbols);
   }
 
-  /** Subscribe to TRADING_SYMBOLS + current position + watchlist symbols */
   syncSubscriptionsForPositions(extraSymbols?: string[]): void {
     const st = getAgentState();
     const posSymbols = st.positions.map(p => p.symbol);
-    const all = [...new Set([...config.tradingSymbols, ...posSymbols, ...(extraSymbols ?? [])])];
-    const tickerChannels: WSSubscription[] = all.map((symbol): WSSubscription => ({
-      instType: "SPOT",
-      channel: "ticker",
-      instId: symbol.toUpperCase(),
-    }));
-    // Keep existing candle subscriptions
-    const candleChannels = this.subscriptions.filter(s => s.channel !== "ticker");
-    const merged = [...candleChannels, ...tickerChannels];
+    const allSubs = this.subscriptions.syncWithPositions(config.tradingSymbols, posSymbols, extraSymbols);
+    const candleChannels = this.subscriptions.getSubscriptions().filter(s => s.channel !== "ticker");
+    const merged = [...candleChannels, ...allSubs];
     this.subscribe(merged).catch(err =>
       console.warn("[WS] syncSubscriptions failed:", err instanceof Error ? err.message : String(err))
     );
   }
 
-  /** Initialize WebSocket connection — call once on app startup */
   async initialize(): Promise<{ type: "direct" | "proxy" | "fallback"; proxy: string | null }> {
     const channels = this.buildSubscriptions();
     await this.subscribe(channels);
