@@ -286,13 +286,138 @@ services/
 - **Debugging time**: 50% reduction
 - **Refactoring risk**: Minimal
 
-## Quick Wins (Implement Immediately)
+## Immediate Action Items (Low Risk, High Impact)
 
-1. **Remove unused dependencies**: `recharts` (never imported) + other unused packages
-2. **Cleanup empty imports**: All components have 1-5 unused imports
-3. **Add will-change CSS**: For animated elements to improve performance
-4. **Stabilize props**: use `useMemo` to stabilize agent state props
-5. **Add error boundaries**: Basic error handling for UI components
+### 1. Remove Dead Dependencies
+```bash
+npm uninstall recharts @types/dotenv
+```
+**Impact**: Bundle size -3.8MB, faster installs
+**Risk**: None (confirmed zero imports across codebase)
+
+### 2. Stabilize React Re-Renders (Strategic Memoization)
+```tsx
+// In dashboard.tsx - pass only needed props to each component
+const watchlistData = useMemo(() => ({
+  tickers: agent.state.tickers,
+  watchlist: agent.state.watchlist
+}), [agent.state.tickers, agent.state.watchlist]);
+
+const portfolioData = useMemo(() => ({
+  portfolio: agent.state.portfolio,
+  positions: agent.state.positions
+}), [agent.state.portfolio, agent.state.positions]);
+
+// Wrap child components with React.memo + these specific props
+```
+**Impact**: 30-50% reduction in re-renders during price updates
+**Risk**: Low (pure prop stabilization)
+
+### 3. Add CSS Performance Hints
+```css
+/* In globals.css */
+.glass-panel {
+  will-change: transform; /* Promote to compositing layer */
+  transform: translateZ(0); /* Force GPU acceleration */
+}
+
+.animate-pulse-white {
+  will-change: box-shadow, opacity;
+}
+
+/* Optimize scrolling performance */
+.scroll-smooth {
+  scroll-behavior: smooth;
+  will-change: scroll-position;
+}
+```
+**Impact**: Smoother animations, reduced paint cost
+**Risk**: None (CSS only)
+
+### 4. Clean Up Unused Imports
+```bash
+# Find all unused imports
+npx tsc --noEmit --strict 2>&1 | grep "unused"
+```
+Then remove them across all components.
+**Impact**: Faster compilation, cleaner code
+**Risk**: None (automated cleanup)
+
+### 5. Implement Selective Re-Renders for Price-Sensitive Components
+```tsx
+// Create a custom hook for price-dependent components
+function usePriceDependentState(symbols: string[]) {
+  const [priceData, setPriceData] = useState<Record<string, TickerData>>({});
+  
+  useEffect(() => {
+    const handler = (payload: PricePayload) => {
+      if (symbols.includes(payload.symbol)) {
+        setPriceData(prev => ({...prev, [payload.symbol]: payload}));
+      }
+    };
+    
+    agentEvents.onPrice(handler);
+    return () => agentEvents.offPrice(handler);
+  }, [symbols]);
+  
+  return priceData;
+}
+
+// Use in Watchlist.tsx, PositionsPanel.tsx
+```
+**Impact**: Only price-relevant components re-render on price updates
+**Risk**: Low (isolated change)
+
+## Success Metrics & Monitoring
+
+### Performance Monitoring Setup
+```typescript
+// Add to use-agent.ts useEffect
+useEffect(() => {
+  if (process.env.NODE_ENV === 'development') {
+    performance.mark('render-start');
+    // ... existing code ...
+    performance.mark('render-end');
+    performance.measure('dashboard-render', 'render-start', 'render-end');
+  }
+}, [state]);
+
+// Monitor in Chrome DevTools Performance tab
+```
+
+### Lighthouse CI Integration
+```yaml
+# .github/workflows/perf.yml
+name: Performance Monitoring
+on: [push, pull_request]
+jobs:
+  perf:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: foo-software/lighthouse-ci@v2
+        with:
+          urls: |
+            http://localhost:3000
+          budget: |
+            performance >= 80
+            accessibility >= 90
+```
+
+## Post-Optimization Codebase State
+
+| Metric | Before | After Target |
+|--------|--------|--------------|
+| Bundle size | ~4.2MB | ~0.4MB (excluding lightweight-charts) |
+| Re-renders/min | 60+ | <20 |
+| Avg. service size | 697 lines | <150 lines |
+| Test coverage | 0% | >80% |
+| TypeScript strictness | Partial | Full strict |
+| Performance score | ? | >90 |
+
+---
+
+*This plan prioritizes real-time UX optimizations first, then architecture improvements.*
 
 ## Investment Required
 
