@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import type { DecisionData } from "@/features/trading-agent/hooks/use-agent";
 
 interface Props {
@@ -9,7 +9,7 @@ interface Props {
   isTabMode?: boolean;
 }
 
-export function BrainLog({ llmProgress, lastDecision, isTabMode }: Props) {
+export const BrainLog = memo(function BrainLog({ llmProgress, lastDecision, isTabMode }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [lastCompleteThought, setLastCompleteThought] = useState<string>("");
 
@@ -62,4 +62,4 @@ export function BrainLog({ llmProgress, lastDecision, isTabMode }: Props) {
       </div>
     </div>
   );
-}
+});

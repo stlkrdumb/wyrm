@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo } from "react";
 import { Badge } from "@/shared/ui";
 import type { DecisionRecord } from "@/features/trading-agent/types/history.types";
 import { apiFetch } from "@/shared/utils/api-fetch";
@@ -10,7 +10,7 @@ interface Props {
   isTabMode?: boolean;
 }
 
-export function DecisionHistory({ onBack, isTabMode }: Props) {
+export const DecisionHistory = memo(function DecisionHistory({ onBack, isTabMode }: Props) {
   const [history, setHistory] = useState<DecisionRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -123,4 +123,4 @@ export function DecisionHistory({ onBack, isTabMode }: Props) {
       {content}
     </div>
   );
-}
+});

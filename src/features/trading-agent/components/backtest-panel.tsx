@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { memo, useState } from "react";
 import { Play, RotateCcw, DollarSign, Activity, Award } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from "@/shared/ui";
 import { EquityChart } from "./equity-chart";
 import type { BacktestResult } from "@/features/trading-agent/types/backtest.types";
 import { apiFetch } from "@/shared/utils/api-fetch";
 
-export function BacktestPanel({ onBack }: { onBack?: () => void }) {
+export const BacktestPanel = memo(function BacktestPanel({ onBack }: { onBack?: () => void }) {
   const [result, setResult] = useState<BacktestResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -238,4 +238,4 @@ export function BacktestPanel({ onBack }: { onBack?: () => void }) {
         </CardContent>
     </Card>
   );
-}
+});

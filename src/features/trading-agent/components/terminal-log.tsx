@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { memo, useEffect, useRef } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/shared/ui";
 
 interface LogEntry {
@@ -37,7 +37,7 @@ function formatTime(ts: string): string {
   }
 }
 
-export function TerminalLog({ logs, isTabMode }: Props) {
+export const TerminalLog = memo(function TerminalLog({ logs, isTabMode }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -89,4 +89,4 @@ export function TerminalLog({ logs, isTabMode }: Props) {
       </CardContent>
     </Card>
   );
-}
+});

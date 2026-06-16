@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { Badge } from "@/shared/ui";
 import type { TickerData } from "@/features/trading-agent/hooks/use-agent";
 
@@ -9,7 +9,7 @@ interface Props {
   watchlist: string[];
 }
 
-function TickerItem({ symbol, ticker }: { symbol: string; ticker: TickerData }) {
+const TickerItem = memo(function TickerItem({ symbol, ticker }: { symbol: string; ticker: TickerData }) {
   const prevPriceRef = useRef<number>(ticker.lastPrice);
   const [flashClass, setFlashClass] = useState<string>("");
   const [imgError, setImgError] = useState<boolean>(false);
@@ -50,9 +50,9 @@ function TickerItem({ symbol, ticker }: { symbol: string; ticker: TickerData }) 
       </Badge>
     </div>
   );
-}
+});
 
-export function Watchlist({ tickers, watchlist }: Props) {
+export const Watchlist = memo(function Watchlist({ tickers, watchlist }: Props) {
   if (!watchlist || watchlist.length === 0) {
     return (
       <div className="flex flex-col gap-1.5 overflow-hidden">
@@ -100,4 +100,4 @@ export function Watchlist({ tickers, watchlist }: Props) {
       </div>
     </div>
   );
-}
+});

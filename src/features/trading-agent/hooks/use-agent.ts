@@ -35,7 +35,7 @@ export interface PositionData { symbol: string; side: "long" | "short"; size: nu
 
 export type WSConnectionStatus = "connecting" | "connected" | "reconnecting";
 
-interface AgentState {
+export interface AgentState {
   status: "running" | "stopped" | "paused";
   lastCycleAt: string | null;
   ticker: TickerData | null;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { memo, useState } from "react";
 import { useAgent } from "@/features/trading-agent/hooks/use-agent";
 import { StatusHeader } from "./status-header";
 import { BottomStatusBar } from "./bottom-status-bar";
@@ -17,7 +17,7 @@ import { TradeToast } from "./trade-toast";
 import { BrainLog } from "./brain-log";
 import { Tabs } from "@/shared/ui";
 
-export function Dashboard() {
+export const Dashboard = memo(function Dashboard() {
   const agent = useAgent();
   const [activeLogTab, setActiveLogTab] = useState<"execution" | "decision" | "brain" | "console">("execution");
 
@@ -122,4 +122,4 @@ export function Dashboard() {
       <BottomStatusBar agent={agent} />
     </div>
   );
-}
+});

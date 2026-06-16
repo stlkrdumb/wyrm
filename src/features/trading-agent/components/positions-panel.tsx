@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { Card, CardHeader, CardTitle, CardContent, Badge } from "@/shared/ui";
 import type { PositionData, MultiTickerState } from "@/features/trading-agent/hooks/use-agent";
 import { useAnimatedNumber } from "@/features/trading-agent/hooks/use-animated-number";
@@ -10,7 +11,7 @@ interface Props {
   everConnected?: boolean;
 }
 
-function AnimatedPnL({ value, everConnected }: { value: number; everConnected: boolean }) {
+const AnimatedPnL = memo(function AnimatedPnL({ value, everConnected }: { value: number; everConnected: boolean }) {
   const animated = useAnimatedNumber(value);
   const isProfit = animated >= 0;
 
@@ -27,9 +28,9 @@ function AnimatedPnL({ value, everConnected }: { value: number; everConnected: b
       {isProfit ? "+" : "-"}${Math.abs(animated).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
     </span>
   );
-}
+});
 
-export function PositionsPanel({ positions, tickers, everConnected = true }: Props) {
+export const PositionsPanel = memo(function PositionsPanel({ positions, tickers, everConnected = true }: Props) {
   if (positions.length === 0) {
     return (
       <Card className="flex flex-col h-full">
@@ -98,4 +99,4 @@ export function PositionsPanel({ positions, tickers, everConnected = true }: Pro
       </CardContent>
     </Card>
   );
-}
+});
