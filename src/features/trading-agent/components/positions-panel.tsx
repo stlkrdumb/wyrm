@@ -54,44 +54,46 @@ export function PositionsPanel({ positions, tickers, everConnected = true }: Pro
         <span className="text-[12px] tracking-widest text-zinc-500 font-mono">PORTFOLIO ASSETS</span>
       </CardHeader>
       <CardContent className="flex-1 min-h-0">
-        <div className="overflow-y-auto scrollbar-none h-full">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th className="text-left">Asset</th>
-                <th className="text-right">Holdings</th>
-                <th className="text-right">Avg Price</th>
-                <th className="text-right">Value</th>
-                <th className="text-right">Unrealized PnL</th>
-              </tr>
-            </thead>
-            <tbody>
-              {positions.map((p) => {
-                const symTicker = tickers?.[p.symbol];
-                const currentPrice = symTicker?.lastPrice ?? p.entryPrice;
-                const currentValue = p.size * currentPrice;
+        <div className="overflow-x-auto scrollbar-none w-full">
+          <div className="min-w-[500px]">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th className="text-left">Asset</th>
+                  <th className="text-right">Holdings</th>
+                  <th className="text-right">Avg Price</th>
+                  <th className="text-right">Value</th>
+                  <th className="text-right">Unrealized PnL</th>
+                </tr>
+              </thead>
+              <tbody>
+                {positions.map((p) => {
+                  const symTicker = tickers?.[p.symbol];
+                  const currentPrice = symTicker?.lastPrice ?? p.entryPrice;
+                  const currentValue = p.size * currentPrice;
 
-                return (
-                  <tr key={p.symbol}>
-                    <td className="font-bold text-zinc-100">
-                      <div className="flex items-center gap-2">
-                        <span>{p.symbol}</span>
-                        <Badge variant="neutral" className="text-[10px]">SPOT</Badge>
-                      </div>
-                    </td>
-                    <td className="text-right tabular-nums text-zinc-300">{p.size.toFixed(4)}</td>
-                    <td className="text-right tabular-nums">
-                      <div className="text-zinc-500">${p.entryPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
-                    </td>
-                    <td className="text-right tabular-nums text-zinc-200 font-semibold">${currentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                    <td className="text-right tabular-nums font-bold">
-                      <AnimatedPnL value={p.unrealizedPnL} everConnected={everConnected} />
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                  return (
+                    <tr key={p.symbol}>
+                      <td className="font-bold text-zinc-100">
+                        <div className="flex items-center gap-2">
+                          <span>{p.symbol}</span>
+                          <Badge variant="neutral" className="text-[10px]">SPOT</Badge>
+                        </div>
+                      </td>
+                      <td className="text-right tabular-nums text-zinc-300">{p.size.toFixed(4)}</td>
+                      <td className="text-right tabular-nums">
+                        <div className="text-zinc-500">${p.entryPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                      </td>
+                      <td className="text-right tabular-nums text-zinc-200 font-semibold">${currentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                      <td className="text-right tabular-nums font-bold">
+                        <AnimatedPnL value={p.unrealizedPnL} everConnected={everConnected} />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       </CardContent>
     </Card>

@@ -22,7 +22,7 @@ export function Dashboard() {
   const [activeLogTab, setActiveLogTab] = useState<"execution" | "decision" | "brain" | "console">("execution");
 
   return (
-    <div className="h-screen flex flex-col bg-obsidian text-zinc-100 relative overflow-hidden">
+    <div className="min-h-screen flex flex-col bg-obsidian text-zinc-100 relative pb-16">
       {/* Subtle radial gradient overlay */}
       <div className="fixed inset-0 bg-gradient-radial pointer-events-none" />
       <div className="fixed inset-0 grid-bg pointer-events-none opacity-30" />
@@ -55,15 +55,15 @@ export function Dashboard() {
       </div>
 
       {/* Main Terminal Grid */}
-      <main className="relative z-10 px-4 pb-12 pt-3 grid grid-cols-12 gap-3 flex-1 min-h-0">
-        {/* Left Column: Chart + Positions (span 5) */}
-        <div className="col-span-5 flex flex-col gap-3 min-h-0">
+      <main className="relative z-10 px-4 pb-12 pt-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-3">
+        {/* Left Column: Chart + Positions (span 5 on LG, 1 on MD) */}
+        <div className="col-span-1 md:col-span-1 lg:col-span-5 flex flex-col gap-3">
           <EquityChart
             portfolio={agent.state.portfolio}
             equityHistory={agent.state.equityHistory}
             everConnected={agent.state.everConnected}
           />
-          <div className="flex-1 min-h-0">
+          <div className="flex-1">
             <PositionsPanel
               positions={agent.state.positions}
               tickers={agent.state.tickers}
@@ -72,8 +72,8 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* Center Column: Signals + Logs (span 4) */}
-        <div className="col-span-4 flex flex-col gap-3 min-h-0">
+        {/* Center Column: Signals + Logs (span 4 on LG, 1 on MD) */}
+        <div className="col-span-1 md:col-span-1 lg:col-span-4 flex flex-col gap-3">
           <SignalPanel 
             signals={agent.state.signals} 
             decision={agent.state.decision}
@@ -87,7 +87,7 @@ export function Dashboard() {
           )}
 
           {/* Logs Console */}
-          <div className="glass-panel flex flex-col gap-3 p-4 flex-1 min-h-0">
+          <div className="glass-panel flex flex-col gap-3 p-4 h-[450px]">
             <Tabs
               tabs={[
                 { key: "execution", label: "Execution" },
@@ -98,7 +98,7 @@ export function Dashboard() {
               active={activeLogTab}
               onChange={(key) => setActiveLogTab(key as "execution" | "decision" | "brain" | "console")}
             />
-            <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+            <div className="flex-1 overflow-hidden flex flex-col min-h-0">
               {activeLogTab === "execution" ? (
                 <TradeLog trades={agent.state.trades} portfolio={agent.state.portfolio} isTabMode={true} />
               ) : activeLogTab === "decision" ? (
@@ -112,8 +112,8 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* Right Column: Intel (span 3) */}
-        <div className="col-span-3 flex flex-col gap-3 min-h-0">
+        {/* Right Column: Intel (span 3 on LG, span 2 on MD) */}
+        <div className="col-span-1 md:col-span-2 lg:col-span-3 flex flex-col gap-3">
           <SentimentPanel />
           <NewsPanel />
         </div>
