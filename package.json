@@ -6,6 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "start:pm2": "pm2 start ecosystem.config.js",
+    "stop:pm2": "pm2 stop wyrm",
+    "restart:pm2": "pm2 restart wyrm",
+    "delete:pm2": "pm2 delete wyrm",
+    "logs:pm2": "pm2 logs wyrm",
+    "status:pm2": "pm2 status",
     "lint": "eslint",
     "wyrmctl": "node scripts/wyrmctl.mjs"
   },
