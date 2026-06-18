@@ -52,6 +52,47 @@ function pushLog(level: "info" | "action" | "warning" | "error", message: string
   if (state.logs.length > MAX_LOGS) {
     state.logs = state.logs.slice(-MAX_LOGS);
   }
+  persistState();
+}
+
+function persistState(): void {
+  const st = getState();
+  try {
+    saveBalanceState({
+      initialCash: config.initialCash,
+      startCash: st.startEquity,
+      cash: st.portfolio.cash,
+      accumulatedRealizedPnL: st.portfolio.totalPnL,
+      positions: st.positions.map(p => ({
+        symbol: p.symbol,
+        side: p.side as "long" | "short",
+        size: p.size,
+        entryPrice: p.entryPrice,
+        stopLossPct: p.stopLossPct,
+        takeProfitPct: p.takeProfitPct
+      })),
+      totalTrades: st.portfolio.totalTrades,
+      winRate: st.portfolio.winRate,
+      circuitBreakerTripped: st.circuitBreakerTripped,
+      circuitBreakerThresholdPct: st.circuitBreakerThresholdPct,
+      peakEquity: st.peakEquity,
+      tradeCounter: getTradeCounter(),
+      equityHistory: st.equityHistory.map(e => ({
+        timestamp: e.timestamp instanceof Date ? e.timestamp.toISOString() : e.timestamp,
+        equity: e.equity
+      })),
+      trades: st.trades.map(t => ({
+        ...t,
+        timestamp: t.timestamp instanceof Date ? t.timestamp.toISOString() : (t.timestamp as unknown as string)
+      })),
+      logs: st.logs.map(l => ({
+        ...l,
+        timestamp: l.timestamp instanceof Date ? l.timestamp.toISOString() : (l.timestamp as unknown as string)
+      }))
+    });
+  } catch (err) {
+    console.error("[Agent] Failed to persist state:", err);
+  }
 }
 
 /** Build initial state — prefer saved balance over fresh default */
@@ -90,7 +131,7 @@ function buildInitialState(): AgentState {
     executionReason: "",
     signals: [],
     positions,
-    trades: [],
+    trades: saved?.trades ? saved.trades.map(t => ({ ...t, timestamp: new Date(t.timestamp) })) : [],
     portfolio: {
       timestamp: new Date(),
       initialCash: config.initialCash,
@@ -111,7 +152,7 @@ function buildInitialState(): AgentState {
     equityHistory: saved?.equityHistory
       ? saved.equityHistory.map(e => ({ timestamp: new Date(e.timestamp), equity: e.equity }))
       : [],
-    logs: [],
+    logs: saved?.logs ? saved.logs.map(l => ({ ...l, timestamp: new Date(l.timestamp) })) : [],
     decisionSource: null,
     recentExits: new Map<string, { timestamp: number; reason: "Stop Loss" | "Take Profit" | "Dust Cleanup" | "Manual Close" }>(),
   };
@@ -473,23 +514,7 @@ export async function setAgentStatus(s: "running" | "stopped" | "paused"): Promi
   st.watchlist = st.watchlist.filter(s => closedSymbols.has(s) ? false : st.positions.some(p => p.symbol === s) || s === "BTCUSDT");
 
   // Persist after in-memory state is fully updated — failure no longer creates disk/memory divergence
-  try {
-    saveBalanceState({
-      initialCash: config.initialCash,
-      startCash: st.startEquity,
-      cash: st.portfolio.cash,
-      accumulatedRealizedPnL: st.portfolio.totalPnL,
-      positions: st.positions.map(p => ({ symbol: p.symbol, side: p.side as "long" | "short", size: p.size, entryPrice: p.entryPrice, stopLossPct: p.stopLossPct, takeProfitPct: p.takeProfitPct })),
-      totalTrades: st.portfolio.totalTrades,
-      winRate: st.portfolio.winRate,
-      circuitBreakerTripped: st.circuitBreakerTripped,
-      circuitBreakerThresholdPct: st.circuitBreakerThresholdPct,
-      peakEquity: st.peakEquity,
-      tradeCounter: getTradeCounter(),
-    });
-  } catch (saveErr) {
-    console.error("[Agent] Failed to persist state on stop/pause — in-memory state may diverge from disk:", saveErr instanceof Error ? saveErr.message : String(saveErr));
-  }
+  persistState();
 
   return { closed: closedCount, realizedPnl: totalPnlRealized };
 }
@@ -542,30 +567,7 @@ export function closePosition(symbol: string): boolean {
   recalcEquity(st);
 
   // Persist balance changes
-  try {
-    saveBalanceState({
-      initialCash: config.initialCash,
-      startCash: st.startEquity,
-      cash: st.portfolio.cash,
-      accumulatedRealizedPnL: st.portfolio.totalPnL,
-      positions: st.positions.map((p) => ({
-        symbol: p.symbol,
-        side: p.side as "long" | "short",
-        size: p.size,
-        entryPrice: p.entryPrice,
-        stopLossPct: p.stopLossPct,
-        takeProfitPct: p.takeProfitPct,
-      })),
-      totalTrades: st.portfolio.totalTrades,
-      winRate: st.portfolio.winRate,
-      circuitBreakerTripped: st.circuitBreakerTripped,
-      circuitBreakerThresholdPct: st.circuitBreakerThresholdPct,
-      peakEquity: st.peakEquity,
-      tradeCounter: getTradeCounter(),
-    });
-  } catch (saveErr) {
-    console.error("[Agent] Failed to persist state on manual close:", saveErr instanceof Error ? saveErr.message : String(saveErr));
-  }
+  persistState();
 
   return true;
 }

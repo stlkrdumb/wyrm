@@ -28,6 +28,8 @@ export interface PortfolioState {
   peakEquity?: number;
   tradeCounter?: number;     // monotonic — prevents duplicate trade IDs across restarts
   equityHistory?: Array<{ timestamp: string; equity: number }>;
+  trades?: Array<any>;
+  logs?: Array<any>;
 }
 
 /** Runtime validation — guards against corrupted or partial JSON. */
@@ -73,6 +75,8 @@ function validateState(raw: unknown): PortfolioState | null {
           (e) => e && typeof e === "object" && typeof e.timestamp === "string" && typeof e.equity === "number"
         ) as PortfolioState["equityHistory"])
       : [],
+    trades: Array.isArray(s.trades) ? s.trades : [],
+    logs: Array.isArray(s.logs) ? s.logs : [],
   };
 }
 
@@ -107,14 +111,16 @@ export function saveBalanceState(state: PortfolioState): void {
   ensureDir();
   try {
     let finalState = state;
-    if (!state.equityHistory && fs.existsSync(STORE_PATH)) {
+    if (fs.existsSync(STORE_PATH)) {
       try {
         const raw = fs.readFileSync(STORE_PATH, "utf-8");
         const existing = JSON.parse(raw);
-        if (existing && typeof existing === "object" && Array.isArray(existing.equityHistory)) {
+        if (existing && typeof existing === "object") {
           finalState = {
             ...state,
-            equityHistory: existing.equityHistory,
+            equityHistory: state.equityHistory && state.equityHistory.length > 0 ? state.equityHistory : (existing.equityHistory || []),
+            trades: state.trades && state.trades.length > 0 ? state.trades : (existing.trades || []),
+            logs: state.logs && state.logs.length > 0 ? state.logs : (existing.logs || []),
           };
         }
       } catch {
@@ -142,6 +148,8 @@ export function resetBalanceState(initialCash: number): PortfolioState {
     peakEquity: initialCash,
     tradeCounter: 0,
     equityHistory: [],
+    trades: [],
+    logs: [],
   };
   saveBalanceState(state);
   console.log(`[Balance] Reset to initial: $${initialCash.toLocaleString()}`);
