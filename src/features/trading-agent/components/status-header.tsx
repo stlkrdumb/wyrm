@@ -116,12 +116,21 @@ export const StatusHeader = memo(function StatusHeader({ agent }: Props) {
         )}
 
         {/* Staleness */}
-        <span className={`text-[10px] font-mono font-bold tracking-widest uppercase ${
-          staleSec > 30 ? "text-rose-400" :
-          staleSec > 15 ? "text-yellow-400" : "text-zinc-600"
-        }`}>
-          {state.lastFetchAt > 0 ? `${staleSec}s ago` : "IDLE"}
-        </span>
+        {state.lastFetchAt > 0 ? (
+          staleSec > 30 ? (
+            <span className="text-[10px] font-mono font-bold tracking-widest uppercase text-rose-400 animate-pulse">
+              STALE ({staleSec}s)
+            </span>
+          ) : (
+            <span className="text-[10px] font-mono font-bold tracking-widest uppercase text-zinc-600">
+              SYNCED
+            </span>
+          )
+        ) : (
+          <span className="text-[10px] font-mono font-bold tracking-widest uppercase text-zinc-600">
+            IDLE
+          </span>
+        )}
         
         {/* Model/Status Indicator */}
         <div className="flex items-center gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded bg-obsidian-lighter border border-obsidian-border">
