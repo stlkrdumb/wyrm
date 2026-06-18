@@ -3,7 +3,6 @@
 import { memo, useState } from "react";
 import { Play, RotateCcw, DollarSign, Activity, Award } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from "@/shared/ui";
-import { EquityChart } from "./equity-chart";
 import type { BacktestResult } from "@/features/trading-agent/types/backtest.types";
 import { apiFetch } from "@/shared/utils/api-fetch";
 
@@ -173,28 +172,11 @@ export const BacktestPanel = memo(function BacktestPanel({ onBack }: { onBack?: 
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <span className="block text-[11px] font-mono text-zinc-500 font-bold uppercase tracking-wider">Equity Curve</span>
-                <div className="p-1.5 bg-zinc-950/45 border border-zinc-800 rounded">
-                  <EquityChart
-                    portfolio={{
-                      initialCash: initialEquity,
-                      equity: result.equityCurve[result.equityCurve.length - 1]?.equity || initialEquity,
-                      cash: result.equityCurve[result.equityCurve.length - 1]?.equity || initialEquity,
-                      totalTrades: result.totalTrades,
-                      totalPnL: result.totalReturn,
-                      winRate: result.winRate
-                    }}
-                    equityCurve={result.equityCurve}
-                  />
-                </div>
-              </div>
-
               <div className="space-y-2 flex-grow">
                 <span className="block text-[11px] font-mono text-zinc-500 font-bold uppercase tracking-wider">Trade Ledger</span>
-                <div className="w-full max-h-[120px] overflow-y-auto border border-zinc-800 bg-zinc-950/20 rounded scrollbar-none">
+                <div className="w-full border border-zinc-800 bg-zinc-950/20 rounded">
                   <table className="w-full text-[12px] font-mono text-left">
-                    <thead className="bg-zinc-900/50 text-zinc-500 border-b border-zinc-800 sticky top-0 backdrop-blur-md">
+                    <thead className="bg-zinc-900/50 text-zinc-500 border-b border-zinc-800 backdrop-blur-md">
                       <tr>
                         <th className="p-2 font-bold uppercase tracking-wider text-[10px]">Time</th>
                         <th className="p-2 font-bold uppercase tracking-wider text-[10px]">Symbol</th>
@@ -216,9 +198,15 @@ export const BacktestPanel = memo(function BacktestPanel({ onBack }: { onBack?: 
                             </td>
                             <td className="p-2 text-zinc-400">${trade.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                             <td className={`p-2 text-right font-bold ${
-                              trade.pnl > 0 ? "text-emerald-400" : trade.pnl < 0 ? "text-rose-400" : "text-zinc-500"
+                              trade.pnl !== undefined && trade.pnl > 0 ? "text-emerald-400" : trade.pnl !== undefined && trade.pnl < 0 ? "text-rose-400" : "text-zinc-500"
                             }`}>
-                              {trade.pnl !== 0 ? (trade.pnl > 0 ? "+" : "") : ""}{trade.pnl !== 0 ? trade.pnl.toFixed(2) : "0.00"}
+                              {trade.pnl !== undefined ? (
+                                <>
+                                  {trade.pnl > 0 ? "+" : ""}{trade.pnl.toFixed(2)}
+                                </>
+                              ) : (
+                                "—"
+                              )}
                             </td>
                           </tr>
                         ))

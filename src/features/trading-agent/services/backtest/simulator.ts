@@ -13,7 +13,7 @@ export interface BacktestPosition {
 }
 
 export interface BacktestStepResult {
-  trades: Array<{ timestamp: Date; symbol: string; side: "buy" | "sell"; price: number; pnl: number }>;
+  trades: Array<{ timestamp: Date; symbol: string; side: "buy" | "sell"; price: number; pnl?: number }>;
   equity: number;
   cash: number;
   tradeCount: number;
@@ -26,7 +26,7 @@ export interface BacktestContext {
   tradeCount: number;
   wins: number;
   currentPositions: Record<string, BacktestPosition>;
-  trades: Array<{ timestamp: Date; symbol: string; side: "buy" | "sell"; price: number; pnl: number }>;
+  trades: Array<{ timestamp: Date; symbol: string; side: "buy" | "sell"; price: number; pnl?: number }>;
   recentExits: Array<{ symbol: string; reason: "Stop Loss" | "Take Profit" | "Dust Cleanup"; timestamp: number }>;
 }
 
@@ -167,10 +167,11 @@ export async function executeStepTrades(
       decision.size = (startEquity * config.orderSizePct * strengthFactor * confidenceFactor) / price;
     }
 
+    const sellTrades = ctx.trades.filter(t => t.side === "sell").length;
     const validation = riskManager.validateDecision(decision, {
       timestamp: new Date(timestamp), initialCash: initialEquity, cash: ctx.cash,
       equity: startEquity, positions: activePositionsList, totalTrades: ctx.tradeCount,
-      winRate: ctx.tradeCount > 0 ? (ctx.wins / ctx.tradeCount) * 100 : 0,
+      winRate: sellTrades > 0 ? (ctx.wins / sellTrades) * 100 : 0,
       totalPnL: startEquity - initialEquity,
     } as any, ticker);
 
@@ -220,7 +221,7 @@ function executeBuy(
   }
 
   ctx.tradeCount++;
-  ctx.trades.push({ timestamp: new Date(timestamp), symbol, side: "buy", price, pnl: 0 });
+  ctx.trades.push({ timestamp: new Date(timestamp), symbol, side: "buy", price });
 }
 
 function executeSell(

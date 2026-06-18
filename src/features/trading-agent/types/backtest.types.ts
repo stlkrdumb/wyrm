@@ -34,6 +34,6 @@ export interface BacktestResult {
     symbol: string;
     side: "buy" | "sell";
     price: number;
-    pnl: number;
+    pnl?: number;
   }>;
 }

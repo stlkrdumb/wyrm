@@ -22,7 +22,10 @@ export async function loadBacktestData(): Promise<BacktestData> {
   }
 
   const freshData: BacktestData = {};
-  const symbolsToFetch = [...new Set(["BTCUSDT", ...config.tradingSymbols])];
+  const envBacktestSymbols = process.env.BACKTEST_TRADING_SYMBOLS
+    ? process.env.BACKTEST_TRADING_SYMBOLS.split(",").map(s => s.trim().toUpperCase()).filter(Boolean)
+    : ["BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "DOGEUSDT", "PEPEUSDT"];
+  const symbolsToFetch = [...new Set(["BTCUSDT", ...envBacktestSymbols])];
 
   for (const symbol of symbolsToFetch) {
     console.log(`[Backtest] Fetching candles for ${symbol}...`);

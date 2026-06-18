@@ -5,7 +5,7 @@ export interface TradeRecord {
   symbol: string;
   side: "buy" | "sell";
   price: number;
-  pnl: number;
+  pnl?: number;
 }
 
 export interface EquityPoint {
@@ -40,29 +40,30 @@ export function calculateMetrics(
     if (dd > maxDrawdown) maxDrawdown = dd;
   }
 
-  // Win/Loss
-  const winTrades = trades.filter(t => t.pnl > 0);
-  const lossTrades = trades.filter(t => t.pnl < 0);
+  // Win/Loss (only count sell trades for win rate as they realize PnL)
+  const exitTrades = trades.filter(t => t.side === "sell");
+  const winTrades = exitTrades.filter(t => t.pnl !== undefined && t.pnl > 0);
+  const lossTrades = exitTrades.filter(t => t.pnl !== undefined && t.pnl < 0);
   const wins = winTrades.length;
   const losses = lossTrades.length;
-  const winRate = trades.length > 0 ? (wins / trades.length) * 100 : 0;
+  const winRate = exitTrades.length > 0 ? (wins / exitTrades.length) * 100 : 0;
 
   // Average win/loss
   const avgWin = winTrades.length > 0
-    ? winTrades.reduce((s, t) => s + t.pnl, 0) / winTrades.length
+    ? winTrades.reduce((s, t) => s + (t.pnl ?? 0), 0) / winTrades.length
     : 0;
   const avgLoss = lossTrades.length > 0
-    ? Math.abs(lossTrades.reduce((s, t) => s + t.pnl, 0) / lossTrades.length)
+    ? Math.abs(lossTrades.reduce((s, t) => s + (t.pnl ?? 0), 0) / lossTrades.length)
     : 0;
 
   // Max consecutive losses
   let maxConsecutiveLosses = 0;
   let currentStreak = 0;
-  for (const t of trades) {
-    if (t.pnl < 0) {
+  for (const t of exitTrades) {
+    if (t.pnl !== undefined && t.pnl < 0) {
       currentStreak++;
       maxConsecutiveLosses = Math.max(maxConsecutiveLosses, currentStreak);
-    } else if (t.pnl > 0) {
+    } else if (t.pnl !== undefined && t.pnl > 0) {
       currentStreak = 0;
     }
   }
