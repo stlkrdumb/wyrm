@@ -9,7 +9,7 @@ Autonomous trading agent for the **Bitget AI Base Camp Hackathon S1 (Track 1 —
 - **Track**: Track 1 — Trading Agent
 - **Project Name**: WYRM Trader
 - **Live Demo URL**: [https://wyrm.byrai.xyz](https://wyrm.byrai.xyz) (Hosted on a local ThinkPad via Cloudflare Tunnel)
-- **Video Demo**: *[Add Video Link here]*
+- **Video Demo**: [X Post (Twitter)](https://x.com/nurairstalk/status/2067482500671357013?s=20)
 - **Key Bitget Tooling**: 
   - Bitget REST API v2 (Bulk pairs, multi-timeframe candles, futures sentiment data)
   - Bitget WebSocket (Real-time price feed & ticker updates)
