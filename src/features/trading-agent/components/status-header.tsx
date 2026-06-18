@@ -2,11 +2,40 @@
 
 import { memo, useEffect, useState } from "react";
 import type { useAgent } from "@/features/trading-agent/hooks/use-agent";
-import { Button } from "@/shared/ui/button";
+import { Play, Pause, Power, RefreshCw, LogOut } from "lucide-react";
 
 interface Props {
   agent: ReturnType<typeof useAgent>;
 }
+
+interface TerminalButtonProps {
+  onClick: () => void | Promise<void>;
+  label: string;
+  icon: React.ReactNode;
+  variant: "success" | "warning" | "danger" | "info" | "neutral";
+}
+
+const TerminalButton = memo(function TerminalButton({ onClick, label, icon, variant }: TerminalButtonProps) {
+  const colors = {
+    success: "text-emerald-400 border-emerald-500/20 hover:border-emerald-400 bg-emerald-500/5 hover:bg-emerald-500/10 shadow-[0_0_12px_rgba(16,185,129,0.05)] hover:shadow-[0_0_16px_rgba(16,185,129,0.12)]",
+    warning: "text-amber-400 border-amber-500/20 hover:border-amber-400 bg-amber-500/5 hover:bg-amber-500/10 shadow-[0_0_12px_rgba(245,158,11,0.05)] hover:shadow-[0_0_16px_rgba(245,158,11,0.12)]",
+    danger: "text-rose-400 border-rose-500/20 hover:border-rose-400 bg-rose-500/5 hover:bg-rose-500/10 shadow-[0_0_12px_rgba(244,63,94,0.05)] hover:shadow-[0_0_16px_rgba(244,63,94,0.12)]",
+    info: "text-zinc-300 border-zinc-800/80 hover:border-zinc-600 bg-zinc-900/40 hover:bg-zinc-800/20 shadow-none",
+    neutral: "text-zinc-400 border-zinc-900 hover:border-zinc-800 hover:text-zinc-200 bg-transparent shadow-none"
+  };
+
+  return (
+    <button
+      onClick={onClick}
+      className={`group flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm border font-mono text-[10px] font-bold tracking-widest uppercase transition-all duration-200 cursor-pointer active:scale-95 ${colors[variant]}`}
+    >
+      <span className="transition-transform duration-200 group-hover:scale-110">
+        {icon}
+      </span>
+      <span>{label}</span>
+    </button>
+  );
+});
 
 export const StatusHeader = memo(function StatusHeader({ agent }: Props) {
   const { state, setAgentStatus, runCycle } = agent;
@@ -47,31 +76,42 @@ export const StatusHeader = memo(function StatusHeader({ agent }: Props) {
         {isAdmin && (
           <div className="flex items-center gap-2 mr-2 border-r border-obsidian-border/50 pr-4">
             {status !== "running" && (
-              <Button size="sm" variant="emerald" onClick={() => setAgentStatus("running")}>
-                START
-              </Button>
+              <TerminalButton
+                variant="success"
+                label="Start"
+                icon={<Play className="w-3 h-3" />}
+                onClick={() => setAgentStatus("running")}
+              />
             )}
             {status === "running" && (
-              <Button size="sm" variant="secondary" onClick={() => setAgentStatus("paused")}>
-                PAUSE
-              </Button>
+              <TerminalButton
+                variant="warning"
+                label="Pause"
+                icon={<Pause className="w-3 h-3" />}
+                onClick={() => setAgentStatus("paused")}
+              />
             )}
-            <Button size="sm" variant="danger" onClick={() => setAgentStatus("stopped")}>
-              STOP (LIQUIDATE)
-            </Button>
-            <Button size="sm" variant="ghost" onClick={runCycle}>
-              RUN CYCLE
-            </Button>
-            <Button
-              size="sm"
-              variant="secondary"
+            <TerminalButton
+              variant="danger"
+              label="Stop (Liq)"
+              icon={<Power className="w-3 h-3" />}
+              onClick={() => setAgentStatus("stopped")}
+            />
+            <TerminalButton
+              variant="info"
+              label="Run Cycle"
+              icon={<RefreshCw className="w-3 h-3" />}
+              onClick={runCycle}
+            />
+            <TerminalButton
+              variant="neutral"
+              label="Logout"
+              icon={<LogOut className="w-3 h-3" />}
               onClick={async () => {
                 await fetch("/api/auth/logout", { method: "POST" });
                 window.location.reload();
               }}
-            >
-              LOGOUT
-            </Button>
+            />
           </div>
         )}
 
