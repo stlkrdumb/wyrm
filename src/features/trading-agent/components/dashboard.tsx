@@ -27,23 +27,6 @@ export const Dashboard = memo(function Dashboard() {
       <div className="fixed inset-0 bg-gradient-radial pointer-events-none" />
       <div className="fixed inset-0 grid-bg pointer-events-none opacity-30" />
 
-      {/* Agent Stopped Overlay */}
-      {agent.state.status !== "running" && (
-        <div className="fixed inset-0 z-50 bg-zinc-950/70 backdrop-blur-sm flex items-center justify-center pointer-events-none">
-          <div className="flex flex-col items-center gap-3 text-center">
-            <div className="w-2 h-2 rounded-full bg-zinc-500" />
-            <span className="text-[13px] font-mono font-bold tracking-widest uppercase text-zinc-500">
-              AGENT {agent.state.status === "stopped" ? "STOPPED" : "PAUSED"} — NO ACTIVE TRADING
-            </span>
-            <span className="text-[11px] font-mono text-zinc-600">
-              {agent.state.status === "stopped"
-                ? "All positions flattened. Press Start to resume."
-                : "Positions preserved. Press Start to resume."}
-            </span>
-          </div>
-        </div>
-      )}
-
       <TradeToast trades={agent.state.trades} />
       
       {/* Header */}
