@@ -29,6 +29,7 @@ export function evictOldestTaEntries() {
 
 /** Get cached TA result if still within TTL. */
 export function getCachedTA(symbol: string, interval: string): any | null {
+  if (priceStore.isBacktesting) return null;
   const cacheKey = `${symbol}-${interval}`;
   const cached = taCache.get(cacheKey);
   if (cached && Date.now() - cached.timestamp < (TA_CACHE_TTL_MS[interval] || 30_000)) {

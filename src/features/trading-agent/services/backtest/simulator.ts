@@ -152,6 +152,21 @@ export async function executeStepTrades(
     const price = ticker?.lastPrice ?? 0;
     if (price <= 0) continue;
 
+    // Populate decision size before validation, just like the live agent-engine
+    if (decision.action === "sell") {
+      const pos = ctx.currentPositions[symbol];
+      if (pos) {
+        const strengthFactor = Math.max(0.1, Math.min(1.0, Math.abs(decision.strength)));
+        decision.size = pos.size * strengthFactor;
+      } else {
+        decision.size = price > 0 ? (startEquity * config.orderSizePct * Math.abs(decision.strength)) / price : 0;
+      }
+    } else if (decision.action === "buy" && price > 0) {
+      const strengthFactor = Math.abs(decision.strength);
+      const confidenceFactor = typeof decision.confidence === "number" ? Math.max(0, Math.min(1, decision.confidence)) : 1.0;
+      decision.size = (startEquity * config.orderSizePct * strengthFactor * confidenceFactor) / price;
+    }
+
     const validation = riskManager.validateDecision(decision, {
       timestamp: new Date(timestamp), initialCash: initialEquity, cash: ctx.cash,
       equity: startEquity, positions: activePositionsList, totalTrades: ctx.tradeCount,
