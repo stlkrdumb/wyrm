@@ -35,7 +35,7 @@ export const BacktestPanel = memo(function BacktestPanel({ onBack }: { onBack?: 
   const isProfit = result ? result.totalReturn >= 0 : false;
 
   return (
-    <Card>
+    <Card className="flex flex-col h-full min-h-0">
       <CardHeader>
         <div className="flex items-center gap-2">
           <Activity className="w-3.5 h-3.5 text-zinc-500" />
@@ -44,9 +44,9 @@ export const BacktestPanel = memo(function BacktestPanel({ onBack }: { onBack?: 
         <Badge variant="neutral" className="text-[10px]">{result ? "RESULTS" : "SETUP"}</Badge>
       </CardHeader>
 
-      <CardContent>
+      <CardContent className="flex-1 min-h-0 overflow-y-auto scrollbar-none flex flex-col">
           {!result ? (
-            <div className="flex flex-col gap-5">
+            <div className="flex flex-col gap-5 flex-1 justify-center">
               <div className="space-y-1.5 font-mono text-[11px] text-zinc-400">
                 <div className="text-[12px] font-bold text-zinc-500 uppercase tracking-wider">HISTORICAL SIMULATOR</div>
                 <p className="leading-relaxed">
@@ -112,7 +112,7 @@ export const BacktestPanel = memo(function BacktestPanel({ onBack }: { onBack?: 
               </div>
             </div>
           ) : (
-            <div className="flex flex-col gap-5">
+            <div className="flex flex-col gap-5 flex-1 min-h-0">
               <div className="flex justify-between items-center bg-zinc-900/10 p-3 rounded border border-zinc-800 flex-shrink-0">
                 <div className="flex items-center gap-2">
                   <Award className="w-4 h-4 text-zinc-500" />
@@ -172,11 +172,11 @@ export const BacktestPanel = memo(function BacktestPanel({ onBack }: { onBack?: 
                 </div>
               </div>
 
-              <div className="space-y-2 flex-grow">
-                <span className="block text-[11px] font-mono text-zinc-500 font-bold uppercase tracking-wider">Trade Ledger</span>
-                <div className="w-full border border-zinc-800 bg-zinc-950/20 rounded">
-                  <table className="w-full text-[12px] font-mono text-left">
-                    <thead className="bg-zinc-900/50 text-zinc-500 border-b border-zinc-800 backdrop-blur-md">
+              <div className="flex-1 min-h-0 flex flex-col gap-2">
+                <span className="block text-[11px] font-mono text-zinc-500 font-bold uppercase tracking-wider shrink-0">Trade Ledger</span>
+                <div className="w-full border border-zinc-800 bg-zinc-950/20 rounded flex-1 min-h-0 overflow-y-auto scrollbar-none">
+                  <table className="w-full text-[12px] font-mono text-left relative">
+                    <thead className="bg-zinc-900/90 text-zinc-500 border-b border-zinc-800 backdrop-blur-md sticky top-0 z-10">
                       <tr>
                         <th className="p-2 font-bold uppercase tracking-wider text-[10px]">Time</th>
                         <th className="p-2 font-bold uppercase tracking-wider text-[10px]">Symbol</th>

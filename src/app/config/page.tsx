@@ -42,19 +42,23 @@ export default function ConfigPage() {
       </header>
 
       {/* Page Content */}
-      <main className="relative z-10 flex-1 px-6 py-6 grid grid-cols-3 gap-6 items-start">
-        <div className="col-span-2 flex flex-col gap-6">
+      <main className="relative z-10 flex-1 px-4 sm:px-6 py-6 grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch lg:h-[calc(100vh-80px)] overflow-y-auto scrollbar-none">
+        <div className="col-span-1 lg:col-span-2 flex flex-col gap-6 h-full min-h-0">
           <StrategyPanel />
         </div>
-        <div className="col-span-1 flex flex-col gap-6">
-          <BacktestPanel />
-          <CircuitBreakerPanel
-            circuitBreakerTripped={agent.state.circuitBreakerTripped}
-            circuitBreakerThresholdPct={agent.state.circuitBreakerThresholdPct}
-            peakEquity={agent.state.peakEquity}
-            currentEquity={agent.state.portfolio?.equity ?? 0}
-            resetBreaker={agent.resetBreaker}
-          />
+        <div className="col-span-1 flex flex-col gap-6 h-full min-h-0">
+          <div className="flex-1 min-h-0">
+            <BacktestPanel />
+          </div>
+          <div className="shrink-0">
+            <CircuitBreakerPanel
+              circuitBreakerTripped={agent.state.circuitBreakerTripped}
+              circuitBreakerThresholdPct={agent.state.circuitBreakerThresholdPct}
+              peakEquity={agent.state.peakEquity}
+              currentEquity={agent.state.portfolio?.equity ?? 0}
+              resetBreaker={agent.resetBreaker}
+            />
+          </div>
         </div>
       </main>
     </div>

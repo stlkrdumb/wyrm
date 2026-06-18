@@ -55,15 +55,15 @@ export const Dashboard = memo(function Dashboard() {
       </div>
 
       {/* Main Terminal Grid */}
-      <main className="relative z-10 px-4 pb-12 pt-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-3">
-        {/* Left Column: Chart + Positions (span 5 on LG, 1 on MD) */}
-        <div className="col-span-1 md:col-span-1 lg:col-span-5 flex flex-col gap-3">
+      <main className="relative z-10 px-4 pb-12 pt-3 grid grid-cols-1 lg:grid-cols-12 gap-3 flex-1 lg:h-[calc(100vh-140px)]">
+        {/* Left Column: Chart + Positions (span 5) */}
+        <div className="col-span-1 lg:col-span-5 flex flex-col gap-3 min-h-0 h-full">
           <EquityChart
             portfolio={agent.state.portfolio}
             equityHistory={agent.state.equityHistory}
             everConnected={agent.state.everConnected}
           />
-          <div className="flex-1">
+          <div className="flex-1 min-h-0">
             <PositionsPanel
               positions={agent.state.positions}
               tickers={agent.state.tickers}
@@ -72,8 +72,8 @@ export const Dashboard = memo(function Dashboard() {
           </div>
         </div>
 
-        {/* Center Column: Signals + Logs (span 4 on LG, 1 on MD) */}
-        <div className="col-span-1 md:col-span-1 lg:col-span-4 flex flex-col gap-3">
+        {/* Center Column: Signals + Logs (span 4) */}
+        <div className="col-span-1 lg:col-span-4 flex flex-col gap-3 min-h-0 h-full">
           <SignalPanel 
             signals={agent.state.signals} 
             decision={agent.state.decision}
@@ -81,13 +81,13 @@ export const Dashboard = memo(function Dashboard() {
           />
           
           {agent.state.decision && (agent.state.decision as any).riskStatus === "blocked" && (
-            <div className="glass-panel border-rose-500/30 bg-rose-950/20 p-3 text-[11px] text-rose-400 font-mono animate-pulse">
+            <div className="glass-panel border-rose-500/30 bg-rose-950/20 p-3 text-[11px] text-rose-400 font-mono animate-pulse shrink-0">
               <span className="font-bold mr-2">RISK ALERT:</span> {agent.state.decision.reason}
             </div>
           )}
 
           {/* Logs Console */}
-          <div className="glass-panel flex flex-col gap-3 p-4 h-[450px]">
+          <div className="glass-panel flex flex-col gap-3 p-4 flex-1 min-h-0">
             <Tabs
               tabs={[
                 { key: "execution", label: "Execution" },
@@ -112,10 +112,14 @@ export const Dashboard = memo(function Dashboard() {
           </div>
         </div>
 
-        {/* Right Column: Intel (span 3 on LG, span 2 on MD) */}
-        <div className="col-span-1 md:col-span-2 lg:col-span-3 flex flex-col gap-3">
-          <SentimentPanel />
-          <NewsPanel />
+        {/* Right Column: Intel (span 3) */}
+        <div className="col-span-1 lg:col-span-3 flex flex-col gap-3 min-h-0 h-full">
+          <div className="flex-1 min-h-0 flex flex-col gap-3">
+            <SentimentPanel />
+            <div className="flex-1 min-h-0">
+              <NewsPanel />
+            </div>
+          </div>
         </div>
       </main>
 

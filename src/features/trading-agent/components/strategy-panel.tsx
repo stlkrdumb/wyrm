@@ -163,7 +163,7 @@ export const StrategyPanel = memo(function StrategyPanel() {
   }
 
   return (
-    <Card>
+    <Card className="flex flex-col h-full min-h-0">
       <CardHeader>
         <div className="flex items-center gap-2">
           <Sliders className="w-3.5 h-3.5 text-zinc-500" />
@@ -179,8 +179,8 @@ export const StrategyPanel = memo(function StrategyPanel() {
         </div>
       </CardHeader>
 
-      <CardContent>
-          <div className="flex flex-col gap-4 font-mono text-[11px]">
+      <CardContent className="flex-1 flex flex-col min-h-0 overflow-y-auto scrollbar-none">
+          <div className="flex flex-col gap-4 font-mono text-[11px] flex-1">
             <div className="flex flex-col gap-1.5">
               <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">
                 Cognitive Core Presets

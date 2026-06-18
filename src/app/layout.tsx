@@ -31,7 +31,7 @@ export default function RootLayout({
       className={`h-full antialiased dark ${azeretMono.variable} ${jetbrainsMono.variable}`}
       suppressHydrationWarning
     >
-      <body className="min-h-screen flex flex-col bg-zinc-950 text-zinc-100 matrix-grid">{children}</body>
+      <body className="min-h-screen flex flex-col bg-zinc-950 text-zinc-100">{children}</body>
     </html>
   );
 }
