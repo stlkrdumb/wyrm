@@ -77,16 +77,23 @@ WYRM Trader runs a structured, atomic execution cycle (configured for 30s–60s 
 - [x] **Bento Grid Dashboard**: 12-column dark-mode dashboard (Obsidian `#0a0a0f`) with real-time logging, PnL charts, and active position metrics.
 - [x] **Portfolio State Persistence**: Auto-saves state to disk (`portfolio-state.json`) to survive restarts.
 
-### Frameworks, Models, and APIs Used
-- **Frontend / Backend**: Next.js (App Router), Tailwind CSS, TypeScript, Recharts
-- **Core Orchestrator**: Vercel AI SDK (`@ai-sdk/openai-compatible`)
-- **Primary LLM**: `qwen3.6-plus` (falls back to `qwen3.6-flash` on high latency/timeout)
-- **Technical Analysis**: Python (Pandas, Numpy) via Node `subprocess`
-- **Deployment**: Hosted locally on an Intel-based ThinkPad, kept alive by PM2, and served securely via Cloudflare Tunnel at `https://wyrm.byrai.xyz`.
+### 🛡️ Security & Edge Authentication
+- **Public-Facing with Private Controls**: Built for secure public demonstration (e.g., via Cloudflare Tunnels). Next.js Edge Middleware natively protects all configuration panels and state-changing actions.
+- **Single-Admin Passcode**: Guests see a beautiful, real-time read-only trading terminal. Using the configured `ADMIN_PASSWORD` at `/login` yields a signed JWT `wyrm_session` cookie, unlocking the Start/Pause/Stop and Parameter Customization controls.
+- **Programmatic API Tokens**: CLI and script interfaces use a static Bearer token (`NEXT_PUBLIC_AUTH_TOKEN`) allowing flexible external control without browser cookies.
+
+### 🎨 UI Design System & Terminal UX
+- **Theme**: Obsidian (`#0a0a0f`) with pure white accents. Avoids distracting color palettes.
+- **Dynamic Grid Expansion**: 12-column bento grid strictly bounded to viewport height (`min-h-screen` and flexbox wrapping). Overflowing content (like large Spot Holdings or Backtest Ledgers) scrolls internally with sticky headers.
+- **Cognitive Context Highlighting**: Streaming raw JSON from the LLM is parsed in real-time. Native reasoning tags (`<think>...</think>`) are visually extracted into an italicized "Cognitive Context Thread" sidebar, separating the model's inner thoughts from the final executed JSON payload.
+
+### ⚙️ Backtesting Engine Accuracy
+- **Precision Simulation**: The native backtester computes step-by-step state changes. Technical indicator caching is bypassed during backtests to ensure RSI, MACD, and Bollinger Bands are strictly recalculated per historical step.
+- **Metrics Integrity**: Win Rate and PnL calculations are executed specifically against realized sell/exit events, avoiding diluted metrics caused by open portfolio positions.
 
 ---
 
-## ⚙️ Configuration
+## 🛠️ Progress & Tech Stack
 
 ### `.env.local`
 
@@ -236,9 +243,11 @@ curl -X POST "https://wyrm.byrai.xyz/api/agent/breaker" \
 src/
 ├── app/                          # Next.js pages and API routing
 │   ├── api/agent/                # REST endpoints (cycle control, resets, strategy)
+│   ├── api/auth/                 # Edge authentication logic (login/logout/status)
+│   ├── config/                   # Protected parameter tuner and backtester
+│   ├── login/                    # Single-admin passcode gate
 │   └── page.tsx                  # Obsidian Dashboard landing page
-├── proxy.ts                      # Bearer Token security middleware
-├── features/trading-agent/
+├── proxy.ts                      # Edge Middleware (JWT Session & Bearer Token guard)
 ├── features/trading-agent/
 │   ├── components/            # React UI components
 │   │   ├── dashboard.tsx      # 12-col bento grid layout
@@ -247,20 +256,19 @@ src/
 │   │   ├── sentiment-panel.tsx # Market intelligence
 │   │   ├── positions-panel.tsx # Spot holdings table
 │   │   ├── watchlist.tsx      # WS ticker chips
-│   │   ├── status-header.tsx  # Model name + status dot
+│   │   ├── status-header.tsx  # Auth-gated control buttons & Model status
 │   │   ├── bottom-status-bar.tsx # Fixed terminal footer
 │   │   ├── trade-log.tsx      # Execution log
 │   │   ├── decision-pipeline.tsx # 5-stage flow viz
 │   │   ├── decision-history.tsx  # Past decisions log
-│   │   ├── backtest-panel.tsx  # Simulation sandbox
+│   │   ├── backtest-panel.tsx  # Scrollable simulation sandbox
 │   │   ├── circuit-breaker-panel.tsx
-│   │   ├── strategy-panel.tsx  # Agent customizer
+│   │   ├── strategy-panel.tsx  # Agent customizer forms
 │   │   ├── strategy-sliders.tsx # Sliders for strategy parameters
 │   │   ├── news-panel.tsx      # Macro news feed
 │   │   ├── terminal-log.tsx    # Agent console
-│   │   ├── brain-log.tsx       # Inner LLM reasoning log
+│   │   ├── brain-log.tsx       # Syntax-highlighted LLM streaming log
 │   │   ├── trade-toast.tsx     # Floating trade notifications
-│   │   ├── kpi-strip.tsx       # Key performance indicators
 │   │   └── radial-gauge.tsx    # Drawdown meter
 │   ├── hooks/
 │   │   ├── use-agent.ts        # State polling + API calls
@@ -315,8 +323,13 @@ src/
 
 ---
 
-## 🎨 UI Design System
+### Frameworks, Models, and APIs Used
+- **Frontend / Backend**: Next.js (App Router), Tailwind CSS, TypeScript, `jose`
+- **Core Orchestrator**: Vercel AI SDK (`@ai-sdk/openai-compatible`)
+- **Primary LLM**: `qwen3.6-plus` (falls back to `qwen3.6-flash` on high latency/timeout)
+- **Technical Analysis**: Python (Pandas, Numpy) via Node `subprocess`
+- **Deployment**: Hosted locally on an Intel-based ThinkPad, kept alive by PM2, and served securely via Cloudflare Tunnel at `https://wyrm.byrai.xyz`.
 
-- **Theme**: Obsidian (`#0a0a0f`) with pure white accents. Avoids distracting color palettes.
-- **Typography**: Space Grotesk (headers) + JetBrains Mono (financial/console data) + Inter (interface text).
-- **Glassmorphism**: Built on custom Tailwind `glass-panel` utilities utilizing thin border scales and backdrop blurs to give an immersive trading-terminal feel.
+---
+
+## ⚙️ Configuration
