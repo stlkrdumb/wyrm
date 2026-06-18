@@ -112,6 +112,7 @@ SIM_INITIAL_CASH=1000                # Starting portfolio in USDT
 SIM_ORDER_SIZE_PCT=0.05              # 5% of equity per trade
 SIM_FEE_PCT=0.001                    # 0.1% taker fee
 TRADING_SYMBOLS=BTCUSDT,ETHUSDT      # Default WebSocket subscriptions
+BACKTEST_TRADING_SYMBOLS=BTCUSDT,ETHUSDT,SOLUSDT,XRPUSDT,DOGEUSDT,PEPEUSDT # Assets for historical simulator
 MAX_ACTIVE_POSITIONS=5               # Max concurrent positions
 AGENT_CYCLE_INTERVAL_MS=30000        # 30s between automatic cycles
 ```
