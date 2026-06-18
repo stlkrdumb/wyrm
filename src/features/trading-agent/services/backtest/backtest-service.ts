@@ -1,6 +1,7 @@
 import type { BacktestResult } from "@/features/trading-agent/types/backtest.types";
 import { priceStore } from "../price-store";
 import { loadBacktestData, getBacktestStepRange } from "./data";
+import { config } from "../state-store";
 import {
   injectStepData,
   checkAutoBracketExits,
@@ -35,10 +36,12 @@ export class BacktestService {
       };
 
       const equityCurve: { timestamp: Date; equity: number }[] = [];
+      let lastTimestamp = btc1h[endIdx]?.timestamp || Date.now();
 
       for (let idx = startIdx; idx <= endIdx; idx++) {
         const stepSnapshot = btc1h[idx];
         const timestamp = stepSnapshot.timestamp;
+        lastTimestamp = timestamp;
 
         const priceMap = injectStepData(symbols, historicalData, idx, timestamp);
         checkAutoBracketExits(ctx, historicalData, timestamp);
@@ -48,6 +51,30 @@ export class BacktestService {
 
         const endEquity = calculateEquity(ctx.cash, ctx.currentPositions, priceMap);
         equityCurve.push({ timestamp: new Date(timestamp), equity: endEquity });
+      }
+
+      // Force-liquidate any remaining open positions at the final step prices to show realized PnL
+      const finalPriceMap = injectStepData(symbols, historicalData, endIdx, lastTimestamp);
+      for (const [symbol, pos] of Object.entries(ctx.currentPositions)) {
+        const currentPrice = finalPriceMap.get(symbol)?.lastPrice ?? pos.entryPrice;
+        const revenue = pos.size * currentPrice;
+        const fee = revenue * config.feePct;
+        ctx.cash += revenue - fee;
+
+        const realizedPnL = pos.size * (currentPrice - pos.entryPrice) - fee;
+        ctx.tradeCount++;
+        if (realizedPnL > 0) ctx.wins++;
+
+        ctx.trades.push({
+          timestamp: new Date(lastTimestamp),
+          symbol,
+          side: "sell",
+          price: currentPrice,
+          pnl: realizedPnL,
+        });
+
+        console.log(`[Backtest] Final liquidation: ${symbol} at $${currentPrice.toFixed(2)} (PnL: $${realizedPnL.toFixed(2)})`);
+        delete ctx.currentPositions[symbol];
       }
 
       const finalEquity = equityCurve[equityCurve.length - 1]?.equity ?? initialEquity;

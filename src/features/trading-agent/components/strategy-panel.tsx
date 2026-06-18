@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useState, memo } from "react";
-import { Sliders, Save, CheckCircle, Loader2 } from "lucide-react";
+import { Sliders, Save, CheckCircle, Loader2, Cpu, ShieldAlert, Settings2, FileCode, Info } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from "@/shared/ui";
 import { apiFetch } from "@/shared/utils/api-fetch";
-import { StrategySliders } from "./strategy-sliders";
 
 const STRATEGY_PRESETS = [
   {
@@ -89,6 +88,9 @@ export const StrategyPanel = memo(function StrategyPanel() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [statusMsg, setStatusMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  
+  // Custom sub-navigation tab
+  const [configTab, setConfigTab] = useState<"personality" | "risk" | "execution">("personality");
 
   useEffect(() => {
     const fetchStrategy = async () => {
@@ -146,6 +148,12 @@ export const StrategyPanel = memo(function StrategyPanel() {
   const isLocked = activePreset !== "CUSTOM";
   const THRESHOLD_PRESETS = [2, 3, 5, 8, 10, 12, 15, 20];
 
+  const getDrawdownBadgeColor = (val: number) => {
+    if (val <= 5) return "text-emerald-400 border-emerald-950 bg-emerald-950/20";
+    if (val <= 10) return "text-amber-400 border-amber-950 bg-amber-950/20";
+    return "text-rose-400 border-rose-950 bg-rose-950/20";
+  };
+
   if (loading) {
     return (
       <Card>
@@ -163,165 +171,334 @@ export const StrategyPanel = memo(function StrategyPanel() {
   }
 
   return (
-    <Card className="flex flex-col h-full min-h-0">
-      <CardHeader>
+    <Card className="flex flex-col h-full min-h-0 border-zinc-800 bg-zinc-950/30">
+      <CardHeader className="border-b border-zinc-900/60 pb-3 flex-shrink-0">
         <div className="flex items-center gap-2">
-          <Sliders className="w-3.5 h-3.5 text-zinc-500" />
+          <Sliders className="w-3.5 h-3.5 text-zinc-400" />
           <CardTitle>Agent Customizer</CardTitle>
         </div>
         <div className="flex items-center gap-2">
-          <Badge variant={activePreset === "AGGRESSIVE" ? "warning" : activePreset === "CONSERVATIVE" ? "success" : "neutral"}>
+          <Badge variant={activePreset === "AGGRESSIVE" ? "warning" : activePreset === "CONSERVATIVE" ? "success" : "neutral"} className="text-[10px] tracking-widest">
             {activePreset}
           </Badge>
-          <span className="text-[10px] font-mono text-zinc-600 border border-zinc-800 px-1.5 py-0.2 rounded tracking-wider">
-            DD {threshold}%
+          <span className={`text-[10px] font-mono border px-2 py-0.5 rounded-full tracking-wider font-bold ${getDrawdownBadgeColor(threshold)}`}>
+            HALT @ {threshold}% DD
           </span>
         </div>
       </CardHeader>
 
-      <CardContent className="flex-1 flex flex-col min-h-0 overflow-y-auto scrollbar-none">
-          <div className="flex flex-col gap-4 font-mono text-[11px] flex-1">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">
-                Cognitive Core Presets
-              </label>
-              <div className="grid grid-cols-4 gap-2">
-                {STRATEGY_PRESETS.map((preset) => (
-                  <button
-                    key={preset.name}
-                    onClick={() => {
-                      setActivePreset(preset.name);
-                      setPersona(preset.persona);
-                      setInstructions(preset.instructions);
-                      setThreshold(preset.threshold);
-                      setOrderSize(preset.orderSize);
-                      setStopLoss(preset.stopLoss);
-                      setTakeProfit(preset.takeProfit);
-                      setCycleInterval(preset.cycleInterval);
-                      setMaxActivePositions(preset.maxActivePositions ?? 3);
-                      setConvictionThreshold(preset.convictionThreshold ?? 0.3);
-                    }}
-                    className={`py-1.5 px-2.5 rounded border text-[11px] transition-all cursor-pointer font-bold tracking-wider uppercase text-center ${
-                      activePreset === preset.name
-                        ? "bg-white/15 text-white border-white/25"
-                        : "border-zinc-800 bg-zinc-950/60 text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200 hover:border-zinc-700"
-                    }`}
-                  >
-                    {preset.name}
-                  </button>
-                ))}
-              </div>
-            </div>
+      <CardContent className="flex-1 flex flex-col min-h-0 overflow-y-auto scrollbar-none pt-4">
+        {/* Core Sub Navigation */}
+        <div className="flex border-b border-zinc-900 mb-5 font-mono text-[11px] uppercase font-bold tracking-wider flex-shrink-0">
+          <button
+            onClick={() => setConfigTab("personality")}
+            className={`flex-1 pb-3 border-b-2 text-center transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+              configTab === "personality"
+                ? "border-white text-white font-black"
+                : "border-transparent text-zinc-500 hover:text-zinc-300"
+            }`}
+          >
+            <Cpu className="w-3.5 h-3.5" />
+            1. Cognitive Core
+          </button>
+          <button
+            onClick={() => setConfigTab("risk")}
+            className={`flex-1 pb-3 border-b-2 text-center transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+              configTab === "risk"
+                ? "border-white text-white font-black"
+                : "border-transparent text-zinc-500 hover:text-zinc-300"
+            }`}
+          >
+            <ShieldAlert className="w-3.5 h-3.5" />
+            2. Risk Profiles
+          </button>
+          <button
+            onClick={() => setConfigTab("execution")}
+            className={`flex-1 pb-3 border-b-2 text-center transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+              configTab === "execution"
+                ? "border-white text-white font-black"
+                : "border-transparent text-zinc-500 hover:text-zinc-300"
+            }`}
+          >
+            <Settings2 className="w-3.5 h-3.5" />
+            3. Live Tuning
+          </button>
+        </div>
 
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
-                  Agent Trading Persona
-                </label>
-                {isLocked && (
-                  <span className="text-[9px] font-mono text-zinc-600 italic">
-                    Switch to CUSTOM to edit
-                  </span>
-                )}
+        <div className="flex-1 flex flex-col min-h-0">
+          {/* TAB 1: COGNITIVE PROFILE */}
+          {configTab === "personality" && (
+            <div className="flex flex-col gap-4 font-mono text-[11px] flex-1">
+              <div className="flex flex-col gap-2">
+                <div className="flex justify-between items-center">
+                  <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">
+                    Select Base Preset Template
+                  </label>
+                  <span className="text-[9px] text-zinc-600">Select custom to edit code</span>
+                </div>
+                <div className="grid grid-cols-4 gap-2">
+                  {STRATEGY_PRESETS.map((preset) => (
+                    <button
+                      key={preset.name}
+                      onClick={() => {
+                        setActivePreset(preset.name);
+                        setPersona(preset.persona);
+                        setInstructions(preset.instructions);
+                        setThreshold(preset.threshold);
+                        setOrderSize(preset.orderSize);
+                        setStopLoss(preset.stopLoss);
+                        setTakeProfit(preset.takeProfit);
+                        setCycleInterval(preset.cycleInterval);
+                        setMaxActivePositions(preset.maxActivePositions ?? 3);
+                        setConvictionThreshold(preset.convictionThreshold ?? 0.3);
+                      }}
+                      className={`py-2 px-2.5 rounded border text-[11px] transition-all cursor-pointer font-bold tracking-wider uppercase text-center ${
+                        activePreset === preset.name
+                          ? "bg-zinc-800 text-white border-zinc-600 shadow-[0_0_12px_rgba(255,255,255,0.05)]"
+                          : "border-zinc-900 bg-zinc-950/40 text-zinc-500 hover:bg-zinc-900 hover:text-zinc-300 hover:border-zinc-800"
+                      }`}
+                    >
+                      {preset.name}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <textarea
-                value={persona}
-                onChange={(e) => setPersona(e.target.value)}
-                readOnly={isLocked}
-                rows={4}
-                placeholder="e.g. Conservative quant trading analyst focusing on long-term trends..."
-                className={`w-full bg-zinc-950 border rounded p-2.5 text-zinc-200 transition-all font-sans leading-relaxed text-[11px] resize-none ${
-                  isLocked
-                    ? "border-zinc-800/40 text-zinc-500 cursor-default"
-                    : "border-zinc-800 focus:outline-none focus:border-zinc-700"
-                }`}
-              />
-            </div>
 
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
-                  Custom Strategy Instructions
-                </label>
-                {isLocked && (
-                  <span className="text-[9px] font-mono text-zinc-600 italic">
-                    Switch to CUSTOM to edit
-                  </span>
-                )}
-              </div>
-              <textarea
-                value={instructions}
-                onChange={(e) => setInstructions(e.target.value)}
-                readOnly={isLocked}
-                rows={6}
-                placeholder="e.g. Respect strict RSI oversold limits..."
-                className={`w-full bg-zinc-950 border rounded p-2.5 text-zinc-200 transition-all font-sans leading-relaxed text-[11px] resize-none ${
-                  isLocked
-                    ? "border-zinc-800/40 text-zinc-500 cursor-default"
-                    : "border-zinc-800 focus:outline-none focus:border-zinc-700"
-                }`}
-              />
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">
-                Emergency Drawdown Limit
-              </label>
-              <div className="grid grid-cols-4 gap-1.5">
-                {THRESHOLD_PRESETS.map((pct) => (
-                  <button
-                    key={pct}
-                    onClick={() => setThreshold(pct)}
-                    className={`py-1.5 text-[12px] rounded border transition-all uppercase cursor-pointer ${
-                      threshold === pct
-                        ? "bg-zinc-800 text-zinc-100 border-zinc-600 font-bold"
-                        : "text-zinc-500 border-zinc-800 hover:border-zinc-700 hover:text-zinc-300"
-                    }`}
-                  >
-                    {pct}%
-                  </button>
-                ))}
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] text-zinc-600 uppercase tracking-wider">Custom:</span>
-                <input
-                  type="number" min={1} max={50} value={threshold}
-                  onChange={(e) => setThreshold(Math.min(50, Math.max(1, parseInt(e.target.value) || 1)))}
-                  className="w-20 bg-zinc-950 border border-zinc-800 rounded p-1.5 text-zinc-200 focus:outline-none focus:border-zinc-700 transition-all text-[11px] text-center"
+              {/* Text Area 1: Trading Persona */}
+              <div className="flex flex-col gap-1.5 flex-1 min-h-[120px]">
+                <div className="flex items-center justify-between bg-zinc-950 border border-zinc-900 rounded-t px-3 py-1.5 border-b-0 shrink-0">
+                  <div className="flex items-center gap-1.5 text-zinc-400">
+                    <FileCode className="w-3.5 h-3.5 text-zinc-500" />
+                    <span className="text-[10px] uppercase font-bold tracking-widest">agent_persona.cfg</span>
+                  </div>
+                  {isLocked ? (
+                    <span className="text-[9px] text-amber-500/80 uppercase font-bold tracking-wider px-1.5 py-0.2 bg-amber-500/5 border border-amber-500/10 rounded">LOCKED</span>
+                  ) : (
+                    <span className="text-[9px] text-emerald-400 uppercase font-bold tracking-wider px-1.5 py-0.2 bg-emerald-400/5 border border-emerald-400/10 rounded">EDITABLE</span>
+                  )}
+                </div>
+                <textarea
+                  value={persona}
+                  onChange={(e) => setPersona(e.target.value)}
+                  readOnly={isLocked}
+                  placeholder="Describe the agent's behavior and fundamental bias. Locked to presets until you select Custom..."
+                  className={`w-full flex-1 bg-zinc-950 border rounded-b p-3 text-zinc-300 transition-all font-mono leading-relaxed text-[11px] resize-none min-h-[90px] focus:outline-none ${
+                    isLocked
+                      ? "border-zinc-900 text-zinc-500 cursor-default bg-zinc-950/20"
+                      : "border-zinc-800 focus:border-zinc-700 shadow-inner"
+                  }`}
                 />
-                <span className="text-[11px] text-zinc-600">%</span>
+              </div>
+
+              {/* Text Area 2: Custom Instructions */}
+              <div className="flex flex-col gap-1.5 flex-1 min-h-[160px]">
+                <div className="flex items-center justify-between bg-zinc-950 border border-zinc-900 rounded-t px-3 py-1.5 border-b-0 shrink-0">
+                  <div className="flex items-center gap-1.5 text-zinc-400">
+                    <FileCode className="w-3.5 h-3.5 text-zinc-500" />
+                    <span className="text-[10px] uppercase font-bold tracking-widest">strategy_rules.prompt</span>
+                  </div>
+                  {isLocked ? (
+                    <span className="text-[9px] text-amber-500/80 uppercase font-bold tracking-wider px-1.5 py-0.2 bg-amber-500/5 border border-amber-500/10 rounded">LOCKED</span>
+                  ) : (
+                    <span className="text-[9px] text-emerald-400 uppercase font-bold tracking-wider px-1.5 py-0.2 bg-emerald-400/5 border border-emerald-400/10 rounded">EDITABLE</span>
+                  )}
+                </div>
+                <textarea
+                  value={instructions}
+                  onChange={(e) => setInstructions(e.target.value)}
+                  readOnly={isLocked}
+                  placeholder="Specify absolute entry, exit, indicators guidelines and risk constraints the LLM engine must execute..."
+                  className={`w-full flex-1 bg-zinc-950 border rounded-b p-3 text-zinc-300 transition-all font-mono leading-relaxed text-[11px] resize-none min-h-[120px] focus:outline-none ${
+                    isLocked
+                      ? "border-zinc-900 text-zinc-500 cursor-default bg-zinc-950/20"
+                      : "border-zinc-800 focus:border-zinc-700 shadow-inner"
+                  }`}
+                />
               </div>
             </div>
+          )}
 
-            <StrategySliders
-              orderSize={orderSize}
-              setOrderSize={setOrderSize}
-              cycleInterval={cycleInterval}
-              setCycleInterval={setCycleInterval}
-              stopLoss={stopLoss}
-              setStopLoss={setStopLoss}
-              takeProfit={takeProfit}
-              setTakeProfit={setTakeProfit}
-              maxActivePositions={maxActivePositions}
-              setMaxActivePositions={setMaxActivePositions}
-              convictionThreshold={convictionThreshold}
-              setConvictionThreshold={setConvictionThreshold}
-            />
+          {/* TAB 2: RISK MANAGEMENT */}
+          {configTab === "risk" && (
+            <div className="flex flex-col gap-5 font-mono text-[11px] flex-1">
+              {/* Emergency Drawdown Preset Buttons */}
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-1.5">
+                  <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest">
+                    Emergency Drawdown Limit
+                  </label>
+                  <span className="text-zinc-600">(MAX DRAWDOWN RISK LEVEL)</span>
+                </div>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {THRESHOLD_PRESETS.map((pct) => {
+                    const isActive = threshold === pct;
+                    return (
+                      <button
+                        key={pct}
+                        onClick={() => setThreshold(pct)}
+                        className={`py-2 text-[12px] rounded border transition-all uppercase cursor-pointer text-center font-bold ${
+                          isActive
+                            ? "bg-zinc-800 text-zinc-100 border-zinc-600 shadow-[0_0_8px_rgba(255,255,255,0.02)]"
+                            : "text-zinc-500 border-zinc-900/60 bg-zinc-950/30 hover:border-zinc-800 hover:text-zinc-300"
+                        }`}
+                      >
+                        {pct}%
+                      </button>
+                    );
+                  })}
+                </div>
+                
+                <div className="flex items-center gap-3 bg-zinc-950/50 p-2 border border-zinc-900 rounded mt-1">
+                  <span className="text-[10px] text-zinc-500 uppercase tracking-wider">Custom Threshold:</span>
+                  <input
+                    type="number" min={1} max={50} value={threshold}
+                    onChange={(e) => setThreshold(Math.min(50, Math.max(1, parseInt(e.target.value) || 1)))}
+                    className="w-16 bg-zinc-950 border border-zinc-800 rounded px-2 py-1 text-zinc-200 focus:outline-none focus:border-zinc-700 transition-all text-[11px] text-center"
+                  />
+                  <span className="text-[10px] text-zinc-500 uppercase">% MAX PORTFOLIO SLIPPAGE</span>
+                </div>
+              </div>
 
-            <div className="flex items-center gap-3 pt-2">
-              <Button variant="primary" onClick={handleSave} disabled={saving} className="flex-1">
-                {saving ? (
-                  <><Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> SAVING CORE...</>
-                ) : (
-                  <><Save className="w-3.5 h-3.5 mr-1.5" /> COMMIT STRATEGY</>
-                )}
-              </Button>
+              <div className="border-t border-zinc-900/80 pt-4 space-y-4">
+                <div className="flex items-center gap-1.5 mb-1 text-zinc-400">
+                  <label className="text-[11px] font-bold uppercase tracking-widest">Target Profit & Stop parameters</label>
+                </div>
+
+                {/* Stop Loss Slider */}
+                <div className="space-y-1.5">
+                  <div className="flex justify-between items-center text-[11px]">
+                    <span className="text-zinc-400 font-bold uppercase tracking-wider flex items-center gap-1">Stop Loss (SL)</span>
+                    <span className="text-rose-400 font-black tracking-tight border border-rose-950/50 bg-rose-950/15 px-2 py-0.5 rounded text-[10px]">-{stopLoss}%</span>
+                  </div>
+                  <input
+                    type="range" min={1} max={15} step={0.5} value={stopLoss}
+                    onChange={(e) => setStopLoss(Number(e.target.value))}
+                    className="w-full accent-white h-1.5 bg-zinc-900 rounded-lg appearance-none cursor-pointer border border-zinc-800/80"
+                  />
+                  <p className="text-[9px] text-zinc-500 leading-normal font-sans">
+                    Initial exit protection trigger. Sells position instantly if losses exceed this target.
+                  </p>
+                </div>
+
+                {/* Take Profit Slider */}
+                <div className="space-y-1.5">
+                  <div className="flex justify-between items-center text-[11px]">
+                    <span className="text-zinc-400 font-bold uppercase tracking-wider flex items-center gap-1">Take Profit (TP)</span>
+                    <span className="text-emerald-400 font-black tracking-tight border border-emerald-950/50 bg-emerald-950/15 px-2 py-0.5 rounded text-[10px]">+{takeProfit}%</span>
+                  </div>
+                  <input
+                    type="range" min={2} max={30} step={0.5} value={takeProfit}
+                    onChange={(e) => setTakeProfit(Number(e.target.value))}
+                    className="w-full accent-white h-1.5 bg-zinc-900 rounded-lg appearance-none cursor-pointer border border-zinc-800/80"
+                  />
+                  <p className="text-[9px] text-zinc-500 leading-normal font-sans">
+                    Automated exit bracket target. Captures profit instantly when price moves in target direction.
+                  </p>
+                </div>
+
+                {/* Max Positions Slider */}
+                <div className="space-y-1.5">
+                  <div className="flex justify-between items-center text-[11px]">
+                    <span className="text-zinc-400 font-bold uppercase tracking-wider flex items-center gap-1">Max Active Positions</span>
+                    <span className="text-zinc-200 font-black tracking-tight border border-zinc-800 bg-zinc-900 px-2 py-0.5 rounded text-[10px]">{maxActivePositions} Pairs</span>
+                  </div>
+                  <input
+                    type="range" min={1} max={10} step={1} value={maxActivePositions}
+                    onChange={(e) => setMaxActivePositions(Number(e.target.value))}
+                    className="w-full accent-white h-1.5 bg-zinc-900 rounded-lg appearance-none cursor-pointer border border-zinc-800/80"
+                  />
+                  <p className="text-[9px] text-zinc-500 leading-normal font-sans">
+                    Limits concurrent open pairs. Ensures capital diversity and prevents risk consolidation.
+                  </p>
+                </div>
+              </div>
             </div>
+          )}
+
+          {/* TAB 3: LIVE TUNING */}
+          {configTab === "execution" && (
+            <div className="flex flex-col gap-5 font-mono text-[11px] flex-1">
+              <div className="space-y-4">
+                <div className="flex items-center gap-1.5 mb-1 text-zinc-400">
+                  <label className="text-[11px] font-bold uppercase tracking-widest">Engine Loop Settings</label>
+                </div>
+
+                {/* Order Size Slider */}
+                <div className="space-y-1.5">
+                  <div className="flex justify-between items-center text-[11px]">
+                    <span className="text-zinc-400 font-bold uppercase tracking-wider flex items-center gap-1">Order Size (% Equity)</span>
+                    <span className="text-zinc-200 font-black tracking-tight border border-zinc-800 bg-zinc-900 px-2 py-0.5 rounded text-[10px]">{orderSize}% Portfolio</span>
+                  </div>
+                  <input
+                    type="range" min={2} max={30} step={1} value={orderSize}
+                    onChange={(e) => setOrderSize(Number(e.target.value))}
+                    className="w-full accent-white h-1.5 bg-zinc-900 rounded-lg appearance-none cursor-pointer border border-zinc-800/80"
+                  />
+                  <p className="text-[9px] text-zinc-500 leading-normal font-sans">
+                    Amount of available cash/equity mapped to a single trade. Adjusted dynamically by agent confidence.
+                  </p>
+                </div>
+
+                {/* Cycle Interval Slider */}
+                <div className="space-y-1.5">
+                  <div className="flex justify-between items-center text-[11px]">
+                    <span className="text-zinc-400 font-bold uppercase tracking-wider flex items-center gap-1">Cycle Interval (Frequency)</span>
+                    <span className="text-zinc-200 font-black tracking-tight border border-zinc-800 bg-zinc-900 px-2 py-0.5 rounded text-[10px]">{cycleInterval} seconds</span>
+                  </div>
+                  <input
+                    type="range" min={10} max={300} step={5} value={cycleInterval}
+                    onChange={(e) => setCycleInterval(Number(e.target.value))}
+                    className="w-full accent-white h-1.5 bg-zinc-900 rounded-lg appearance-none cursor-pointer border border-zinc-800/80"
+                  />
+                  <p className="text-[9px] text-zinc-500 leading-normal font-sans">
+                    Time delay between LLM analysis steps. Lower ranges increase reactivity; higher ranges preserve tokens.
+                  </p>
+                </div>
+
+                {/* Conviction Threshold Slider */}
+                <div className="space-y-1.5">
+                  <div className="flex justify-between items-center text-[11px]">
+                    <span className="text-zinc-400 font-bold uppercase tracking-wider flex items-center gap-1">Conviction Filter Threshold</span>
+                    <span className="text-zinc-200 font-black tracking-tight border border-zinc-800 bg-zinc-900 px-2 py-0.5 rounded text-[10px]">{convictionThreshold.toFixed(2)} Confidence</span>
+                  </div>
+                  <input
+                    type="range" min={0.1} max={0.9} step={0.05} value={convictionThreshold}
+                    onChange={(e) => setConvictionThreshold(Number(e.target.value))}
+                    className="w-full accent-white h-1.5 bg-zinc-900 rounded-lg appearance-none cursor-pointer border border-zinc-800/80"
+                  />
+                  <p className="text-[9px] text-zinc-500 leading-normal font-sans">
+                    Strict cut-off for decisions. Any LLM suggestion with entry confidence lower than this will be discarded.
+                  </p>
+                </div>
+              </div>
+
+              {/* Informative panel */}
+              <div className="p-3 bg-zinc-950 border border-zinc-900 rounded flex gap-2 font-sans text-zinc-400 leading-normal items-start mt-2">
+                <Info className="w-4 h-4 text-zinc-500 flex-shrink-0 mt-0.5" />
+                <div className="text-[10px]">
+                  <span className="font-bold text-zinc-300 block mb-0.5 uppercase tracking-wider font-mono">Live Loop Updates</span>
+                  Saving these variables triggers an in-memory hot reload. The agent will read these parameters during its next cycle run without requiring system reboots.
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Global Save Button - Always Visible at the Bottom of CardContent */}
+        <div className="border-t border-zinc-900/80 pt-4 mt-5 flex-shrink-0">
+          <div className="flex flex-col gap-2.5">
+            <Button variant="primary" onClick={handleSave} disabled={saving} className="w-full uppercase font-bold py-2 tracking-widest text-[11px]">
+              {saving ? (
+                <><Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5 text-zinc-400" /> RE-INJECTING STRATEGY OVERLAYS...</>
+              ) : (
+                <><Save className="w-3.5 h-3.5 mr-1.5 text-emerald-400" /> SAVE & APPLY STRATEGY CONFIGURATION</>
+              )}
+            </Button>
 
             {statusMsg && (
-              <div className={`p-2.5 rounded text-[11px] font-mono font-bold tracking-wider text-center border ${
+              <div className={`p-2 rounded text-[10px] font-mono font-bold tracking-wider text-center border ${
                 statusMsg.type === "success"
-                  ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                  ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400 animate-pulse"
                   : "bg-rose-500/10 border-rose-500/20 text-rose-400"
               }`}>
                 {statusMsg.type === "success" && <CheckCircle className="w-3.5 h-3.5 inline mr-1.5 -mt-0.5" />}
@@ -329,7 +506,8 @@ export const StrategyPanel = memo(function StrategyPanel() {
               </div>
             )}
           </div>
-        </CardContent>
+        </div>
+      </CardContent>
     </Card>
   );
 });
