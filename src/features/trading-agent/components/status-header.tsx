@@ -2,15 +2,24 @@
 
 import { memo, useEffect, useState } from "react";
 import type { useAgent } from "@/features/trading-agent/hooks/use-agent";
+import { Button } from "@/shared/ui/button";
 
 interface Props {
   agent: ReturnType<typeof useAgent>;
 }
 
 export const StatusHeader = memo(function StatusHeader({ agent }: Props) {
-  const { state } = agent;
+  const { state, setAgentStatus, runCycle } = agent;
   const { status } = state;
   const [staleSec, setStaleSec] = useState(0);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/auth/status")
+      .then(res => res.json())
+      .then(data => setIsAdmin(!!data.authenticated))
+      .catch(() => setIsAdmin(false));
+  }, []);
 
   useEffect(() => {
     if (!state.lastFetchAt) return;
@@ -34,7 +43,38 @@ export const StatusHeader = memo(function StatusHeader({ agent }: Props) {
         </div>
       </div>
 
-      <div className="flex items-center gap-3 sm:gap-4 self-end sm:self-auto">
+      <div className="flex items-center gap-3 sm:gap-4 self-end sm:self-auto flex-wrap justify-end">
+        {isAdmin && (
+          <div className="flex items-center gap-2 mr-2 border-r border-obsidian-border/50 pr-4">
+            {status !== "running" && (
+              <Button size="sm" variant="emerald" onClick={() => setAgentStatus("running")}>
+                START
+              </Button>
+            )}
+            {status === "running" && (
+              <Button size="sm" variant="secondary" onClick={() => setAgentStatus("paused")}>
+                PAUSE
+              </Button>
+            )}
+            <Button size="sm" variant="danger" onClick={() => setAgentStatus("stopped")}>
+              STOP (LIQUIDATE)
+            </Button>
+            <Button size="sm" variant="ghost" onClick={runCycle}>
+              RUN CYCLE
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={async () => {
+                await fetch("/api/auth/logout", { method: "POST" });
+                window.location.reload();
+              }}
+            >
+              LOGOUT
+            </Button>
+          </div>
+        )}
+
         {/* Staleness */}
         <span className={`text-[10px] font-mono font-bold tracking-widest uppercase ${
           staleSec > 30 ? "text-rose-400" :
