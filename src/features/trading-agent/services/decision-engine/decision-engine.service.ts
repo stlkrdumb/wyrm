@@ -43,7 +43,7 @@ export async function evaluateMultiPair(
   priceMap: Map<string, TickerData>,
   activePositions: Position[] = [],
   onToken?: (token: string) => void,
-  recentExits: Array<{ symbol: string; reason: "Stop Loss" | "Take Profit" | "Dust Cleanup"; timestamp: number }> = []
+  recentExits: Array<{ symbol: string; reason: "Stop Loss" | "Take Profit" | "Dust Cleanup" | "Manual Close"; timestamp: number }> = []
 ): Promise<MultiPairResult> {
   const symbols = Array.from(priceMap.keys());
   if (symbols.length === 0) return { decisions: {}, allSignals: [], source: "llm" };
@@ -174,7 +174,7 @@ function buildSymbolDataMap(
 async function buildUserPrompt(
   symbolData: Map<string, { ticker: TickerData; ta5m: any; ta1h: any; ta1d: any; sentiment: any }>,
   activePositions: import("@/features/trading-agent/types").Position[],
-  recentExits: Array<{ symbol: string; reason: "Stop Loss" | "Take Profit" | "Dust Cleanup"; timestamp: number }>
+  recentExits: Array<{ symbol: string; reason: "Stop Loss" | "Take Profit" | "Dust Cleanup" | "Manual Close"; timestamp: number }>
 ): Promise<string> {
   const prompt = buildMultiPrompt(symbolData, activePositions, recentExits);
 

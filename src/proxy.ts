@@ -19,7 +19,8 @@ export async function proxy(req: NextRequest) {
   if (
     pathname.startsWith("/api/agent/breaker") ||
     pathname.startsWith("/api/agent/strategy") ||
-    pathname.startsWith("/api/agent/cycle")
+    pathname.startsWith("/api/agent/cycle") ||
+    pathname.startsWith("/api/agent/close")
   ) {
     // GET requests (viewing state/logs) are public-facing, but POST/PUT are state-changing
     if (req.method !== "GET") {

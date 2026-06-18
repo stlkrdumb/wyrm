@@ -27,7 +27,7 @@ export interface BacktestContext {
   wins: number;
   currentPositions: Record<string, BacktestPosition>;
   trades: Array<{ timestamp: Date; symbol: string; side: "buy" | "sell"; price: number; pnl?: number }>;
-  recentExits: Array<{ symbol: string; reason: "Stop Loss" | "Take Profit" | "Dust Cleanup"; timestamp: number }>;
+  recentExits: Array<{ symbol: string; reason: "Stop Loss" | "Take Profit" | "Dust Cleanup" | "Manual Close"; timestamp: number }>;
 }
 
 /** Calculate portfolio equity from cash + open positions. */

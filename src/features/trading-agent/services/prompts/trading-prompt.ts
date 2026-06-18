@@ -42,7 +42,7 @@ ${process.env.LLM_RISKPROFILE === "true"
 export function buildMultiPrompt(
   symbolData: Map<string, { ticker: TickerData; ta5m: any; ta1h: any; ta1d: any; sentiment?: any }>,
   activePositions: Position[] = [],
-  recentExits: Array<{ symbol: string; reason: 'Stop Loss' | 'Take Profit' | 'Dust Cleanup'; timestamp: number }> = []
+  recentExits: Array<{ symbol: string; reason: 'Stop Loss' | 'Take Profit' | 'Dust Cleanup' | 'Manual Close'; timestamp: number }> = []
 ): string {
   const entries = Array.from(symbolData.entries());
   const lines = entries

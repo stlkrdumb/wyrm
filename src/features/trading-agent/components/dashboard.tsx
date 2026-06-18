@@ -76,6 +76,7 @@ export const Dashboard = memo(function Dashboard() {
               positions={agent.state.positions}
               tickers={agent.state.tickers}
               everConnected={agent.state.everConnected}
+              onClosePosition={agent.refresh}
             />
           </div>
         </div>

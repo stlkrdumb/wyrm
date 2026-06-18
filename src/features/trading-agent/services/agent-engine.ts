@@ -113,7 +113,7 @@ function buildInitialState(): AgentState {
       : [],
     logs: [],
     decisionSource: null,
-    recentExits: new Map<string, { timestamp: number; reason: "Stop Loss" | "Take Profit" | "Dust Cleanup" }>(),
+    recentExits: new Map<string, { timestamp: number; reason: "Stop Loss" | "Take Profit" | "Dust Cleanup" | "Manual Close" }>(),
   };
 }
 
@@ -501,6 +501,73 @@ export function resetCircuitBreaker(): void {
 export function updateCircuitBreakerThreshold(pct: number): void {
   const st = getState();
   if (pct >= 1 && pct <= 50) st.circuitBreakerThresholdPct = pct;
+}
+
+export function closePosition(symbol: string): boolean {
+  const st = getState();
+  const idx = st.positions.findIndex((p) => p.symbol.toUpperCase() === symbol.toUpperCase());
+  if (idx < 0) return false;
+
+  const pos = st.positions[idx];
+  const currentPrice = priceStore.getCached(pos.symbol)?.lastPrice ?? pos.entryPrice;
+  const unrealizedPnL = (currentPrice - pos.entryPrice) * pos.size;
+  const exitFee = currentPrice * pos.size * config.feePct;
+  const pnl = unrealizedPnL - exitFee;
+
+  const tc = getTradeCounter() + 1;
+  setTradeCounter(tc);
+
+  st.trades.push({
+    id: `T${tc}`,
+    timestamp: new Date(),
+    symbol: pos.symbol,
+    side: "sell",
+    action: "exit",
+    size: pos.size,
+    price: currentPrice,
+    pnl,
+    fee: exitFee,
+  });
+
+  st.portfolio.cash += currentPrice * pos.size - exitFee;
+  st.positions.splice(idx, 1);
+  st.watchlist = st.watchlist.filter((s) => s !== pos.symbol);
+  st.portfolio.totalPnL = st.portfolio.cash - st.startEquity;
+  st.portfolio.totalTrades++;
+
+  // Record manual exit under recentExits so the LLM doesn't re-enter within the cooldown window
+  st.recentExits.set(pos.symbol, { timestamp: Date.now(), reason: "Manual Close" });
+
+  // Recalculate equity
+  recalcEquity(st);
+
+  // Persist balance changes
+  try {
+    saveBalanceState({
+      initialCash: config.initialCash,
+      startCash: st.startEquity,
+      cash: st.portfolio.cash,
+      accumulatedRealizedPnL: st.portfolio.totalPnL,
+      positions: st.positions.map((p) => ({
+        symbol: p.symbol,
+        side: p.side as "long" | "short",
+        size: p.size,
+        entryPrice: p.entryPrice,
+        stopLossPct: p.stopLossPct,
+        takeProfitPct: p.takeProfitPct,
+      })),
+      totalTrades: st.portfolio.totalTrades,
+      winRate: st.portfolio.winRate,
+      circuitBreakerTripped: st.circuitBreakerTripped,
+      circuitBreakerThresholdPct: st.circuitBreakerThresholdPct,
+      peakEquity: st.peakEquity,
+      tradeCounter: getTradeCounter(),
+    });
+  } catch (saveErr) {
+    console.error("[Agent] Failed to persist state on manual close:", saveErr instanceof Error ? saveErr.message : String(saveErr));
+  }
+
+  return true;
 }
 
 export function resetInMemoryState(): void {
