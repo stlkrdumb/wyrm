@@ -116,8 +116,9 @@ MAX_ACTIVE_POSITIONS=5               # Max concurrent positions
 AGENT_CYCLE_INTERVAL_MS=30000        # 30s between automatic cycles
 ```
 
-### Installation
+### Installation & Running
 
+#### Development Mode
 ```bash
 # Install Node dependencies
 npm install
@@ -131,6 +132,25 @@ npm run dev
 # Build for production and run with PM2
 npm run build
 pm2 start npm --name "wyrm-trader" -- start
+```
+
+#### Production Mode (PM2)
+We use **PM2** for process management, auto-restarting on failures, and log management.
+```bash
+# 1. Build the application
+npm run build
+
+# 2. Start using PM2
+npm run start:pm2
+```
+
+Useful PM2 management scripts:
+```bash
+npm run status:pm2    # Check status
+npm run logs:pm2      # View real-time logs
+npm run restart:pm2   # Restart the app
+npm run stop:pm2      # Stop the app
+npm run delete:pm2    # Delete process from list
 ```
 
 ---
@@ -218,20 +238,78 @@ src/
 │   └── page.tsx                  # Obsidian Dashboard landing page
 ├── proxy.ts                      # Bearer Token security middleware
 ├── features/trading-agent/
-│   ├── components/               # Bento Grid Dashboard component tree
-│   ├── hooks/use-agent.ts        # Polling hooks for state synchronization
+├── features/trading-agent/
+│   ├── components/            # React UI components
+│   │   ├── dashboard.tsx      # 12-col bento grid layout
+│   │   ├── equity-chart.tsx   # Portfolio chart (1m–1w)
+│   │   ├── signal-panel.tsx   # Decision pipeline + strength
+│   │   ├── sentiment-panel.tsx # Market intelligence
+│   │   ├── positions-panel.tsx # Spot holdings table
+│   │   ├── watchlist.tsx      # WS ticker chips
+│   │   ├── status-header.tsx  # Model name + status dot
+│   │   ├── bottom-status-bar.tsx # Fixed terminal footer
+│   │   ├── trade-log.tsx      # Execution log
+│   │   ├── decision-pipeline.tsx # 5-stage flow viz
+│   │   ├── decision-history.tsx  # Past decisions log
+│   │   ├── backtest-panel.tsx  # Simulation sandbox
+│   │   ├── circuit-breaker-panel.tsx
+│   │   ├── strategy-panel.tsx  # Agent customizer
+│   │   ├── strategy-sliders.tsx # Sliders for strategy parameters
+│   │   ├── news-panel.tsx      # Macro news feed
+│   │   ├── terminal-log.tsx    # Agent console
+│   │   ├── brain-log.tsx       # Inner LLM reasoning log
+│   │   ├── trade-toast.tsx     # Floating trade notifications
+│   │   ├── kpi-strip.tsx       # Key performance indicators
+│   │   └── radial-gauge.tsx    # Drawdown meter
+│   ├── hooks/
+│   │   ├── use-agent.ts        # State polling + API calls
+│   │   ├── use-agent-selector.ts # Memoized state selectors
+│   │   ├── use-performance-monitor.ts # Render performance tracker
+│   │   ├── use-price-stream.ts # Live price WebSocket handler
+│   │   └── use-animated-number.ts # Smooth UI transitions
 │   ├── services/
-│   │   ├── agent-engine.ts       # Central perception-action cycle loop
-│   │   ├── market-ws.service.ts  # Bitget public websocket connection manager
-│   │   ├── price-store.ts        # Live memory tick cache
-│   │   ├── decision-engine.service.ts # Technical evaluation + LLM routing
-│   │   ├── risk-manager.service.ts    # Size controls & cooldown windows
-│   │   ├── sim-order-executor.ts      # Simulated order matching engine
-│   │   └── strategy.service.ts        # Dynamic strategy persona store
-│   ├── analysis/                 # Python indicator calculators (RSI, MACD, BOLL)
-│   ├── types/                    # Domain typescript definitions
-│   └── schemas/                  # Zod validation schemas
-└── shared/ui/                    # Card, Badge, Button, Tabs primitives
+│   │   ├── agent-engine.ts     # Core cycle orchestration
+│   │   ├── llm.service.ts      # OpenAI-compatible chat
+│   │   ├── screening.service.ts # Bulk pair screening
+│   │   ├── decision-helper.ts  # Backward compatible barrel for prompts/
+│   │   ├── decision-engine.service.ts # Barrel for decision-engine/
+│   │   ├── backtest-service.ts # Barrel for backtest/
+│   │   ├── market-ws.service.ts # Barrel for market-ws/
+│   │   ├── order-executor.service.ts # Barrel for orders/
+│   │   ├── risk-manager.service.ts # Trade validation
+│   │   ├── sentiment.service.ts # F&G + Bitget futures data
+│   │   ├── news.service.ts     # RSS scraping
+│   │   ├── price-store.ts      # WS ticker cache
+│   │   ├── proxy-client.ts     # Residential proxy rotation
+│   │   ├── prompts/            # LLM Prompt generation & parsing
+│   │   │   ├── fallback.ts     # Heuristic safety defaults
+│   │   │   ├── json-utils.ts   # AI JSON cleaning & repairing
+│   │   │   ├── response-parser.ts # Regex/JSON output parser
+│   │   │   └── trading-prompt.ts # System & context builder
+│   │   ├── backtest/           # Modular backtest engine
+│   │   │   ├── simulator.ts    # Iterative historical run
+│   │   │   ├── metrics.ts      # Sharpe, Drawdown, Win-rate calculators
+│   │   │   └── data.ts         # Candle fetching & storage
+│   │   ├── decision-engine/    # Multi-pair evaluation cycle
+│   │   │   ├── screening.ts    # Volatility/Momentum filtering
+│   │   │   ├── ta-runner.ts    # Technical indicator executor
+│   │   │   └── ta-cache.ts     # In-memory indicator cache
+│   │   ├── market-ws/          # WS connections manager
+│   │   │   ├── connection.ts   # Reconnect & Socket lifecycle
+│   │   │   ├── subscriptions.ts # Bitget symbol subscriptions
+│   │   │   ├── message-processor.ts # Payload parser & store router
+│   │   │   ├── heartbeat.ts    # Ping/Pong connection guard
+│   │   │   └── cycle-scheduler.ts # WS status heartbeat to state
+│   │   └── orders/             # Trade execution engine
+│   │       ├── flatten.ts      # Emergency liquidator
+│   │       └── price-resolver.ts # Executed price finder
+│   ├── analysis/                # Python TA scripts
+│   ├── constants/
+│   ├── types/
+│   └── utils/
+└── shared/
+    ├── ui/                      # Card, Badge, Button, Tabs, Progress
+    └── utils/api-fetch.ts       # Bearer token fetch wrapper
 ```
 
 ---
