@@ -407,34 +407,7 @@ export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ ticker
   st.modelName = getActiveModel();
 
   // Persist updated state to disk at the end of the cycle
-  try {
-    saveBalanceState({
-      initialCash: config.initialCash,
-      startCash: st.startEquity,
-      cash: st.portfolio.cash,
-      accumulatedRealizedPnL: st.portfolio.totalPnL,
-      positions: st.positions.map(p => ({
-        symbol: p.symbol,
-        side: p.side as "long" | "short",
-        size: p.size,
-        entryPrice: p.entryPrice,
-        stopLossPct: p.stopLossPct,
-        takeProfitPct: p.takeProfitPct,
-      })),
-      totalTrades: st.portfolio.totalTrades,
-      winRate: st.portfolio.winRate,
-      circuitBreakerTripped: st.circuitBreakerTripped,
-      circuitBreakerThresholdPct: st.circuitBreakerThresholdPct,
-      peakEquity: st.peakEquity,
-      tradeCounter: getTradeCounter(),
-      equityHistory: st.equityHistory.map(e => ({
-        timestamp: e.timestamp.toISOString(),
-        equity: e.equity,
-      })),
-    });
-  } catch (saveErr) {
-    console.error("[Agent] Failed to persist state at end of cycle:", saveErr instanceof Error ? saveErr.message : String(saveErr));
-  }
+  persistState();
 
   return { tickerPrice: displayTicker.lastPrice, tickers: Object.fromEntries(prices) };
 }

@@ -25,8 +25,8 @@ export function parseSingleResponse(response: string): { decision: TradingDecisi
     }
   }
 
-  let action: "buy" | "sell" | "hold";
-  if (parsed.action === "buy" || parsed.action === "sell" || parsed.action === "hold") {
+  let action: "buy" | "sell" | "hold" | "modify_position";
+  if (parsed.action === "buy" || parsed.action === "sell" || parsed.action === "hold" || parsed.action === "modify_position") {
     action = parsed.action;
   } else {
     console.warn(`[DecisionHelper] Single response: unknown action "${parsed.action}", defaulting to hold`);
@@ -47,6 +47,9 @@ export function parseSingleResponse(response: string): { decision: TradingDecisi
     riskProfile = undefined;
     slPct = undefined;
     tpPct = undefined;
+  } else if (action === "modify_position") {
+    strength = 0;
+    riskProfile = undefined;
   } else if (action === "sell") {
     if (strength > 0) strength = -strength;
     if (strength === 0) strength = -1.0;
@@ -144,6 +147,7 @@ export function parseSymbolDecisionFromText(text: string, symbol: string): any {
       let action: string | undefined;
       if (/\bbuy\b/i.test(line)) action = "buy";
       else if (/\bsell\b/i.test(line)) action = "sell";
+      else if (/\bmodify_position\b/i.test(line) || /\bmodify\b/i.test(line)) action = "modify_position";
       else if (/\bhold\b/i.test(line)) action = "hold";
 
       if (!action) continue;
@@ -242,8 +246,8 @@ export function parseMultiResponse(
       continue;
     }
 
-    let action: "buy" | "sell" | "hold";
-    if (raw.action === "buy" || raw.action === "sell" || raw.action === "hold") {
+    let action: "buy" | "sell" | "hold" | "modify_position";
+    if (raw.action === "buy" || raw.action === "sell" || raw.action === "hold" || raw.action === "modify_position") {
       action = raw.action;
     } else {
       console.warn(`[DecisionHelper] Multi-response ${symbol}: unknown action "${raw.action}", defaulting to hold`);
@@ -264,6 +268,9 @@ export function parseMultiResponse(
       riskProfile = undefined;
       slPct = undefined;
       tpPct = undefined;
+    } else if (action === "modify_position") {
+      strength = 0;
+      riskProfile = undefined;
     } else if (action === "sell") {
       if (strength > 0) strength = -strength;
       if (strength === 0) strength = -1.0;

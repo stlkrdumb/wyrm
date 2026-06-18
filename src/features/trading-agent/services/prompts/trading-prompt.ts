@@ -101,7 +101,7 @@ export function buildMultiPrompt(
       .map(p => {
         const costBasis = p.entryPrice * p.size;
         const pnlPct = costBasis > 0 ? ((p.unrealizedPnL / costBasis) * 100).toFixed(2) : "0.00";
-        return `- ${p.symbol}: Size ${p.size.toFixed(4)} | Avg Entry Price $${p.entryPrice.toLocaleString()} | Unrealized PnL: $${p.unrealizedPnL.toFixed(2)} (${pnlPct}%)`;
+        return `- ${p.symbol}: Size ${p.size.toFixed(4)} | Avg Entry Price $${p.entryPrice.toLocaleString()} | Current SL: ${p.stopLossPct}% | Current TP: ${p.takeProfitPct}% | Unrealized PnL: $${p.unrealizedPnL.toFixed(2)} (${pnlPct}%)`;
       })
       .join("\n") + "\n";
   } else {
@@ -131,18 +131,20 @@ ${lines}
 ${positionsSection}${recentExitsSection}
 Rules:
 - You MUST provide a decision for EVERY SINGLE symbol listed above (specifically: ${Array.from(symbolData.keys()).join(", ")}). Never omit any symbol from your JSON response. If you want to take no action on a symbol, explicitly output "action": "hold" for it.
-- For EACH symbol, decide: buy, sell, or hold
+- For EACH symbol, decide: buy, sell, hold, or modify_position
 - If we hold a position for a symbol (one that appears in the "Active Positions" section above) and you want to take profit, stop loss, or close it, output "action": "sell".
-- If we hold a position (listed above) and you wish to keep it, output "action": "hold".
+- If we hold a position (listed above) and you want to adjust its Stop Loss (slPct) or Take Profit (tpPct) percentages dynamically based on evolving trends (trailing a stop loss to lock in profits, etc), output "action": "modify_position" and provide the new slPct and tpPct.
+- If we hold a position (listed above) and you wish to keep it without modifying its existing SL/TP brackets, output "action": "hold".
 - If we hold a position (listed above) and you wish to add more (average down), output "action": "buy".
-- If we do NOT hold a position for a symbol (NOT listed in the Active Positions section), "sell" is invalid \u2014 only "buy" or "hold" are valid actions for it.
+- If we do NOT hold a position for a symbol (NOT listed in the Active Positions section), "sell" and "modify_position" are invalid \u2014 only "buy" or "hold" are valid actions for it.
 - ANTI-HALLUCINATION: NEVER refer to "current position", "our position", "we hold", "we are holding", or "maintaining" in your reason for any symbol UNLESS that symbol is explicitly listed in the Active Positions section above. If no positions are listed, we hold nothing \u2014 do not invent one.
 - ANTI-HALLUCINATION: If a symbol is listed in the Recent Auto-Exits section, it is NOT an active position \u2014 the system just closed it. Treat it as a fresh entry opportunity (buy) or a skip (hold). Do NOT say "hold to manage existing position" or "we already hold" for any symbol in that list.
 - For "hold" decisions on symbols we don't own, explain why the technical/fundamental signals don't warrant a fresh entry (e.g., weak RSI, unclear trend, low volume), NOT because you're "maintaining a position".
 - Strength and Action Rules:
-  * For "hold" decisions, "strength" MUST be 0.0. Do NOT include "riskProfile" (or "slPct"/"tpPct").
-  * For "sell" decisions, "strength" MUST be a negative number between -0.1 and -1.0 representing exit size percentage (e.g., strength -0.5 means sell 50% of the position, -1.0 means sell 100%). Do NOT include "riskProfile" (or "slPct"/"tpPct").
-  * For "buy" decisions, "strength" MUST be a positive number between 0.1 and 1.0. You MUST specify a "riskProfile" (or "slPct"/"tpPct").
+  * For "hold" decisions, "strength" MUST be 0.0. Do NOT include "slPct"/"tpPct".
+  * For "modify_position" decisions, "strength" MUST be 0.0. You MUST provide the updated "slPct" and "tpPct" fields.
+  * For "sell" decisions, "strength" MUST be a negative number between -0.1 and -1.0 representing exit size percentage (e.g., strength -0.5 means sell 50% of the position, -1.0 means sell 100%). Do NOT include "slPct"/"tpPct".
+  * For "buy" decisions, "strength" MUST be a positive number between 0.1 and 1.0. You MUST specify "slPct" and "tpPct".
 - Confidence: 0-1
 ${process.env.LLM_RISKPROFILE === "true"
   ? `- LLM_RISKPROFILE MODE: For buy actions, decide your own stopLoss (slPct: number 1-50, e.g. 5 = 5%) and takeProfit (tpPct: number 1-100, e.g. 12 = 12%) based on ATR, volatility, and conviction. Output them as numbers in the JSON \u2014 do NOT use riskProfile. Tighter for calm markets / high conviction, wider for volatile / uncertain trades. NEVER leave slPct/tpPct blank for a buy action.`

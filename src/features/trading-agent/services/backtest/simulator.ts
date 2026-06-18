@@ -182,6 +182,17 @@ export async function executeStepTrades(
       executeBuy(ctx, finalDecision, symbol, price, timestamp);
     } else if (finalDecision.action === "sell") {
       executeSell(ctx, finalDecision, symbol, price, timestamp);
+    } else if (finalDecision.action === "modify_position") {
+      const existing = ctx.currentPositions[symbol];
+      if (existing) {
+        const slPct = finalDecision.slPct ?? existing.stopLossPct;
+        const tpPct = finalDecision.tpPct ?? existing.takeProfitPct;
+        ctx.currentPositions[symbol] = {
+          ...existing,
+          stopLossPct: slPct,
+          takeProfitPct: tpPct
+        };
+      }
     }
   }
 }

@@ -47,7 +47,7 @@ export interface Trade {
 }
 
 export interface TradingDecision {
-  action: "buy" | "sell" | "hold";
+  action: "buy" | "sell" | "hold" | "modify_position";
   strength: number;       // -1 (strong sell) to +1 (strong buy)
   confidence: number;     // 0-1
   reason: string;
