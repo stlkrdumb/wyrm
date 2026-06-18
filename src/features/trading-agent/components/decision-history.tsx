@@ -40,7 +40,7 @@ export const DecisionHistory = memo(function DecisionHistory({ onBack, isTabMode
   );
 
   if (loading) return (
-    <div className={`flex items-center justify-center ${isTabMode ? "flex-grow" : "p-5 rounded border border-zinc-900 bg-zinc-950/40 h-[450px]"}`}>
+    <div className={`flex items-center justify-center ${isTabMode ? "flex-1 min-h-0" : "p-5 rounded border border-zinc-900 bg-zinc-950/40 h-[450px]"}`}>
       <div className="text-[11px] font-mono text-zinc-500 text-center tracking-wide uppercase animate-pulse">
         FETCHING DECISION HISTORY...
       </div>
@@ -48,7 +48,7 @@ export const DecisionHistory = memo(function DecisionHistory({ onBack, isTabMode
   );
 
   if (error) return (
-    <div className={`flex items-center justify-center ${isTabMode ? "flex-grow" : "p-5 rounded border border-zinc-900 bg-zinc-950/40 h-[450px]"}`}>
+    <div className={`flex items-center justify-center ${isTabMode ? "flex-1 min-h-0" : "p-5 rounded border border-zinc-900 bg-zinc-950/40 h-[450px]"}`}>
       <div className="text-[11px] font-mono text-zinc-500 text-center tracking-wide uppercase">
         {error}
       </div>
@@ -80,7 +80,7 @@ export const DecisionHistory = memo(function DecisionHistory({ onBack, isTabMode
         />
       </div>
 
-      <div className="flex-grow overflow-y-auto scrollbar-none max-h-[280px]">
+      <div className="flex-1 min-h-0 overflow-y-auto scrollbar-none">
         {filteredHistory.length > 0 ? (
           <div className="flex flex-col gap-2 font-mono">
             {filteredHistory.reverse().map((record) => (
@@ -114,7 +114,7 @@ export const DecisionHistory = memo(function DecisionHistory({ onBack, isTabMode
   );
 
   return (
-    <div className={`flex flex-col gap-4 ${isTabMode ? "flex-grow" : "p-5 rounded border border-zinc-900 bg-zinc-950/40 backdrop-blur-md h-[450px]"}`}>
+    <div className={`flex flex-col gap-4 ${isTabMode ? "flex-1 min-h-0" : "p-5 rounded border border-zinc-900 bg-zinc-950/40 backdrop-blur-md h-[450px]"}`}>
       {!isTabMode && (
         <div className="flex items-center justify-between border-b border-zinc-900/50 pb-3">
           <span className="text-[12px] tracking-widest text-zinc-500 font-bold uppercase">Decision History</span>

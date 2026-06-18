@@ -73,7 +73,7 @@ export const TerminalLog = memo(function TerminalLog({ logs, isTabMode }: Props)
     </div>
   );
 
-  if (isTabMode) return <div className="flex flex-col flex-1 min-h-0">{scrollContent("flex-grow")}</div>;
+  if (isTabMode) return <div className="flex flex-col flex-1 min-h-0">{scrollContent("flex-1 min-h-0")}</div>;
 
   return (
     <Card className="h-[200px] !border-transparent">

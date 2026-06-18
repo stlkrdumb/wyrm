@@ -37,6 +37,31 @@ export const Dashboard = memo(function Dashboard() {
         <Watchlist tickers={agent.state.tickers} watchlist={agent.state.watchlist} />
       </div>
 
+      {/* Public Agent Status Banner */}
+      {agent.state.status !== "running" && (
+        <div className="relative z-10 px-4 pt-3">
+          <div className={`p-3 rounded border flex items-center gap-3 ${
+            agent.state.status === "stopped" 
+              ? "border-zinc-800 bg-zinc-900/10" 
+              : "border-yellow-900/20 bg-yellow-950/20"
+          }`}>
+             <div className={`w-2 h-2 rounded-full ${agent.state.status === "stopped" ? "bg-zinc-500" : "bg-yellow-500 animate-pulse"}`} />
+             <span className={`text-[11px] font-mono font-bold tracking-widest uppercase ${
+               agent.state.status === "stopped" ? "text-zinc-400" : "text-yellow-500"
+             }`}>
+               AGENT {agent.state.status}
+             </span>
+             <span className={`text-[11px] font-mono border-l pl-3 ${
+               agent.state.status === "stopped" ? "text-zinc-500 border-zinc-800" : "text-yellow-600/80 border-yellow-900/50"
+             }`}>
+               {agent.state.status === "stopped" 
+                 ? "System is offline. No active trades will execute."
+                 : "Execution engine is paused. Holdings are preserved."}
+             </span>
+          </div>
+        </div>
+      )}
+
       {/* Main Terminal Grid */}
       <main className="relative z-10 px-4 pb-12 pt-3 grid grid-cols-1 lg:grid-cols-12 gap-3 flex-1 lg:h-[calc(100vh-140px)]">
         {/* Left Column: Chart + Positions (span 5) */}
@@ -99,7 +124,7 @@ export const Dashboard = memo(function Dashboard() {
         <div className="col-span-1 lg:col-span-3 flex flex-col gap-3 min-h-0 h-full">
           <div className="flex-1 min-h-0 flex flex-col gap-3">
             <SentimentPanel />
-            <div className="flex-1 min-h-0">
+            <div className="flex-1 min-h-0 flex flex-col">
               <NewsPanel />
             </div>
           </div>
