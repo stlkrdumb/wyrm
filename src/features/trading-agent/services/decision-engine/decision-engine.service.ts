@@ -97,29 +97,30 @@ async function selectSymbolsForLLMEvaluation(
   activePositions: Position[],
   evalMaxPairs: number
 ): Promise<string[]> {
-  if (symbols.length <= evalMaxPairs) return symbols;
-
   const positionSymbols = new Set(activePositions.map(p => p.symbol.toUpperCase()));
   const held = symbols.filter(s => positionSymbols.has(s.toUpperCase()));
   const candidates = symbols.filter(s => !positionSymbols.has(s.toUpperCase()));
 
-  const selected = held.slice(0, evalMaxPairs);
+  // Always include all currently held positions so the LLM can manage them
+  const selected = [...held];
 
-  if (candidates.length > 0) {
-    const slotsToFill = Math.max(evalMaxPairs, evalMaxPairs - selected.length);
-    const poolCandidates = candidates.slice(0, 6);
+  // Also include up to evalMaxPairs candidates to scan for new entries
+  if (candidates.length > 0 && evalMaxPairs > 0) {
+    const poolCandidates = candidates.slice(0, 8);
 
     const candidateSetups = await Promise.all(
       poolCandidates.map(async (symbol) => scoreSymbolSetup(symbol))
     );
 
     candidateSetups.sort((a, b) => b.score - a.score);
+    const topCandidates = candidateSetups.slice(0, evalMaxPairs).map(c => c.symbol);
+    selected.push(...topCandidates);
+    
     console.log(`[DecisionEngine] Pre-screen: ${candidateSetups.map(c => `${c.symbol}(RSI=${c.rsi.toFixed(1)}, score=${c.score.toFixed(1)})`).join(", ")}`);
-
-    selected.push(...candidateSetups.slice(0, slotsToFill).map(c => c.symbol));
   }
 
   const skipped = symbols.filter(s => !selected.includes(s));
+  console.log(`[DecisionEngine] Selected for LLM: ${selected.join(", ")} (Held: ${held.join(", ")})`);
   console.log(`[DecisionEngine] Skipped: ${skipped.join(", ")}`);
   return selected;
 }
