@@ -18,6 +18,9 @@ function buildSavePayload(state: AgentState): PortfolioState {
     circuitBreakerTripped: state.circuitBreakerTripped,
     circuitBreakerThresholdPct: state.circuitBreakerThresholdPct,
     peakEquity: state.peakEquity,
+    dailyPnL: state.dailyPnL,
+    dailyPnLLimitUsd: state.dailyPnLLimitUsd,
+    dailyPnLResetAt: state.dailyPnLResetAt,
   };
 }
 

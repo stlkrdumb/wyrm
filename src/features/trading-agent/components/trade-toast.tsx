@@ -25,12 +25,33 @@ const actionLabel: Record<string, string> = {
 export const TradeToast = memo(function TradeToast({ trades }: Props) {
   const [toasts, setToasts] = useState<ToastTrade[]>([]);
   const lastTradeCountRef = useRef(trades.length);
+  const initialLoadDoneRef = useRef(false);
+  const pageLoadTimeRef = useRef(Date.now());
+
+  // On first render, mark initial load as done after a short delay
+  // This prevents toasts for all historical trades on page refresh
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      initialLoadDoneRef.current = true;
+    }, 2000); // Wait 2s for initial state to settle
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
+    // Skip toast generation during initial page load
+    if (!initialLoadDoneRef.current) {
+      lastTradeCountRef.current = trades.length;
+      return;
+    }
+
     if (trades.length > lastTradeCountRef.current) {
       // New trades appeared
       const newTrades = trades.slice(lastTradeCountRef.current);
       for (const t of newTrades) {
+        // Only show toast if the trade happened after page load (within last 10s)
+        const tradeTime = new Date(t.timestamp).getTime();
+        if (Date.now() - tradeTime > 10000) continue; // Skip old trades
+        
         const toast: ToastTrade = {
           id: t.id + "-" + Date.now(),
           symbol: t.symbol,

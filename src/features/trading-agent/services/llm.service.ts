@@ -40,6 +40,7 @@ export async function chatCompletion(options: {
   temperature?: number;
   maxTokens?: number;
   onToken?: TokenCallback;
+  signal?: AbortSignal;
 }): Promise<string> {
   const baseUrl = BASE_URL;
   const apiKey = API_KEY;
@@ -52,20 +53,28 @@ export async function chatCompletion(options: {
   try {
     let result: string;
 
+    // Check if already aborted before starting
+    if (options.signal?.aborted) {
+      throw new Error("LLM request aborted before start");
+    }
+
     if (initialPreference === "plus") {
       try {
         // Attempt with quality model + timeout guard
         result = await _generateWithProviderWithTimeout(
           provider, MODEL_PLUS, options.messages, options.temperature, options.maxTokens, options.onToken,
-          PLUS_TIMEOUT_MS,
+          PLUS_TIMEOUT_MS, options.signal,
         );
       } catch (timeoutErr) {
+        if (options.signal?.aborted) {
+          throw new Error("LLM request aborted by caller");
+        }
         if ((timeoutErr as Error).message.includes("timeout")) {
           console.log(`[LLM] ${MODEL_PLUS} timed out — permanently switching to ${MODEL_FAST}`);
           _modelPreference = "fast";
           result = await _generateWithProviderWith429Retry(
             provider, MODEL_FAST, options.messages, options.temperature, options.maxTokens, options.onToken,
-            3,
+            3, options.signal,
           );
         } else {
           throw timeoutErr;
@@ -74,7 +83,7 @@ export async function chatCompletion(options: {
     } else {
       result = await _generateWithProviderWith429Retry(
         provider, MODEL_FAST, options.messages, options.temperature, options.maxTokens, options.onToken,
-        3,
+        3, options.signal,
       );
     }
 
@@ -95,7 +104,7 @@ export async function chatCompletion(options: {
     try {
       const result = await _generateWithProviderWith429Retry(
         provider, MODEL_FAST, options.messages, options.temperature, options.maxTokens, options.onToken,
-        3,
+        3, options.signal,
       );
       if (result && result.trim().length > 0) return result;
     } catch (fastErr) {
@@ -109,7 +118,7 @@ export async function chatCompletion(options: {
         const cloudProvider = getProvider("https://api.openai.com/v1", apiKey);
         const result = await _generateWithProviderWith429Retry(
           cloudProvider, MODEL_PLUS, options.messages, options.temperature, options.maxTokens, options.onToken,
-          3,
+          3, options.signal,
         );
         if (result && result.trim().length > 0) return result;
       } catch (cloudError) {
@@ -139,6 +148,7 @@ async function _generateWithProviderWithTimeout(
   maxTokens?: number,
   onToken?: TokenCallback,
   timeoutMs?: number,
+  signal?: AbortSignal,
 ): Promise<string> {
   const { system, userMessages } = splitMessages(messages);
   const effectiveTimeout = timeoutMs ?? (_modelPreference === "plus" ? PLUS_TIMEOUT_MS : FAST_TIMEOUT_MS);
@@ -152,6 +162,7 @@ async function _generateWithProviderWithTimeout(
         messages: userMessages as any,
         temperature: temperature ?? 0.3,
         maxOutputTokens: maxTokens ?? 4096,
+        abortSignal: signal,
       }).then(({ text }) => {
         if (onToken) onToken(text);
         return text;
@@ -173,7 +184,13 @@ async function _generateWithProvider(
   temperature?: number,
   maxTokens?: number,
   onToken?: TokenCallback,
+  signal?: AbortSignal,
 ): Promise<string> {
+  // Check if already aborted before making the request
+  if (signal?.aborted) {
+    throw new Error("LLM request aborted");
+  }
+
   const { system, userMessages } = splitMessages(messages);
 
   const { text } = await generateText({
@@ -182,6 +199,7 @@ async function _generateWithProvider(
     messages: userMessages as any,
     temperature: temperature ?? 0.3,
     maxOutputTokens: maxTokens ?? 4096,
+    abortSignal: signal,
   });
 
   if (onToken && text) onToken(text);
@@ -198,13 +216,18 @@ async function _generateWithProviderWith429Retry(
   maxTokens?: number,
   onToken?: TokenCallback | undefined,
   maxRetries: number = 3,
+  signal?: AbortSignal,
 ): Promise<string> {
   let lastError: Error | null = null;
 
   // maxRetries = 3 means "try up to 3 times total" (1 initial + 2 retries)
   for (let attempt = 0; attempt < maxRetries; attempt++) {
+    // Check if aborted before each retry attempt
+    if (signal?.aborted) {
+      throw new Error("LLM request aborted");
+    }
     try {
-      return await _generateWithProvider(provider, model, messages, temperature, maxTokens, onToken);
+      return await _generateWithProvider(provider, model, messages, temperature, maxTokens, onToken, signal);
     } catch (err) {
       const errStr = err instanceof Error ? err.message : String(err);
 

@@ -254,6 +254,7 @@ function executeSell(
 
   if (existing.size - size <= 0.000001) {
     delete ctx.currentPositions[symbol];
+    ctx.recentExits.push({ symbol, reason: "Manual Close", timestamp });
   } else {
     ctx.currentPositions[symbol] = {
       size: existing.size - size, entryPrice: existing.entryPrice,

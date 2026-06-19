@@ -35,6 +35,12 @@ export interface AgentState {
    *  Prevents the LLM from re-entering the same coin within the cooldown window.
    *  Also surfaces in the LLM prompt so the model knows it doesn't hold these positions anymore. */
   recentExits: Map<string, { timestamp: number; reason: "Stop Loss" | "Take Profit" | "Dust Cleanup" | "Manual Close" }>;
+  /** Daily PnL tracking — realized + unrealized since midnight UTC */
+  dailyPnL: number;
+  /** Hard daily loss limit — agent stops if dailyPnL drops below this */
+  dailyPnLLimitUsd: number;
+  /** Timestamp (ms) when daily PnL was last reset (midnight UTC) */
+  dailyPnLResetAt: number;
 }
 
 export const runtimeConfigOverrides = {

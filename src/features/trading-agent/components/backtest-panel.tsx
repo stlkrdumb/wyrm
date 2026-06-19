@@ -44,7 +44,7 @@ export const BacktestPanel = memo(function BacktestPanel({ onBack }: { onBack?: 
         <Badge variant="neutral" className="text-[10px]">{result ? "RESULTS" : "SETUP"}</Badge>
       </CardHeader>
 
-      <CardContent className="flex-1 min-h-0 overflow-y-auto scrollbar-none flex flex-col">
+      <CardContent className="flex-1 min-h-0 scroll-area custom-scrollbar scroll-smooth-touch flex flex-col">
           {!result ? (
             <div className="flex flex-col gap-5 flex-1 justify-center">
               <div className="space-y-1.5 font-mono text-[11px] text-zinc-400">
@@ -174,7 +174,7 @@ export const BacktestPanel = memo(function BacktestPanel({ onBack }: { onBack?: 
 
               <div className="flex-1 min-h-0 flex flex-col gap-2">
                 <span className="block text-[11px] font-mono text-zinc-500 font-bold uppercase tracking-wider shrink-0">Trade Ledger</span>
-                <div className="w-full border border-zinc-800 bg-zinc-950/20 rounded flex-1 min-h-0 overflow-y-auto scrollbar-none">
+                <div className="w-full border border-zinc-800 bg-zinc-950/20 rounded flex-1 min-h-0 scroll-area custom-scrollbar scroll-smooth-touch">
                   <table className="w-full text-[12px] font-mono text-left relative">
                     <thead className="bg-zinc-900/90 text-zinc-500 border-b border-zinc-800 backdrop-blur-md sticky top-0 z-10">
                       <tr>

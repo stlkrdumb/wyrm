@@ -85,7 +85,7 @@ export const NewsPanel = memo(function NewsPanel() {
             No headlines right now
           </div>
         ) : (
-          <div className="flex flex-col gap-2 flex-1 overflow-y-auto scrollbar-none pr-1 -mr-1">
+          <div className="flex flex-col gap-2 flex-1 scroll-area custom-scrollbar scroll-smooth-touch pr-1 -mr-1">
             {articles.map((a) => {
               const borderLeftClass =
                 a.sentiment === "BULLISH"

@@ -187,7 +187,7 @@ export const StrategyPanel = memo(function StrategyPanel() {
         </div>
       </CardHeader>
 
-      <CardContent className="flex-1 flex flex-col min-h-0 overflow-y-auto scrollbar-none pt-4">
+      <CardContent className="flex-1 flex flex-col min-h-0 scroll-area custom-scrollbar scroll-smooth-touch pt-4">
         {/* Core Sub Navigation */}
         <div className="flex border-b border-zinc-900 mb-5 font-mono text-[11px] uppercase font-bold tracking-wider flex-shrink-0">
           <button

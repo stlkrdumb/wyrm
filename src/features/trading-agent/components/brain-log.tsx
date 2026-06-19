@@ -125,7 +125,7 @@ export const BrainLog = memo(function BrainLog({ llmProgress, lastDecision, isTa
 
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto scrollbar-none whitespace-pre-wrap pr-1"
+        className="flex-1 scroll-area custom-scrollbar scroll-smooth-touch whitespace-pre-wrap pr-1"
       >
         {parseContent(content)}
         {isStreaming && (

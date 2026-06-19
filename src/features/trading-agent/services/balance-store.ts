@@ -30,6 +30,10 @@ export interface PortfolioState {
   equityHistory?: Array<{ timestamp: string; equity: number }>;
   trades?: Array<any>;
   logs?: Array<any>;
+  recentExits?: Array<{ symbol: string; timestamp: number; reason: string }>;
+  dailyPnL?: number;
+  dailyPnLLimitUsd?: number;
+  dailyPnLResetAt?: number;
 }
 
 /** Runtime validation — guards against corrupted or partial JSON. */
@@ -77,6 +81,10 @@ function validateState(raw: unknown): PortfolioState | null {
       : [],
     trades: Array.isArray(s.trades) ? s.trades : [],
     logs: Array.isArray(s.logs) ? s.logs : [],
+    recentExits: Array.isArray(s.recentExits) ? s.recentExits : [],
+    dailyPnL: typeof s.dailyPnL === "number" ? s.dailyPnL : 0,
+    dailyPnLLimitUsd: typeof s.dailyPnLLimitUsd === "number" ? s.dailyPnLLimitUsd : -100,
+    dailyPnLResetAt: typeof s.dailyPnLResetAt === "number" ? s.dailyPnLResetAt : Date.now(),
   };
 }
 
@@ -121,6 +129,7 @@ export function saveBalanceState(state: PortfolioState): void {
             equityHistory: state.equityHistory && state.equityHistory.length > 0 ? state.equityHistory : (existing.equityHistory || []),
             trades: state.trades && state.trades.length > 0 ? state.trades : (existing.trades || []),
             logs: state.logs && state.logs.length > 0 ? state.logs : (existing.logs || []),
+            recentExits: state.recentExits && state.recentExits.length > 0 ? state.recentExits : (existing.recentExits || []),
           };
         }
       } catch {

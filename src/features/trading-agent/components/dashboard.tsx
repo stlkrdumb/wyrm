@@ -63,15 +63,17 @@ export const Dashboard = memo(function Dashboard() {
       )}
 
       {/* Main Terminal Grid */}
-      <main className="relative z-10 px-4 pb-12 pt-3 grid grid-cols-1 lg:grid-cols-12 gap-3 flex-1 lg:h-[calc(100vh-140px)]">
+      <main className="relative z-10 px-4 pb-12 pt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 @container/dashboard">
         {/* Left Column: Chart + Positions (span 5) */}
-        <div className="col-span-1 lg:col-span-5 flex flex-col gap-3 min-h-0 h-full">
-          <EquityChart
-            portfolio={agent.state.portfolio}
-            equityHistory={agent.state.equityHistory}
-            everConnected={agent.state.everConnected}
-          />
-          <div className="flex-1 min-h-0">
+        <div className="col-span-1 sm:col-span-2 lg:col-span-5 flex flex-col gap-3">
+          <div className="h-[350px] sm:h-[400px] lg:h-[450px]">
+            <EquityChart
+              portfolio={agent.state.portfolio}
+              equityHistory={agent.state.equityHistory}
+              everConnected={agent.state.everConnected}
+            />
+          </div>
+          <div className="h-[350px] sm:h-[400px] lg:h-[450px]">
             <PositionsPanel
               positions={agent.state.positions}
               tickers={agent.state.tickers}
@@ -82,7 +84,7 @@ export const Dashboard = memo(function Dashboard() {
         </div>
 
         {/* Center Column: Signals + Logs (span 4) */}
-        <div className="col-span-1 lg:col-span-4 flex flex-col gap-3 min-h-0 h-full">
+        <div className="col-span-1 sm:col-span-2 lg:col-span-4 flex flex-col gap-3">
           <SignalPanel 
             signals={agent.state.signals} 
             decision={agent.state.decision}
@@ -96,7 +98,7 @@ export const Dashboard = memo(function Dashboard() {
           )}
 
           {/* Logs Console */}
-          <div className="glass-panel flex flex-col gap-3 p-4 flex-1 min-h-0">
+          <div className="glass-panel flex flex-col gap-3 p-4 h-[400px] sm:h-[450px] lg:h-[500px]">
             <Tabs
               tabs={[
                 { key: "execution", label: "Execution" },
@@ -107,7 +109,7 @@ export const Dashboard = memo(function Dashboard() {
               active={activeLogTab}
               onChange={(key) => setActiveLogTab(key as "execution" | "decision" | "brain" | "console")}
             />
-            <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+            <div className="flex-1 min-h-0 flex flex-col">
               {activeLogTab === "execution" ? (
                 <TradeLog trades={agent.state.trades} portfolio={agent.state.portfolio} isTabMode={true} />
               ) : activeLogTab === "decision" ? (
@@ -122,12 +124,10 @@ export const Dashboard = memo(function Dashboard() {
         </div>
 
         {/* Right Column: Intel (span 3) */}
-        <div className="col-span-1 lg:col-span-3 flex flex-col gap-3 min-h-0 h-full">
-          <div className="flex-1 min-h-0 flex flex-col gap-3">
-            <SentimentPanel />
-            <div className="flex-1 min-h-0 flex flex-col">
-              <NewsPanel />
-            </div>
+        <div className="col-span-1 sm:col-span-2 lg:col-span-3 flex flex-col gap-3">
+          <SentimentPanel />
+          <div className="h-[350px] sm:h-[400px] lg:h-[450px]">
+            <NewsPanel />
           </div>
         </div>
       </main>

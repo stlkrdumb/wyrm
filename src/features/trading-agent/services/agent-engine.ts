@@ -14,6 +14,7 @@ import { historyService } from "./history-service";
 import { loadBalanceState, saveBalanceState } from "./balance-store";
 import { marketWS } from "./market-ws.service";
 import { checkCircuitBreaker } from "./circuit-breaker-manager.service";
+import { metricsService } from "./metrics.service";
 
 // Load .env.local to ensure env vars are available
 dotenv.config({ path: path.join(process.cwd(), ".env.local"), override: false });
@@ -88,11 +89,42 @@ function persistState(): void {
       logs: st.logs.map(l => ({
         ...l,
         timestamp: l.timestamp instanceof Date ? l.timestamp.toISOString() : (l.timestamp as unknown as string)
-      }))
+      })),
+      recentExits: Array.from(st.recentExits.entries()).map(([symbol, entry]) => ({
+        symbol,
+        timestamp: entry.timestamp,
+        reason: entry.reason
+      })),
+      dailyPnL: st.dailyPnL,
+      dailyPnLLimitUsd: st.dailyPnLLimitUsd,
+      dailyPnLResetAt: st.dailyPnLResetAt,
     });
   } catch (err) {
     console.error("[Agent] Failed to persist state:", err);
   }
+}
+
+/** Initialize daily PnL state from disk, resetting at midnight UTC */
+function initDailyPnL(saved: any): Pick<AgentState, "dailyPnL" | "dailyPnLLimitUsd" | "dailyPnLResetAt"> {
+  const limitUsd = Number(process.env.DAILY_PNL_LIMIT_USD) || -100;
+  const savedResetAt = saved?.dailyPnLResetAt ?? Date.now();
+  const savedPnL = saved?.dailyPnL ?? 0;
+
+  // Detect midnight UTC reset
+  const lastReset = new Date(savedResetAt);
+  const now = new Date();
+  const isNewDay = lastReset.getUTCDate() !== now.getUTCDate() ||
+                   lastReset.getUTCMonth() !== now.getUTCMonth() ||
+                   lastReset.getUTCFullYear() !== now.getUTCFullYear();
+
+  const dailyPnL = isNewDay ? 0 : savedPnL;
+  const resetAt = isNewDay ? Date.now() : savedResetAt;
+
+  if (isNewDay) {
+    console.log(`[Agent] Daily PnL reset (new day) — previous: $${savedPnL.toFixed(2)}`);
+  }
+
+  return { dailyPnL, dailyPnLLimitUsd: limitUsd, dailyPnLResetAt: resetAt };
 }
 
 /** Build initial state — prefer saved balance over fresh default */
@@ -154,18 +186,32 @@ function buildInitialState(): AgentState {
       : [],
     logs: saved?.logs ? saved.logs.map(l => ({ ...l, timestamp: new Date(l.timestamp) })) : [],
     decisionSource: null,
-    recentExits: new Map<string, { timestamp: number; reason: "Stop Loss" | "Take Profit" | "Dust Cleanup" | "Manual Close" }>(),
+    recentExits: new Map<string, { timestamp: number; reason: "Stop Loss" | "Take Profit" | "Dust Cleanup" | "Manual Close" }>(
+      saved?.recentExits
+        ? saved.recentExits.map(re => [
+            re.symbol,
+            { timestamp: re.timestamp, reason: re.reason as any }
+          ])
+        : []
+    ),
+
+    // Daily PnL tracking with midnight UTC reset
+    ...initDailyPnL(saved),
   };
 }
 
 /** Recalculate portfolio equity from live positions.
+ *  Also updates each position's unrealizedPnL to keep LLM prompts accurate.
  *  State is read directly by the 1s poll — no SSE emission needed. */
 function recalcEquity(st: AgentState): void {
   let totalPosVal = 0;
   for (const p of st.positions) {
     const symSnap = priceStore.getCached(p.symbol);
     if (!symSnap) { totalPosVal += p.size * p.entryPrice; continue; }
-    totalPosVal += p.size * symSnap.lastPrice;
+    const markPrice = symSnap.lastPrice;
+    totalPosVal += p.size * markPrice;
+    // Update unrealized PnL so dashboard / LLM always see accurate per-position P&L
+    p.unrealizedPnL = (markPrice - p.entryPrice) * p.size;
   }
   st.portfolio = { ...st.portfolio, equity: st.portfolio.cash + totalPosVal };
 }
@@ -248,6 +294,8 @@ export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ ticker
   st.llmProgress = llmProgress;
   st.lastCycleAt = new Date();
   pushLog("info", "Cycle started — scanning market...");
+  metricsService.recordCycleStart();
+  const cycleStartMs = Date.now();
 
   // Stage 1: Refresh watchlist pool (top volume / reversal candidates)
   const now = Date.now();
@@ -295,6 +343,15 @@ export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ ticker
   for (const [, t] of prices) { console.log(`[Agent] ${t.symbol}: $${t.lastPrice.toLocaleString()} (${t.change24hPercent >= 0 ? "+" : ""}${t.change24hPercent}%)`); }
 
   // Stage 2: Deep TA + sentiment analysis on selected + held symbols
+  // MARK POSITIONS TO MARKET with current prices BEFORE LLM evaluation —
+  // otherwise the LLM reads stale unrealizedPnL from the last execution cycle
+  for (const pos of st.positions) {
+    const latestPrice = prices.get(pos.symbol)?.lastPrice;
+    if (latestPrice && latestPrice > 0) {
+      pos.unrealizedPnL = (latestPrice - pos.entryPrice) * pos.size;
+    }
+  }
+  
   // Pass recent auto-exits so the LLM knows which symbols it doesn't hold anymore
   const recentExitsForPrompt = Array.from(st.recentExits.entries()).map(([symbol, entry]) => ({
     symbol,
@@ -307,6 +364,16 @@ export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ ticker
     llmProgress.tokensReceived += 1;
     st.llmProgress = llmProgress;
   }), recentExitsForPrompt);
+  
+  // Record LLM latency from the decision engine roundtrip
+  metricsService.recordLLMLatency(Date.now() - cycleStartMs);
+  
+  if (er.source === "heuristic") {
+    pushLog("warning", "LLM timeout/failure — using heuristic analysis for this cycle");
+    metricsService.recordCycleTimeout();
+  } else {
+    metricsService.recordCycleSuccess();
+  }
   if (isStopped()) { console.warn("[Agent] Stop requested during evaluation — aborting cycle"); return { tickerPrice: 0, tickers: {} }; }
   setS({ decisionSource: er.source });
 
@@ -382,6 +449,7 @@ export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ ticker
     } else { st.executionReason = `${sym}: ${vr.reason}`; }
   }
 
+  // Set signals and decision
   setS({ decision: best, signals: er.allSignals });
   if (best && best.action !== "hold") {
     pushLog("action", `${best.action.toUpperCase()} signal — strength ${(best.strength * 100).toFixed(0)}% — ${best.reason ?? ""}`);
@@ -390,6 +458,32 @@ export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ ticker
   }
   if (isStopped()) { console.warn("[Agent] Stop requested before trade execution — aborting cycle"); return { tickerPrice: 0, tickers: {} }; }
   executeTrades(st, validated, prices);
+
+  // After trade execution, clean up signals for symbols that were dust-cleaned
+  // or fully exited and are no longer in positions or the watchlist
+  const keptSymbols = new Set([
+    ...st.positions.map(p => p.symbol),
+    ...st.watchlist
+  ]);
+  st.signals = st.signals.filter(sig => {
+    const symbol = sig.name.startsWith("LLM ") ? sig.name.slice(4) : null;
+    if (!symbol) return true; // Keep signals without a parseable symbol
+    return keptSymbols.has(symbol);
+  });
+
+  // Update daily PnL (realized + unrealized)
+  const unrealizedPnL = st.positions.reduce((sum, p) => sum + p.unrealizedPnL, 0);
+  st.dailyPnL = st.portfolio.totalPnL + unrealizedPnL;
+
+  // Check daily PnL limit
+  if (st.dailyPnL <= st.dailyPnLLimitUsd) {
+    console.error(`[Agent] DAILY PNL LIMIT BREACHED: $${st.dailyPnL.toFixed(2)} <= $${st.dailyPnLLimitUsd}`);
+    pushLog("error", `DAILY PNL LIMIT BREACHED — stopping agent. Daily loss: $${st.dailyPnL.toFixed(2)}`);
+    st.status = "stopped";
+    st.executionReason = `Daily PnL limit breached: $${st.dailyPnL.toFixed(2)}`;
+    persistState();
+    return { tickerPrice: 0, tickers: {} };
+  }
 
   // Sync watchlist: ensure all position symbols are present
   const posSyms = new Set(st.positions.map(p => p.symbol));

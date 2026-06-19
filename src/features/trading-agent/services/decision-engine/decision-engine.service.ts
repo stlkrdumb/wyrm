@@ -70,6 +70,13 @@ export async function evaluateMultiPair(
   const systemPrompt = buildSystemPrompt();
 
   // Call LLM or fall back to heuristics
+  const controller = new AbortController();
+  const timeoutMs = Number(process.env.LLM_CYCLE_TIMEOUT_MS) || 15000;
+  const timeoutId = setTimeout(() => {
+    console.warn(`[DecisionEngine] LLM timeout after ${timeoutMs}ms — aborting and falling back to heuristics`);
+    controller.abort();
+  }, timeoutMs);
+
   try {
     const response = await chatCompletion({
       messages: [
@@ -79,11 +86,19 @@ export async function evaluateMultiPair(
       temperature: 0.3,
       maxTokens: 2048,
       onToken,
+      signal: controller.signal,
     });
+    clearTimeout(timeoutId);
     const result = parseMultiResponse(response, Array.from(symbolData.keys()));
     return { ...result, source: "llm" };
   } catch (error) {
-    console.error(`[DecisionEngine] LLM multi-pair analysis failed: ${error}`);
+    clearTimeout(timeoutId);
+    const errMsg = error instanceof Error ? error.message : String(error);
+    if (controller.signal.aborted || errMsg.includes("abort") || errMsg.includes("AbortError")) {
+      console.warn(`[DecisionEngine] LLM aborted (timeout after ${timeoutMs}ms) — using heuristic fallback`);
+    } else {
+      console.error(`[DecisionEngine] LLM multi-pair analysis failed: ${error}`);
+    }
     const { decisions, allSignals } = fallbackMultiAnalysis(symbolData);
     return { decisions, allSignals, source: "heuristic" };
   }

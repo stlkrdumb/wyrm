@@ -30,20 +30,20 @@ export const TradeLog = memo(function TradeLog({ trades, portfolio, isTabMode }:
 
   const content = (
     <>
-      <div className="flex-1 min-h-0 overflow-y-auto scrollbar-none pr-1 -mr-1 mt-2">
+      <div className="flex-1 min-h-0 scroll-area custom-scrollbar scroll-smooth-touch pr-1 -mr-1 mt-2">
         {hasTrades ? (
-          <div className="overflow-x-auto w-full scrollbar-none">
+          <div className="overflow-x-auto w-full scroll-area custom-scrollbar scroll-smooth-touch">
             <div className="min-w-[400px]">
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th className="text-left w-14">Time</th>
-                    <th className="text-left w-14">Type</th>
-                    <th className="text-left">Symbol</th>
-                    <th className="text-right w-20">Size</th>
-                    <th className="text-right w-24">Price</th>
-                    <th className="text-right w-18">Fee</th>
-                    <th className="text-right w-20">PnL</th>
+                    <th className="text-left w-14 sticky top-0">Time</th>
+                    <th className="text-left w-14 sticky top-0">Type</th>
+                    <th className="text-left sticky top-0">Symbol</th>
+                    <th className="text-right w-20 sticky top-0">Size</th>
+                    <th className="text-right w-24 sticky top-0">Price</th>
+                    <th className="text-right w-18 sticky top-0">Fee</th>
+                    <th className="text-right w-20 sticky top-0">PnL</th>
                   </tr>
                 </thead>
                 <tbody>

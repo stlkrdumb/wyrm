@@ -49,7 +49,7 @@ export const TerminalLog = memo(function TerminalLog({ logs, isTabMode }: Props)
   const scrollContent = (heightClass: string) => (
     <div
       ref={scrollRef}
-      className={`${heightClass} overflow-y-auto scrollbar-none font-mono text-[12px] leading-relaxed`}
+      className={`${heightClass} scroll-area custom-scrollbar scroll-smooth-touch font-mono text-[12px] leading-relaxed`}
     >
       {logs.length === 0 ? (
         <div className="text-zinc-600 py-8 text-center tracking-wider uppercase">

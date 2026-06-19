@@ -92,7 +92,7 @@ export const PositionsPanel = memo(function PositionsPanel({ positions, tickers,
         <CardTitle>Spot Positions ({positions.length})</CardTitle>
         <span className="text-[12px] tracking-widest text-zinc-500 font-mono">PORTFOLIO ASSETS</span>
       </CardHeader>
-      <CardContent className="flex-1 min-h-0 overflow-y-auto scrollbar-none">
+      <CardContent className="flex-1 min-h-0 scroll-area custom-scrollbar scroll-smooth-touch">
         <div className="overflow-x-auto scrollbar-none w-full">
           <div className="min-w-[500px]">
             <table className="data-table">

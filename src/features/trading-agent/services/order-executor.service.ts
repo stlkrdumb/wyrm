@@ -8,6 +8,7 @@ import { config, setTradeCounter, getTradeCounter, calculateWinRate } from "./st
 import { saveBalanceState } from "./balance-store";
 import { priceStore } from "./price-store";
 import { resolveWsPrice, resolveSLTP } from "./orders/price-resolver";
+import { metricsService } from "./metrics.service";
 import { flattenPositions } from "./orders/flatten";
 
 export { flattenPositions };
@@ -74,8 +75,11 @@ export function executeTrades(
           const pnl = pos.unrealizedPnL - fee;
           const avgPrice = pos.entryPrice + (pos.unrealizedPnL / pos.size);
           state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "sell", action: "exit", size: pos.size, price: avgPrice, pnl, fee });
+          metricsService.recordTrade("sell", pnl);
           liquidBalance += revenue - fee;
           state.positions.splice(idx, 1);
+          if (state.recentExits) state.recentExits.set(symbol, { timestamp: Date.now(), reason: "Manual Close" });
+          state.watchlist = state.watchlist.filter(s => s !== symbol);
           livePositionCount = new Set(state.positions.map(p => p.symbol)).size;
         } else {
           // Partial reduce
@@ -92,8 +96,11 @@ export function executeTrades(
             const pnl = pos.unrealizedPnL - fee;
             const avgPrice = pos.entryPrice + (pos.unrealizedPnL / pos.size);
             state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "sell", action: "exit", size: pos.size, price: avgPrice, pnl, fee });
+            metricsService.recordTrade("sell", pnl);
             liquidBalance += revenue - fee;
             state.positions.splice(idx, 1);
+            if (state.recentExits) state.recentExits.set(symbol, { timestamp: Date.now(), reason: "Dust Cleanup" });
+            state.watchlist = state.watchlist.filter(s => s !== symbol);
             livePositionCount = new Set(state.positions.map(p => p.symbol)).size;
           } else {
             const reduceSize = rawDesiredSize;
@@ -102,6 +109,7 @@ export function executeTrades(
             const fee = revenue * config.feePct;
             const pnl = (pos.unrealizedPnL * pnlFraction) - fee;
             state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "sell", action: "reduce", size: reduceSize, price: pos.entryPrice + (pos.unrealizedPnL / pos.size), pnl, fee });
+            metricsService.recordTrade("sell", pnl);
             liquidBalance += revenue - fee;
             state.positions[idx] = {
               ...state.positions[idx],
@@ -143,10 +151,12 @@ export function executeTrades(
           entryPrice: (p.entryPrice * p.size + execPrice! * tradeSize * (1 + config.feePct)) / (p.size + tradeSize),
         };
         state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "buy", action: "add", size: tradeSize, price: execPrice!, fee });
+        metricsService.recordTrade("buy");
       } else {
         const sltp = resolveSLTP(decision);
         state.positions.push({ symbol, side: "long", size: tradeSize, entryPrice: execPrice! * (1 + config.feePct), unrealizedPnL: 0, ...sltp });
         state.trades.push({ id: `T${tc}`, timestamp: now, symbol, side: "buy", action: "entry", size: tradeSize, price: execPrice!, fee });
+        metricsService.recordTrade("buy");
         livePositionCount++;
       }
       liquidBalance -= totalCost;
@@ -179,10 +189,12 @@ export function executeTrades(
         id: `T${tc}`, timestamp: new Date(), symbol: pos.symbol,
         side: "sell", action: "exit", size: pos.size, price: px, pnl, fee,
       });
+      metricsService.recordTrade("sell", pnl);
 
       if (state.recentExits) {
         state.recentExits.set(pos.symbol, { timestamp: Date.now(), reason: "Dust Cleanup" });
       }
+      state.watchlist = state.watchlist.filter(s => s !== pos.symbol);
 
       liquidBalance += revenue - fee;
       state.positions.splice(i, 1);

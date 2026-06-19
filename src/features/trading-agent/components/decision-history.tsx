@@ -80,7 +80,7 @@ export const DecisionHistory = memo(function DecisionHistory({ onBack, isTabMode
         />
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto scrollbar-none">
+      <div className="flex-1 min-h-0 scroll-area custom-scrollbar scroll-smooth-touch">
         {filteredHistory.length > 0 ? (
           <div className="flex flex-col gap-2 font-mono">
             {filteredHistory.reverse().map((record) => (
