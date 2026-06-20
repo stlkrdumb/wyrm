@@ -380,7 +380,21 @@ export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ ticker
   const validated: Record<string, TradingDecision> = {};
   let best: TradingDecision | null = null;
   const recentExitCooldownMs = Number(process.env.RECENT_EXIT_COOLDOWN_MS) || 600_000; // 10 min default
-  for (const [sym, decision] of Object.entries(er.decisions)) {
+
+  // Sort decisions to match execution order: Sells first (to release cash/slots), then Buys, sorted by strength descending
+  const sortedDecisions = Object.entries(er.decisions).sort(([, decA], [, decB]) => {
+    if (decA.action === "sell" && decB.action !== "sell") return -1;
+    if (decA.action !== "sell" && decB.action === "sell") return 1;
+    if (decA.action === "buy" && decB.action === "hold") return -1;
+    if (decA.action === "hold" && decB.action === "buy") return 1;
+    return Math.abs(decB.strength) - Math.abs(decA.strength);
+  });
+
+  // Track pre-simulation state to ensure sequential risk validation is accurate
+  let simulatedCash = st.portfolio.cash;
+  let simulatedPositions = [...st.positions];
+
+  for (const [sym, decision] of sortedDecisions) {
     const ticker = prices.get(sym);
 
     // Block re-entry for symbols recently auto-exited via stop-loss or take-profit
@@ -402,7 +416,7 @@ export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ ticker
     if (decision.action !== "hold" && (decision.size === undefined || decision.size === 0)) {
       if (decision.action === "sell") {
         // Sells: scale exit size by Math.abs(decision.strength) (e.g. strength -0.5 = sell 50% of position size)
-        const pos = st.positions.find(p => p.symbol === sym);
+        const pos = simulatedPositions.find(p => p.symbol === sym);
         if (pos) {
           const strengthFactor = Math.max(0.1, Math.min(1.0, Math.abs(decision.strength)));
           decision.size = pos.size * strengthFactor;
@@ -417,7 +431,13 @@ export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ ticker
       }
     }
 
-    const vr = riskManager.validateDecision(decision, st.portfolio, ticker ?? undefined, st.positions);
+    // Build temporary portfolio snapshot with the currently simulated cash
+    const simulatedPortfolio = {
+      ...st.portfolio,
+      cash: simulatedCash,
+    };
+
+    const vr = riskManager.validateDecision(decision, simulatedPortfolio, ticker ?? undefined, simulatedPositions);
     // History save is non-critical — log and continue on failure rather than aborting the cycle
     try {
       await historyService.saveDecision({
@@ -433,6 +453,35 @@ export async function runAgentCycle(onToken?: OnTokenCallback): Promise<{ ticker
     if (vr.isAllowed) {
       const fd = vr.adjustedDecision ?? decision;
       validated[sym] = fd;
+
+      // Update simulation state for the next decision in the loop
+      if (fd.action === "sell") {
+        const posIdx = simulatedPositions.findIndex(p => p.symbol === sym);
+        if (posIdx >= 0) {
+          const pos = simulatedPositions[posIdx];
+          const sizeToSell = Math.min(fd.size ?? pos.size, pos.size);
+          const revenue = sizeToSell * (ticker?.lastPrice ?? pos.entryPrice);
+          const fee = revenue * config.feePct;
+          simulatedCash += (revenue - fee);
+          if (sizeToSell >= pos.size - 0.000001) {
+            simulatedPositions.splice(posIdx, 1);
+          } else {
+            simulatedPositions[posIdx] = { ...pos, size: pos.size - sizeToSell };
+          }
+        }
+      } else if (fd.action === "buy") {
+        const sizeToBuy = fd.size ?? 0;
+        if (sizeToBuy > 0 && ticker?.lastPrice) {
+          const cost = sizeToBuy * ticker.lastPrice;
+          const fee = cost * config.feePct;
+          simulatedCash -= (cost + fee);
+          const posIdx = simulatedPositions.findIndex(p => p.symbol === sym);
+          if (posIdx < 0) {
+            simulatedPositions.push({ symbol: sym, side: "long", size: sizeToBuy, entryPrice: ticker.lastPrice, unrealizedPnL: 0, stopLossPct: 0, takeProfitPct: 0 });
+          }
+        }
+      }
+
       if (!best) {
         best = fd;
       } else if (fd.action !== "hold" && best.action === "hold") {

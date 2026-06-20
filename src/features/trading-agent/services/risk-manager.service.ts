@@ -84,10 +84,31 @@ export class RiskManager {
           reason: `Adjusted: Original size exceeded max position limit (${(maxPct * 100).toFixed(0)}% of equity)`,
         };
 
+        // Also check if we have enough cash for this adjusted size
+        const estimatedValue = adjustedSize * tickerData.lastPrice;
+        const fee = estimatedValue * config.feePct;
+        const totalCost = estimatedValue + fee;
+        if (totalCost > portfolio.cash) {
+          return {
+            isAllowed: false,
+            reason: `Insufficient cash for adjusted size (needs $${totalCost.toFixed(2)}, has $${portfolio.cash.toFixed(2)})`,
+          };
+        }
+
         return {
           isAllowed: true,
           reason: `Adjusted size from ${decision.size.toFixed(4)} to ${adjustedSize.toFixed(4)}`,
           adjustedDecision,
+        };
+      }
+
+      // Check if we have enough cash for the original size
+      const fee = positionValue * config.feePct;
+      const totalCost = positionValue + fee;
+      if (totalCost > portfolio.cash) {
+        return {
+          isAllowed: false,
+          reason: `Insufficient cash (needs $${totalCost.toFixed(2)}, has $${portfolio.cash.toFixed(2)})`,
         };
       }
     }
